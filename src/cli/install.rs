@@ -58,12 +58,11 @@ fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
             ),
     };
 
-    let toolchain_dir = crate::moonup_home().join("toolchains").join(&version);
+    let toolchain_dir = crate::moonup_home().join("toolchains").join(version);
     let bin_dir = toolchain_dir.join("bin");
     let bins = bin_dir
         .read_dir()
         .into_diagnostic()?
-        .into_iter()
         .filter_map(std::io::Result::ok)
         .filter_map(|e| {
             let is_file = e

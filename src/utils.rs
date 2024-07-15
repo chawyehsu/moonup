@@ -70,7 +70,7 @@ pub fn detect_toolchain_version() -> PathBuf {
         || moonup_home().join("toolchains").join("latest"),
         |path| {
             let version =
-                std::fs::read_to_string(&path).expect(&format!("can't read {}", TOOLCHAIN_FILE));
+                std::fs::read_to_string(path).unwrap_or_else(|_| panic!("can't read {}", TOOLCHAIN_FILE));
 
             moonup_home().join("toolchains").join(version.trim())
         },

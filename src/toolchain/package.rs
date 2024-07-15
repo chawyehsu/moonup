@@ -120,7 +120,7 @@ fn save_package_sync(stream: impl Read, destination: &Path) -> miette::Result<Sh
     std::fs::create_dir_all(destination.parent().expect("invalid destination"))
         .into_diagnostic()?;
 
-    let mut file = File::create(&destination).into_diagnostic()?;
+    let mut file = File::create(destination).into_diagnostic()?;
     let mut sha256_reader = HashingReader::<_, Sha256>::new(BufReader::new(stream));
 
     copy(&mut sha256_reader, &mut file).into_diagnostic()?;
