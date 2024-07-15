@@ -2,6 +2,7 @@
 
 > Manage multiple [MoonBit] installations
 
+[![cicd][cicd-badge]][cicd]
 [![release][release-badge]][releases]
 [![crates-svg]][crates-url]
 [![license][license-badge]](LICENSE)
@@ -32,6 +33,8 @@ cargo run -- help
 > [Blog](https://chawyehsu.com) · GitHub [@chawyehsu](https://github.com/chawyehsu) · Twitter [@chawyehsu](https://twitter.com/chawyehsu)
 
 [MoonBit]: https://www.moonbitlang.com/
+[cicd-badge]: https://github.com/chawyehsu/moonup/workflows/CICD/badge.svg
+[cicd]: https://github.com/chawyehsu/moonup/actions/workflows/cicd.yml
 [release-badge]: https://img.shields.io/github/v/release/chawyehsu/moonup
 [releases]: https://github.com/chawyehsu/moonup/releases/latest
 [crates-svg]: https://img.shields.io/crates/v/moonup.svg

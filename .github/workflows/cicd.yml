@@ -1,0 +1,72 @@
+name: CICD
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  # format and lint check
+  style_check:
+    name: Code Style Check
+    runs-on: windows-latest
+    env:
+      SCCACHE_GHA_ENABLED: true
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Rust Setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Cache Setup
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      - name: Format Check
+        run: cargo fmt -- --check
+
+      - name: Clippy Check
+        run: cargo clippy
+
+  # tests and build
+  test_build:
+    name: Test Build
+    needs: style_check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+            - { name: "Windows",     target: x86_64-pc-windows-msvc,     os: windows-latest }
+            - { name: "Linux",       target: x86_64-unknown-linux-gnu,   os: ubuntu-latest }
+            - { name: "macOS ARM",   target: aarch64-apple-darwin,       os: macos-latest }
+            - { name: "macOS",       target: x86_64-apple-darwin,        os: macos-13 }
+
+    runs-on: ${{ matrix.os }}
+    env:
+      SCCACHE_GHA_ENABLED: true
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Rust Setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Cache Setup
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      - name: Tests Check
+        run: cargo test --workspace
+
+      - name: Build Check
+        run: cargo build --locked --target ${{ matrix.target }}
