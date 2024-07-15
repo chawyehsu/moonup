@@ -23,12 +23,27 @@ fn run() -> Result<()> {
         .file_name()
         .map(|name| name.to_string_lossy().to_ascii_lowercase());
 
-    if let None = current_exe_name {
-        eprintln!("can't get shim executable name");
-        std::process::exit(1);
+    let shim_name = current_exe_name.unwrap_or_default();
+
+    if shim_name.is_empty() {
+        return Err(anyhow::anyhow!("bad shim name"));
     }
 
-    let shim_name = current_exe_name.unwrap();
+    let shim_itself = {
+        #[cfg(target_os = "windows")]
+        {
+            shim_name == "moonup-shim.exe"
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            shim_name == "moonup-shim"
+        }
+    };
+
+    if shim_itself {
+        return Err(anyhow::anyhow!("cannot run moonup-shim directly"));
+    }
+
     let toolchain_root = detect_toolchain_version();
     let actual_exe = toolchain_root.join("bin").join(&shim_name);
 

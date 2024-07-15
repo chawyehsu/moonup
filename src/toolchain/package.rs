@@ -16,7 +16,7 @@ use crate::{
 
 use super::index::ReleaseCombined;
 
-pub async fn populate_package(release: ReleaseCombined) -> miette::Result<()> {
+pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
     if release.core.is_none() && release.toolchain.is_none() {
         return Ok(());
     }
@@ -24,7 +24,7 @@ pub async fn populate_package(release: ReleaseCombined) -> miette::Result<()> {
     let downloads_dir = crate::moonup_home().join("downloads");
     let toolchain_dir = crate::moonup_home().join("toolchains");
 
-    if let Some(toolchain) = release.toolchain {
+    if let Some(toolchain) = release.toolchain.as_ref() {
         let version = toolchain.version.as_str();
 
         let downloads_version_dir = downloads_dir.join(version);
@@ -71,7 +71,7 @@ pub async fn populate_package(release: ReleaseCombined) -> miette::Result<()> {
         }
     }
 
-    if let Some(core) = release.core {
+    if let Some(core) = release.core.as_ref() {
         let version = core.version.as_str();
 
         let downloads_version_dir = downloads_dir.join(version);

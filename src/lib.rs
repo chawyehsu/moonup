@@ -14,11 +14,13 @@ pub mod utils;
 /// # Returns
 ///
 /// The MoonBit home directory
-pub fn moon_home() -> Option<PathBuf> {
+pub fn moon_home() -> PathBuf {
     if let Some(path) = std::env::var_os("MOON_HOME") {
-        Some(PathBuf::from(path))
+        PathBuf::from(path)
     } else {
-        dirs::home_dir().map(|path| path.join(constant::MOON_DIR))
+        dirs::home_dir()
+            .map(|path| path.join(constant::MOON_DIR))
+            .expect("cannot determine MoonBit home directory")
     }
 }
 
@@ -36,6 +38,6 @@ pub fn moonup_home() -> PathBuf {
     } else {
         dirs::home_dir()
             .map(|path| path.join(constant::MOONUP_DIR))
-            .unwrap()
+            .expect("cannot determine moonup home directory")
     }
 }
