@@ -34,6 +34,8 @@ pub struct Release {
 
 #[derive(Debug)]
 pub struct ReleaseCombined {
+    /// Whether the requested version is "latest"
+    pub latest: bool,
     pub toolchain: Option<Release>,
     pub core: Option<Release>,
 }
@@ -142,6 +144,7 @@ pub async fn retrieve_release(version: &str) -> miette::Result<ReleaseCombined> 
         }
     };
 
+    let latest = version == "latest";
     let (core, toolchain) = match version {
         "latest" => (
             index.core.releases.first().cloned().or(None),
@@ -165,5 +168,9 @@ pub async fn retrieve_release(version: &str) -> miette::Result<ReleaseCombined> 
         }
     };
 
-    Ok(ReleaseCombined { toolchain, core })
+    Ok(ReleaseCombined {
+        latest,
+        toolchain,
+        core,
+    })
 }

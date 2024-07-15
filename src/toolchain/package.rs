@@ -29,7 +29,14 @@ pub async fn populate_package(release: ReleaseCombined) -> miette::Result<()> {
 
         let downloads_version_dir = downloads_dir.join(version);
         let pkg_toolchain = downloads_version_dir.join(&toolchain.name);
-        let destination = toolchain_dir.join(version).join("bin");
+        let destination = toolchain_dir
+            .join({
+                match release.latest {
+                    true => "latest",
+                    false => version,
+                }
+            })
+            .join("bin");
 
         let reader = if let Ok(reader) = path_to_reader(&pkg_toolchain).await {
             reader
@@ -69,7 +76,14 @@ pub async fn populate_package(release: ReleaseCombined) -> miette::Result<()> {
 
         let downloads_version_dir = downloads_dir.join(version);
         let pkg_core = downloads_version_dir.join(&core.name);
-        let destination = toolchain_dir.join(version).join("lib");
+        let destination = toolchain_dir
+            .join({
+                match release.latest {
+                    true => "latest",
+                    false => version,
+                }
+            })
+            .join("lib");
 
         let reader = if let Ok(reader) = path_to_reader(&pkg_core).await {
             reader
