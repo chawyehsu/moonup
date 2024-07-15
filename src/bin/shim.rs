@@ -3,8 +3,8 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-use moonup::constant::{RECURSION_LIMIT, TOOLCHAIN_FILE};
-use moonup::moonup_home;
+use moonup::constant::RECURSION_LIMIT;
+use moonup::utils::detect_toolchain_version;
 
 pub fn main() {
     if let Err(err) = run() {
@@ -49,32 +49,4 @@ fn recursion_guard() -> Result<u8> {
     }
 
     Ok(recursion_count)
-}
-
-/// Iterates over the current directory and all its parent directories
-/// to find if there is a `MOON_TOOLCHAIN_SPECIFIER` and detect the
-/// toolchain version.
-///
-/// # Returns
-///
-/// The path to actual versioned toolchain
-fn detect_toolchain_version() -> PathBuf {
-    let current_dir = env::current_dir().expect("can't access current directory");
-
-    let version = std::iter::successors(Some(current_dir.as_path()), |prev| prev.parent())
-        .find_map(|dir| {
-            let path = dir.join(TOOLCHAIN_FILE);
-            if path.is_file() {
-                let version = std::fs::read_to_string(&path)
-                    .expect(&format!("can't read {}", TOOLCHAIN_FILE));
-
-                Some(version.trim().to_string())
-            } else {
-                Some("latest".to_string())
-            }
-        });
-
-    moonup_home()
-        .join("toolchains")
-        .join(version.unwrap_or_else(|| "latest".to_string()))
 }

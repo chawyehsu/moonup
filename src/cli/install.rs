@@ -16,5 +16,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     populate_package(release).await?;
 
+    println!("Installed toolchain version '{}'", version);
+
     Ok(())
 }
