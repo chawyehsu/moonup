@@ -63,9 +63,9 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
             path_to_reader(&pkg_toolchain).await?
         };
 
-        let extesion = pkg_toolchain.extension().unwrap().to_str().unwrap();
-        match extesion {
-            "tar.gz" => extract_tar_gz(reader, &destination).await?,
+        let extension = pkg_toolchain.extension().unwrap().to_str().unwrap();
+        match extension {
+            "gz" => extract_tar_gz(reader, &destination).await?,
             "zip" => extract_zip(reader, &destination).await?,
             _ => unreachable!("unsupported extension"),
         }
