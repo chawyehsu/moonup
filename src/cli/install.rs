@@ -1,5 +1,7 @@
 use clap::Parser;
 use miette::IntoDiagnostic;
+#[cfg(not(target_os = "windows"))]
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, process::Command};
 
@@ -24,6 +26,10 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     post_install(&release)?;
 
     println!("Installed toolchain version '{}'", version);
+    println!(
+        "Make sure '{}' is added to your PATH",
+        crate::moon_home().join("bin").display()
+    );
 
     Ok(())
 }
@@ -71,6 +77,12 @@ fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
                 .map(|t| t.is_file())
                 .unwrap_or(false);
             if is_file {
+                #[cfg(not(target_os = "windows"))]
+                {
+                    std::fs::set_permissions(e.path(), std::fs::Permissions::from_mode(0o755))
+                        .unwrap();
+                }
+
                 Some(e.file_name())
             } else {
                 None
@@ -86,10 +98,14 @@ fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
         tracing::debug!("Pouring shim for '{}'", bin.to_string_lossy());
         let dest = moon_home_bin.join(&bin);
         std::fs::copy(&moonup_shim_exe, &dest).into_diagnostic()?;
+        #[cfg(not(target_os = "windows"))]
+        {
+            std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
     }
 
     // Build core library
-    let corelib_dir = toolchain_dir.join("lib/core");
+    let corelib_dir = toolchain_dir.join("lib").join("core");
     let actual_moon_exe = bin_dir.join({
         #[cfg(target_os = "windows")]
         {
@@ -106,6 +122,8 @@ fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     cmd.arg("--all");
     cmd.arg("--source-dir");
     cmd.arg(&corelib_dir);
+    cmd.env("PATH", bin_dir.display().to_string());
+    tracing::debug!("Running command: {:?}", cmd);
     cmd.status().into_diagnostic()?;
 
     Ok(())
