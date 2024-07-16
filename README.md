@@ -10,7 +10,24 @@
 
 ## Getting Started
 
-TBD
+Download the latest release from [GitHub releases][releases], extract the archive and put the executables in a directory that is in your `PATH`.
+
+Run `moonup help` to see the available commands.
+
+```sh
+$ moonup help
+Usage: moonup [OPTIONS] <COMMAND>
+
+Commands:
+  install  Install or update a MoonBit toolchain
+  pin      Pin the MoonBit toolchain to a specific version
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+```
 
 ## Development
 
