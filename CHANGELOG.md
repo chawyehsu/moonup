@@ -1,13 +1,5 @@
 # Changelog
 
-## [0.1.0-alpha.1](https://github.com/chawyehsu/moonup/compare/v0.1.0-alpha.1...v0.1.0-alpha.1) (2024-07-16)
-
-
-### Bug Fixes
-
-* fix ci artifact packaging ([1657d96](https://github.com/chawyehsu/moonup/commit/1657d96687fa6e8b5a509860bac26f8b0ebd8d66))
-* fix ci prod build on linux ([23c999c](https://github.com/chawyehsu/moonup/commit/23c999c112d579b75ceeb84de0a486a30a6dfb17))
-
 ## 0.1.0-alpha.1 (2024-07-16)
 
 
@@ -25,3 +17,5 @@
 * ensure moon home dir exist ([5ec49f2](https://github.com/chawyehsu/moonup/commit/5ec49f255ae569d7394665d60183d2ce64f31fa9))
 * match correct extension ([4f27a7e](https://github.com/chawyehsu/moonup/commit/4f27a7e703304dbf6aaac604a6748c821d692765))
 * set executable permissions on unix ([ff44b0b](https://github.com/chawyehsu/moonup/commit/ff44b0b28dda71ef46e73d6611797f2c84163044))
+* fix ci artifact packaging ([1657d96](https://github.com/chawyehsu/moonup/commit/1657d96687fa6e8b5a509860bac26f8b0ebd8d66))
+* fix ci prod build on linux ([23c999c](https://github.com/chawyehsu/moonup/commit/23c999c112d579b75ceeb84de0a486a30a6dfb17))
