@@ -80,6 +80,8 @@ fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
 
     let moon_home_bin = crate::moon_home().join("bin");
 
+    std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
+
     for bin in bins {
         tracing::debug!("Pouring shim for '{}'", bin.to_string_lossy());
         let dest = moon_home_bin.join(&bin);
