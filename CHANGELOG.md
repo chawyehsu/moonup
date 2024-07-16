@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.1](https://github.com/chawyehsu/moonup/compare/v0.1.0-alpha.1...v0.1.0-alpha.1) (2024-07-16)
+
+
+### Bug Fixes
+
+* fix ci artifact packaging ([1657d96](https://github.com/chawyehsu/moonup/commit/1657d96687fa6e8b5a509860bac26f8b0ebd8d66))
+* fix ci prod build on linux ([23c999c](https://github.com/chawyehsu/moonup/commit/23c999c112d579b75ceeb84de0a486a30a6dfb17))
+
 ## 0.1.0-alpha.1 (2024-07-16)
 
 
