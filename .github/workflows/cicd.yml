@@ -146,14 +146,14 @@ jobs:
         run: |
           cp target/${{ matrix.target }}/release/moonup.exe .
           cp target/${{ matrix.target }}/release/moonup-shim.exe .
-          7z a moonup.exe moonup-shim.exe LICENSE README.md
+          7z a ${{ matrix.zip }} moonup.exe moonup-shim.exe LICENSE README.md
 
       - name: Prepare Artifacts [Unix]
         if: matrix.os != 'windows-latest'
         run: |
           cp target/${{ matrix.target }}/release/moonup .
           cp target/${{ matrix.target }}/release/moonup-shim .
-          tar czvf ../../../${{ matrix.zip }} moonup moonup-shim LICENSE README.md
+          tar czvf ${{ matrix.zip }} moonup moonup-shim LICENSE README.md
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
