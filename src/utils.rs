@@ -67,7 +67,13 @@ pub fn detect_toolchain_file() -> Option<PathBuf> {
 /// The path to actual versioned toolchain
 pub fn detect_active_toolchain() -> PathBuf {
     detect_toolchain_file().map_or_else(
-        || moonup_home().join("toolchains").join("latest"),
+        || {
+            let default_file = moonup_home().join("default");
+            let version =
+                std::fs::read_to_string(default_file).unwrap_or_else(|_| "latest".to_string());
+
+            moonup_home().join("toolchains").join(version.trim())
+        },
         |path| {
             let version = std::fs::read_to_string(path)
                 .unwrap_or_else(|_| panic!("can't read {}", TOOLCHAIN_FILE));

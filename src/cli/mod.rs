@@ -5,6 +5,7 @@ use tracing::level_filters::LevelFilter;
 use tracing_log::AsTrace;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+mod default;
 mod install;
 mod pin;
 mod show;
@@ -23,6 +24,7 @@ pub struct Cli {
 
 #[derive(Debug, Parser)]
 pub enum Command {
+    Default(default::Args),
     Install(install::Args),
     Pin(pin::Args),
     Show(show::Args),
@@ -36,6 +38,7 @@ pub async fn start() -> miette::Result<()> {
     setup_logger(level_filter)?;
 
     match args.command {
+        Command::Default(args) => default::execute(args).await?,
         Command::Install(args) => install::execute(args).await?,
         Command::Pin(args) => pin::execute(args).await?,
         Command::Show(args) => show::execute(args).await?,
