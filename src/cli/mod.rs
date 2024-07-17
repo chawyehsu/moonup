@@ -7,6 +7,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 
 mod install;
 mod pin;
+mod show;
 
 #[derive(Debug, Parser)]
 #[clap(arg_required_else_help = true)]
@@ -23,6 +24,7 @@ pub struct Cli {
 pub enum Command {
     Install(install::Args),
     Pin(pin::Args),
+    Show(show::Args),
 }
 
 /// CLI entry point
@@ -34,6 +36,7 @@ pub async fn start() -> miette::Result<()> {
     match args.command {
         Command::Install(args) => install::execute(args).await?,
         Command::Pin(args) => pin::execute(args).await?,
+        Command::Show(args) => show::execute(args).await?,
     }
     Ok(())
 }

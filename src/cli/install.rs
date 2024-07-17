@@ -25,7 +25,11 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     populate_package(&release).await?;
     post_install(&release)?;
 
-    println!("Installed toolchain version '{}'", version);
+    println!(
+        "{}Installed toolchain version '{}'",
+        console::style(console::Emoji("✔ ", "")).green(),
+        version
+    );
     println!(
         "Make sure '{}' is added to your PATH",
         crate::moon_home().join("bin").display()
