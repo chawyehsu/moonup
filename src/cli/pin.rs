@@ -25,7 +25,12 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         .await
         .into_diagnostic()?;
 
-    println!("Pinned toolchain to version '{}'", version);
+    println!(
+        "{}Pinned toolchain to version '{}'",
+        console::style(console::Emoji("✔ ", "")).green(),
+        version
+    );
+    println!("Toolchain file: {}", toolchain_file.display());
 
     Ok(())
 }
