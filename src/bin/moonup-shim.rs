@@ -45,6 +45,22 @@ fn run() -> Result<()> {
     }
 
     let active_toolchain_root = detect_active_toolchain();
+
+    // If the active toolchain is not installed, call `moonup install`
+    // to install it.
+    if !active_toolchain_root.exists() {
+        let version = active_toolchain_root
+            .file_name()
+            .map(|v| v.to_string_lossy())
+            .expect("no version found");
+
+        let mut cmd = Command::new("moonup")
+            .args(["install", version.as_ref()])
+            .spawn()
+            .map_err(|e| anyhow::anyhow!("Failed to spawn moonup install: {}", e))?;
+        cmd.wait()?;
+    }
+
     let actual_exe = active_toolchain_root.join("bin").join(&shim_name);
     let actual_libcore = active_toolchain_root.join("lib").join("core");
 
