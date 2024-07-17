@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.0-beta.2](https://github.com/chawyehsu/moonup/compare/v0.1.0-beat.1...v0.1.0-beta.2) (2024-07-17)
+
+
+### Features
+
+* Add interactive prompt to `default` and `pin` commands ([e8c6e1c](https://github.com/chawyehsu/moonup/commit/e8c6e1c34486ab698fe0f7fcc442278589f455de))
+* Add main cli's metadata ([4b68260](https://github.com/chawyehsu/moonup/commit/4b68260dbcd7e5460ad47be29a988565f95be848))
+* Install active toolchain if not already installed ([fcf957d](https://github.com/chawyehsu/moonup/commit/fcf957ddcd7256f5dfb8273bd135234d5a45eafc))
+
+
+### Bug Fixes
+
+* Ensure shim pouring even if shim is locked and running ([c1f446b](https://github.com/chawyehsu/moonup/commit/c1f446b7e8ce20718bb2d9307517782e68841e13))
+* Fix typo of release version number ([21284b0](https://github.com/chawyehsu/moonup/commit/21284b070c24fc3f75539f156962566732c1bf2b))
+* Set env `MOON_CORE_OVERRIDE` for the shim ([192199f](https://github.com/chawyehsu/moonup/commit/192199f77a02f46d857e646d931fc228dc5322c9))
+
 ## [0.1.0-beat.1](https://github.com/chawyehsu/moonup/compare/v0.1.0-alpha.1...v0.1.0-beat.1) (2024-07-17)
 
 
