@@ -44,20 +44,32 @@ fn run() -> Result<()> {
         return Err(anyhow::anyhow!("cannot run moonup-shim directly"));
     }
 
-    let toolchain_root = detect_active_toolchain();
-    let actual_exe = toolchain_root.join("bin").join(&shim_name);
+    let active_toolchain_root = detect_active_toolchain();
+    let actual_exe = active_toolchain_root.join("bin").join(&shim_name);
+    let actual_libcore = active_toolchain_root.join("lib").join("core");
 
     let mut cmd = Command::new(actual_exe);
     cmd.args(args[1..].iter().cloned());
     cmd.env("MOONUP_RECURSION_COUNT", recursion_count.to_string());
+
+    // Override the core standard library path to point to the one in
+    // the active toolchain.
+    // NOTE(chawyehsu): The `MOON_CORE_OVERRIDE` env is undocumented on
+    // MoonBit's official documentation. I reverse-engineered this from
+    // the `moon` executable. This is a hacky way to make things work
+    // and may not work as MoonBit evolves.
+    let env_moon_core_override = env::var("MOON_CORE_OVERRIDE")
+        .ok()
+        .unwrap_or(actual_libcore.to_string_lossy().to_string());
+    cmd.env("MOON_CORE_OVERRIDE", env_moon_core_override);
 
     Ok(cmd.status().map(|_| ())?)
 }
 
 fn recursion_guard() -> Result<u8> {
     let recursion_count = env::var("MOONUP_RECURSION_COUNT")
-        .map(|var| var.parse::<u8>().unwrap_or(1u8))
-        .unwrap_or(1u8);
+        .map(|var| var.parse::<u8>().unwrap_or(0u8))
+        .unwrap_or(0u8);
 
     if recursion_count > RECURSION_LIMIT {
         return Err(anyhow::anyhow!("recursion limit reached"));
