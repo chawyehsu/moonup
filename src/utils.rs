@@ -1,6 +1,8 @@
 use futures_util::TryStreamExt;
 use miette::IntoDiagnostic;
 use reqwest::Client;
+#[cfg(not(target_os = "windows"))]
+use std::os::unix::fs::PermissionsExt;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -81,4 +83,37 @@ pub fn detect_active_toolchain() -> PathBuf {
             moonup_home().join("toolchains").join(version.trim())
         },
     )
+}
+
+/// Pour the shim to the destination path.
+///
+/// On Windows, this function will try to rename and remove the old shim
+/// before copying the new one. On other platforms, it will just remove
+/// the old shim and copy the new one.
+pub fn pour_shim(shim: &Path, destination: &Path) -> miette::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        let mut dest_old = destination.to_path_buf();
+        dest_old.set_extension("exe.old");
+
+        tracing::debug!("Removing old shim: {}", &dest_old.display());
+        let _ = std::fs::remove_file(&dest_old);
+
+        tracing::debug!("Renaming current shim: {}", destination.display());
+        std::fs::rename(destination, &dest_old).into_diagnostic()?;
+        std::fs::copy(shim, destination).into_diagnostic()?;
+
+        let _ = std::fs::remove_file(&dest_old);
+        tracing::debug!("Removed old shim: {}", &dest_old.display());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::fs::remove_file(destination);
+        std::fs::copy(shim, destination).into_diagnostic()?;
+        std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o755))
+            .into_diagnostic()?;
+    }
+
+    Ok(())
 }

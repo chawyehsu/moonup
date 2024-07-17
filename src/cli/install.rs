@@ -20,6 +20,8 @@ pub struct Args {
 
 pub async fn execute(args: Args) -> miette::Result<()> {
     let version = args.toolchain.as_str();
+    println!("Installing toolchain '{}'", version);
+
     let release = retrieve_release(version).await?;
 
     populate_package(&release).await?;
@@ -101,11 +103,7 @@ fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     for bin in bins {
         tracing::debug!("Pouring shim for '{}'", bin.to_string_lossy());
         let dest = moon_home_bin.join(&bin);
-        std::fs::copy(&moonup_shim_exe, &dest).into_diagnostic()?;
-        #[cfg(not(target_os = "windows"))]
-        {
-            std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
+        crate::utils::pour_shim(&moonup_shim_exe, &dest)?;
     }
 
     // Build core library
