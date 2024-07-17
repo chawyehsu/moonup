@@ -29,14 +29,22 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
 
         let downloads_version_dir = downloads_dir.join(version);
         let pkg_toolchain = downloads_version_dir.join(&toolchain.name);
-        let destination = toolchain_dir
-            .join({
-                match release.latest {
-                    true => "latest",
-                    false => version,
-                }
-            })
-            .join("bin");
+        let mut destination = toolchain_dir.join({
+            match release.latest {
+                true => "latest",
+                false => version,
+            }
+        });
+
+        if release.latest {
+            destination.push("version");
+            tokio::fs::write(&destination, format!("{}\n", version))
+                .await
+                .into_diagnostic()?;
+            destination.pop();
+        }
+
+        destination.push("bin");
 
         let reader = if let Ok(reader) = path_to_reader(&pkg_toolchain).await {
             reader
