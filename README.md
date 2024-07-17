@@ -19,8 +19,11 @@ $ moonup help
 Usage: moonup [OPTIONS] <COMMAND>
 
 Commands:
+  default  Set the default toolchain
   install  Install or update a MoonBit toolchain
   pin      Pin the MoonBit toolchain to a specific version
+  show     Show installed and currently active toolchains
+  which    Show the actual binary that will be run for a given command
   help     Print this message or the help of the given subcommand(s)
 
 Options:
