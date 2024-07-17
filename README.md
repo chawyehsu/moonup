@@ -16,7 +16,12 @@ Run `moonup help` to see the available commands.
 
 ```sh
 $ moonup help
-Usage: moonup [OPTIONS] <COMMAND>
+Moonup is a tool to manage multiple MoonBit installations.
+
+If you find any bugs or have a feature request, please open an issue on
+GitHub: https://github.com/chawyehsu/moonup/issues
+
+Usage: moonup.exe [OPTIONS] <COMMAND>
 
 Commands:
   default  Set the default toolchain
@@ -30,6 +35,7 @@ Options:
   -v, --verbose...  Increase logging verbosity
   -q, --quiet...    Decrease logging verbosity
   -h, --help        Print help
+  -V, --version     Print version
 ```
 
 ## Development
