@@ -11,15 +11,14 @@ pub async fn execute(_: Args) -> miette::Result<()> {
     let default_file = crate::moonup_home().join("default");
     let default_version = std::fs::read_to_string(default_file)
         .ok()
-        .map(|s| {
+        .and_then(|s| {
             let v = s.trim().to_string();
             if v.is_empty() {
                 None
             } else {
                 Some(v)
             }
-        })
-        .flatten();
+        });
 
     let toolchains = toolchains_dir
         .read_dir()
@@ -48,16 +47,14 @@ pub async fn execute(_: Args) -> miette::Result<()> {
                         }
                         None => "latest".to_string(),
                     }
+                } else if is_default {
+                    format!(
+                        "{} ({})",
+                        n.to_string_lossy(),
+                        console::style("default").blue()
+                    )
                 } else {
-                    if is_default {
-                        format!(
-                            "{} ({})",
-                            n.to_string_lossy(),
-                            console::style("default").blue()
-                        )
-                    } else {
-                        n.to_string_lossy().to_string()
-                    }
+                    n.to_string_lossy().to_string()
                 }
             });
             version
