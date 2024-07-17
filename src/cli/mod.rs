@@ -12,6 +12,14 @@ mod show;
 mod which;
 
 #[derive(Debug, Parser)]
+#[command(
+    version,
+    about = "
+Moonup is a tool to manage multiple MoonBit installations.
+
+If you find any bugs or have a feature request, please open an issue on
+GitHub: https://github.com/chawyehsu/moonup/issues"
+)]
 #[clap(arg_required_else_help = true)]
 pub struct Cli {
     #[command(subcommand)]
