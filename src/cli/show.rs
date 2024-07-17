@@ -9,16 +9,14 @@ pub async fn execute(_: Args) -> miette::Result<()> {
     let toolchains_dir = crate::moonup_home().join("toolchains");
 
     let default_file = crate::moonup_home().join("default");
-    let default_version = std::fs::read_to_string(default_file)
-        .ok()
-        .and_then(|s| {
-            let v = s.trim().to_string();
-            if v.is_empty() {
-                None
-            } else {
-                Some(v)
-            }
-        });
+    let default_version = std::fs::read_to_string(default_file).ok().and_then(|s| {
+        let v = s.trim().to_string();
+        if v.is_empty() {
+            None
+        } else {
+            Some(v)
+        }
+    });
 
     let toolchains = toolchains_dir
         .read_dir()
