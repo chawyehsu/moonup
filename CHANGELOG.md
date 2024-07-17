@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.0-beat.1](https://github.com/chawyehsu/moonup/compare/v0.1.0-alpha.1...v0.1.0-beat.1) (2024-07-17)
+
+
+### Features
+
+* Add `moonup default` command ([101fb2a](https://github.com/chawyehsu/moonup/commit/101fb2a4fe033b946a786f6d2000ec2fbeb2b3fe))
+* Add `moonup show` command ([26c336b](https://github.com/chawyehsu/moonup/commit/26c336baaa2a85ec412d7096ea62474644db5b58))
+* Add `moonup which` command ([724d177](https://github.com/chawyehsu/moonup/commit/724d1779b3a1d48f475df9f07835a7f6f5d788b9))
+* cache actual version number for `latest` install ([0fd4ff3](https://github.com/chawyehsu/moonup/commit/0fd4ff39c665d9cbbd921177d7a5a27f79e8cee7))
+* Display toolchain file path after pinning ([63e1468](https://github.com/chawyehsu/moonup/commit/63e1468d21c2dfdd2f426fcc8184169a9d93e6e6))
+
 ## 0.1.0-alpha.1 (2024-07-16)
 
 
