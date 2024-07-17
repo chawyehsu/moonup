@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use moonup::constant::RECURSION_LIMIT;
-use moonup::utils::detect_toolchain_version;
+use moonup::utils::detect_active_toolchain;
 
 pub fn main() {
     if let Err(err) = run() {
@@ -44,7 +44,7 @@ fn run() -> Result<()> {
         return Err(anyhow::anyhow!("cannot run moonup-shim directly"));
     }
 
-    let toolchain_root = detect_toolchain_version();
+    let toolchain_root = detect_active_toolchain();
     let actual_exe = toolchain_root.join("bin").join(&shim_name);
 
     let mut cmd = Command::new(actual_exe);

@@ -65,7 +65,7 @@ pub fn detect_toolchain_file() -> Option<PathBuf> {
 /// # Returns
 ///
 /// The path to actual versioned toolchain
-pub fn detect_toolchain_version() -> PathBuf {
+pub fn detect_active_toolchain() -> PathBuf {
     detect_toolchain_file().map_or_else(
         || moonup_home().join("toolchains").join("latest"),
         |path| {
