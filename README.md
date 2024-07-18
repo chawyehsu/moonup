@@ -10,9 +10,16 @@
 
 ## Getting Started
 
-Download the latest release from [GitHub releases][releases], extract the archive and put the executables in a directory that is in your `PATH`.
+If you have the Rust toolchain installed, you can simply install **moonup** with Cargo:
 
-Run `moonup help` to see the available commands.
+```sh
+cargo install moonup@0.1.0-beta.2
+```
+
+Or you may download the latest release from [GitHub releases][releases],
+manuallly extract the archive and put the executables in a directory that is in your `PATH`.
+
+After instllation, run `moonup help` to see the available commands.
 
 ```sh
 $ moonup help
@@ -51,6 +58,18 @@ cargo build
 # run and test
 cargo run -- help
 ```
+
+## 0.1.0 Roadmap
+
+- [x] An `install` command to install multiple MoonBit toolchains
+- [x] A `pin` command to pin toolchain to a specific version in a project
+- [x] Create shim executables to switch between toolchains automatically
+- [x] A `default` command to set the default toolchain
+- [x] A `show` command to show installed and currently active toolchains
+- [x] A `which` command to show the actual binary that will be run for a given command
+- [ ] A `run` command to run a command with a specific toolchain
+- [ ] A `update` command to self-update and update the toolchain
+- [ ] A `completions` command to generate shell completions
 
 ## License
 
