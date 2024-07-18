@@ -62,7 +62,7 @@ pub fn detect_toolchain_file() -> Option<PathBuf> {
 }
 
 /// Iterates over the current directory and all its parent directories
-/// to find if there is a `TOOLCHAIN_FILE` and detect the toolchain version.
+/// to find if there is a [`TOOLCHAIN_FILE`] and detect the toolchain version.
 ///
 /// # Returns
 ///

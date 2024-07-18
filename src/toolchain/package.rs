@@ -29,22 +29,14 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
 
         let downloads_version_dir = downloads_dir.join(version);
         let pkg_toolchain = downloads_version_dir.join(&toolchain.name);
-        let mut destination = toolchain_dir.join({
-            match release.latest {
-                true => "latest",
-                false => version,
-            }
-        });
-
-        if release.latest {
-            destination.push("version");
-            tokio::fs::write(&destination, format!("{}\n", version))
-                .await
-                .into_diagnostic()?;
-            destination.pop();
-        }
-
-        destination.push("bin");
+        let mut destination = toolchain_dir
+            .join({
+                match release.latest {
+                    true => "latest",
+                    false => version,
+                }
+            })
+            .join("bin");
 
         let reader = if let Ok(reader) = path_to_reader(&pkg_toolchain).await {
             reader
@@ -76,6 +68,16 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
             "gz" => extract_tar_gz(reader, &destination).await?,
             "zip" => extract_zip(reader, &destination).await?,
             _ => unreachable!("unsupported extension"),
+        }
+
+        if release.latest {
+            // Remove `bin` from the destination path
+            destination.pop();
+
+            destination.push("version");
+            tokio::fs::write(&destination, format!("{}\n", version))
+                .await
+                .into_diagnostic()?;
         }
     }
 
