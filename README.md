@@ -45,6 +45,20 @@ Options:
   -V, --version     Print version
 ```
 
+## How It Works
+
+Moonup allows you to install multiple MoonBit toolchains and switch between
+them easily. All MoonBit toolchains (with the core standard library) are
+installed in the `toolchains` directory in Moonup's installation directory.
+
+Moonup creates shim executables that repalce the original MoonBit
+executables in the PATH. When you run a MoonBit command, the shim
+executable determines which MoonBit toolchain to use and proxies the
+command to the actual MoonBit executable in the desired toolchain.
+
+With this approach, you can switch between MoonBit toolchains across
+projects easily without changing the PATH.
+
 ## Development
 
 Prerequisites: Git, Rust
