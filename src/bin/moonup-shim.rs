@@ -52,13 +52,19 @@ fn run() -> Result<()> {
         let version = active_toolchain_root
             .file_name()
             .map(|v| v.to_string_lossy())
-            .expect("no version found");
+            .expect("Cannot get active toolchain version");
+
+        println!("Active toolchain version '{}' not installed", version);
 
         let mut cmd = Command::new("moonup")
             .args(["install", version.as_ref()])
             .spawn()
             .map_err(|e| anyhow::anyhow!("Failed to spawn moonup install: {}", e))?;
-        cmd.wait()?;
+
+        let code = cmd.wait()?;
+        if !code.success() {
+            return Err(anyhow::anyhow!("Failed to install active toolchain"));
+        }
     }
 
     let actual_exe = active_toolchain_root.join("bin").join(&shim_name);

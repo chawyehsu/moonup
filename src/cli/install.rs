@@ -24,6 +24,13 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     let release = retrieve_release(version).await?;
 
+    if release.core.is_none() && release.toolchain.is_none() {
+        return Err(miette::miette!(
+            "No toolchain found for version '{}'",
+            version
+        ));
+    }
+
     populate_package(&release).await?;
     post_install(&release)?;
 

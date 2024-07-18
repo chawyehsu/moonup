@@ -41,7 +41,6 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         std::process::exit(1);
     });
 
-    // TODO: validate only installed toolchains can be set as default
     let deafult_file = crate::moonup_home().join("default");
     tokio::fs::write(&deafult_file, format!("{}\n", version))
         .await
