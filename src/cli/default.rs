@@ -41,8 +41,8 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         std::process::exit(1);
     });
 
-    let deafult_file = crate::moonup_home().join("default");
-    tokio::fs::write(&deafult_file, format!("{}\n", version))
+    let default_file = crate::moonup_home().join("default");
+    tokio::fs::write(&default_file, format!("{}\n", version))
         .await
         .into_diagnostic()?;
 
