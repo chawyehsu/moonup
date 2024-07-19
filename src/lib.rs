@@ -3,6 +3,7 @@ use std::path::PathBuf;
 pub mod archive;
 pub mod cli;
 pub mod constant;
+pub mod fs;
 pub mod toolchain;
 pub mod utils;
 

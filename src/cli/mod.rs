@@ -9,6 +9,7 @@ mod default;
 mod install;
 mod pin;
 mod show;
+mod update;
 mod which;
 
 #[derive(Debug, Parser)]
@@ -37,6 +38,7 @@ pub enum Command {
     Pin(pin::Args),
     Show(show::Args),
     Which(which::Args),
+    Update(update::Args),
 }
 
 /// CLI entry point
@@ -51,6 +53,7 @@ pub async fn start() -> miette::Result<()> {
         Command::Pin(args) => pin::execute(args).await?,
         Command::Show(args) => show::execute(args).await?,
         Command::Which(args) => which::execute(args).await?,
+        Command::Update(args) => update::execute(args).await?,
     }
     Ok(())
 }

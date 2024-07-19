@@ -69,7 +69,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 }
 
 // Post installation: pour shims and build the core library
-fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
+pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
     moonup_shim_exe.set_file_name({
@@ -131,7 +131,7 @@ fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     for bin in bins {
         tracing::debug!("Pouring shim for '{}'", bin.to_string_lossy());
         let dest = moon_home_bin.join(&bin);
-        crate::utils::pour_shim(&moonup_shim_exe, &dest)?;
+        crate::utils::replace_exe(&moonup_shim_exe, &dest)?;
     }
 
     // Build core library

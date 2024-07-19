@@ -1,16 +1,9 @@
 use miette::IntoDiagnostic;
-use rattler_digest::{HashingReader, Sha256, Sha256Hash};
-use std::{
-    fs::File,
-    io::{copy, BufReader, Read},
-    path::Path,
-};
-use tokio::io::AsyncRead;
-use tokio_util::io::SyncIoBridge;
 use url::Url;
 
 use crate::{
     archive::{extract_tar_gz, extract_zip},
+    fs::save_file,
     utils::{build_http_client, path_to_reader, url_to_reader},
 };
 
@@ -49,7 +42,7 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
             );
 
             let reader = url_to_reader(Url::parse(&url).unwrap(), client).await?;
-            let sha256 = format!("{:x}", save_package(reader, &pkg_toolchain).await?);
+            let sha256 = format!("{:x}", save_file(reader, &pkg_toolchain).await?);
 
             if sha256 != toolchain.sha256 {
                 let msg = format!(
@@ -106,7 +99,7 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
             );
 
             let reader = url_to_reader(Url::parse(&url).unwrap(), client).await?;
-            let sha256 = format!("{:x}", save_package(reader, &pkg_core).await?);
+            let sha256 = format!("{:x}", save_file(reader, &pkg_core).await?);
 
             if sha256 != core.sha256 {
                 let msg = format!(
@@ -124,32 +117,4 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
     }
 
     Ok(())
-}
-
-fn save_package_sync(stream: impl Read, destination: &Path) -> miette::Result<Sha256Hash> {
-    std::fs::create_dir_all(destination.parent().expect("invalid destination"))
-        .into_diagnostic()?;
-
-    let mut file = File::create(destination).into_diagnostic()?;
-    let mut sha256_reader = HashingReader::<_, Sha256>::new(BufReader::new(stream));
-
-    copy(&mut sha256_reader, &mut file).into_diagnostic()?;
-
-    let (_, sha256) = sha256_reader.finalize();
-
-    Ok(sha256)
-}
-
-pub async fn save_package(
-    reader: impl AsyncRead + Send + 'static,
-    destination: &Path,
-) -> miette::Result<Sha256Hash> {
-    // Create a async -> sync bridge
-    let reader = SyncIoBridge::new(Box::pin(reader));
-
-    let destination = destination.to_owned();
-    match tokio::task::spawn_blocking(move || save_package_sync(reader, &destination)).await {
-        Ok(result) => result,
-        Err(err) => Err(err).into_diagnostic(),
-    }
 }
