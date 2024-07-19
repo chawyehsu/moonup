@@ -19,7 +19,7 @@ cargo install moonup@0.1.0-beta.2
 Or you may download the latest release from [GitHub releases][releases],
 manuallly extract the archive and put the executables in a directory that is in your `PATH`.
 
-After instllation, run `moonup help` to see the available commands.
+After installation, run `moonup help` to see the available commands.
 
 ```sh
 $ moonup help
@@ -28,7 +28,7 @@ Moonup is a tool to manage multiple MoonBit installations.
 If you find any bugs or have a feature request, please open an issue on
 GitHub: https://github.com/chawyehsu/moonup/issues
 
-Usage: moonup.exe [OPTIONS] <COMMAND>
+Usage: moonup [OPTIONS] <COMMAND>
 
 Commands:
   default  Set the default toolchain
@@ -49,15 +49,21 @@ Options:
 
 Moonup allows you to install multiple MoonBit toolchains and switch between
 them easily. All MoonBit toolchains (with the core standard library) are
-installed in the `toolchains` directory in Moonup's installation directory.
+installed in Moonup's `toolchains`.
 
-Moonup creates shim executables that repalce the original MoonBit
+Moonup creates shim executables that replace the original MoonBit
 executables in the PATH. When you run a MoonBit command, the shim
 executable determines which MoonBit toolchain to use and proxies the
 command to the actual MoonBit executable in the desired toolchain.
 
 With this approach, you can switch between MoonBit toolchains across
-projects easily without changing the PATH.
+projects easily without needing to change the PATH.
+
+#### MoonBit Releases
+
+Moonup downloads MoonBit releases from [chawyehsu/moonbit-binaries],
+which is powered by GitHub Actions and archives MoonBit releases
+continuously from the official website.
 
 ## Development
 
@@ -100,3 +106,4 @@ cargo run -- help
 [crates-url]: https://crates.io/crates/moonup
 [license-badge]: https://img.shields.io/github/license/chawyehsu/moonup
 [downloads-badge]: https://img.shields.io/github/downloads/chawyehsu/moonup/total
+[chawyehsu/moonbit-binaries]: https://github.com/chawyehsu/moonbit-binaries
