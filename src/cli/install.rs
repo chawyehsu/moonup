@@ -1,3 +1,4 @@
+use clap::builder::NonEmptyStringValueParser;
 use clap::Parser;
 use miette::IntoDiagnostic;
 #[cfg(not(target_os = "windows"))]
@@ -5,6 +6,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, process::Command};
 
+use crate::toolchain::index::retrieve_releases;
 use crate::toolchain::{
     index::{retrieve_release, ReleaseCombined},
     package::populate_package,
@@ -15,14 +17,33 @@ use crate::toolchain::{
 #[clap(arg_required_else_help = true)]
 pub struct Args {
     /// Toolchain name, can be 'latest' or a specific version number
-    toolchain: String,
+    #[clap(value_parser = NonEmptyStringValueParser::new())]
+    toolchain: Option<String>,
+
+    /// List available toolchains
+    #[clap(long)]
+    list_available: bool,
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    let version = args.toolchain.as_str();
+    if args.list_available {
+        let releases = retrieve_releases().await?;
+        if releases.is_empty() {
+            println!("No available toolchains found");
+        } else {
+            println!("Available toolchains:");
+            for release in releases.iter().rev() {
+                println!("{}", release.version);
+            }
+        }
+        return Ok(());
+    }
+
+    let version = args.toolchain.unwrap_or_default();
+
     println!("Installing toolchain '{}'", version);
 
-    let release = retrieve_release(version).await?;
+    let release = retrieve_release(&version).await?;
 
     if release.core.is_none() && release.toolchain.is_none() {
         return Err(miette::miette!(

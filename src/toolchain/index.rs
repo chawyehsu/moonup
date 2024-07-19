@@ -121,6 +121,31 @@ async fn retrieve_index() -> miette::Result<Index> {
     Ok(index)
 }
 
+pub async fn retrieve_releases() -> miette::Result<Vec<Release>> {
+    let index = retrieve_index().await?;
+    let platform = {
+        #[cfg(target_os = "macos")]
+        {
+            if cfg!(target_arch = "aarch64") {
+                &index.darwin_arm64
+            } else {
+                &index.darwin_x64
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            &index.linux_x64
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            &index.win_x64
+        }
+    };
+    Ok(platform.releases.clone())
+}
+
 pub async fn retrieve_release(version: &str) -> miette::Result<ReleaseCombined> {
     let index = retrieve_index().await?;
     let platform = {
