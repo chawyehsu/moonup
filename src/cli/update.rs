@@ -51,7 +51,7 @@ async fn self_update() -> miette::Result<()> {
     let updater = self_update::backends::github::Update::configure()
         .repo_owner("chawyehsu")
         .repo_name("moonup")
-        .bin_name("moonup")
+        .bin_name(env!("CARGO_PKG_NAME"))
         .current_version(self_update::cargo_crate_version!())
         .build()
         .into_diagnostic()?;
