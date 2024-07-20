@@ -34,10 +34,17 @@ pub struct Cli {
 #[derive(Debug, Parser)]
 pub enum Command {
     Default(default::Args),
+
+    #[clap(visible_alias = "i")]
     Install(install::Args),
+
     Pin(pin::Args),
+
     Show(show::Args),
+
     Which(which::Args),
+
+    #[clap(visible_alias = "u")]
     Update(update::Args),
 }
 
