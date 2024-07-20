@@ -59,7 +59,7 @@ command to the actual MoonBit executable in the desired toolchain.
 With this approach, you can switch between MoonBit toolchains across
 projects easily without needing to change the PATH.
 
-#### MoonBit Releases
+### MoonBit Releases
 
 Moonup downloads MoonBit releases from [chawyehsu/moonbit-binaries],
 which is powered by GitHub Actions and archives MoonBit releases
@@ -88,8 +88,8 @@ cargo run -- help
 - [x] A `show` command to show installed and currently active toolchains
 - [x] A `which` command to show the actual binary that will be run for a given command
 - [ ] A `run` command to run a command with a specific toolchain
-- [ ] A `update` command to self-update and update the toolchain
-- [ ] A `completions` command to generate shell completions
+- [x] A `update` command to self-update and update the toolchain
+- [x] A `completions` command to generate shell completions
 
 ## License
 
