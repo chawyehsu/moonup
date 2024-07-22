@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.0-rc.1](https://github.com/chawyehsu/moonup/compare/v0.1.0-beta.2...v0.1.0-rc.1) (2024-07-22)
+
+
+### Features
+
+* Add `moonup completions` command ([eed3cd9](https://github.com/chawyehsu/moonup/commit/eed3cd996e0b1ececcd285ab717da583d795f627))
+* Add `moonup update` command ([ed04db0](https://github.com/chawyehsu/moonup/commit/ed04db097f4d581d70ccf4154cf6f811393e7b01))
+* Add subcommand aliases ([9b254bd](https://github.com/chawyehsu/moonup/commit/9b254bd7997beb8950ef3a9b810c01b366f41f6b))
+* Support listing installable toolchain versions ([2d60a73](https://github.com/chawyehsu/moonup/commit/2d60a73e42c879bf580bdf7c6f058da1f43275ad))
+
+
+### Bug Fixes
+
+* Fix crate keywords typo ([3cba98c](https://github.com/chawyehsu/moonup/commit/3cba98ceff498e1e1e9acd375f6d65744a164475))
+* Handle error of installing invalid version of toolchain ([9c6302c](https://github.com/chawyehsu/moonup/commit/9c6302c67bc107121618a6515fadfd136a86a19c))
+* Remove unnecessary argument derive ([93189f4](https://github.com/chawyehsu/moonup/commit/93189f4b3c718964456ee4e17f7374811e34d178))
+* Write `version` file after executable extraction ([7172bea](https://github.com/chawyehsu/moonup/commit/7172bea219b1c86f4ddd1e05b8b285b0bfb2e690))
+
 ## [0.1.0-beta.2](https://github.com/chawyehsu/moonup/compare/v0.1.0-beat.1...v0.1.0-beta.2) (2024-07-17)
 
 
