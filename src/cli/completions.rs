@@ -8,7 +8,6 @@ use crate::cli::Cli;
 #[clap(arg_required_else_help = true)]
 pub struct Args {
     /// The shell type
-    #[clap(long, short)]
     shell: Shell,
 }
 
