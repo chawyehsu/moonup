@@ -13,7 +13,7 @@
 If you have the Rust toolchain installed, you can simply install **moonup** with Cargo:
 
 ```sh
-cargo install moonup@0.1.0-beta.2
+cargo install moonup@0.1.0-rc.1
 ```
 
 Or you may download the latest release from [GitHub releases][releases],
@@ -31,12 +31,14 @@ GitHub: https://github.com/chawyehsu/moonup/issues
 Usage: moonup [OPTIONS] <COMMAND>
 
 Commands:
-  default  Set the default toolchain
-  install  Install or update a MoonBit toolchain
-  pin      Pin the MoonBit toolchain to a specific version
-  show     Show installed and currently active toolchains
-  which    Show the actual binary that will be run for a given command
-  help     Print this message or the help of the given subcommand(s)
+  completions  Generate shell completions
+  default      Set the default toolchain
+  install      Install or update a MoonBit toolchain [aliases: i]
+  pin          Pin the MoonBit toolchain to a specific version
+  show         Show installed and currently active toolchains
+  update       Update MoonBit latest toolchain and moonup [aliases: u]
+  which        Show the actual binary that will be run for a given command
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -49,7 +51,7 @@ Options:
 
 Moonup allows you to install multiple MoonBit toolchains and switch between
 them easily. All MoonBit toolchains (with the core standard library) are
-installed in Moonup's `toolchains`.
+installed in Moonup's `toolchains` directory.
 
 Moonup creates shim executables that replace the original MoonBit
 executables in the PATH. When you run a MoonBit command, the shim
