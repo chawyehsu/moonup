@@ -42,6 +42,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     });
 
     let default_file = crate::moonup_home().join("default");
+    std::fs::create_dir_all(default_file.parent().unwrap()).into_diagnostic()?;
     tokio::fs::write(&default_file, format!("{}\n", version))
         .await
         .into_diagnostic()?;
