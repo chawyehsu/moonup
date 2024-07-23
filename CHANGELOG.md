@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.0-rc.2](https://github.com/chawyehsu/moonup/compare/v0.1.0-rc.1...v0.1.0-rc.2) (2024-07-23)
+
+
+### Features
+
+* Add download progress reporting ([1349d0c](https://github.com/chawyehsu/moonup/commit/1349d0c9f6707ae96948d633ef3c8638f9ae9133))
+* Link `lib` directory ([#8](https://github.com/chawyehsu/moonup/issues/8)) ([372d4a7](https://github.com/chawyehsu/moonup/commit/372d4a7859948f474338aa4014302828a0d95aec))
+
+
+### Bug Fixes
+
+* Check before renaming executable ([76d7085](https://github.com/chawyehsu/moonup/commit/76d708529a0d880e0c1ca2628601dc81309d80ed))
+* Ensure command `moonup default` working directory exist ([c894aa2](https://github.com/chawyehsu/moonup/commit/c894aa2dc82c42db7f6d98c163cf0f382d32461f))
+* Improve installed toolchains lookup ([7cfa3ca](https://github.com/chawyehsu/moonup/commit/7cfa3cab019edb62d9c51ee381c7394ee7915f06))
+* Only set env `MOON_CORE_OVERRIDE` for `moon` command ([656694b](https://github.com/chawyehsu/moonup/commit/656694bba9fe7d66dc35eb61ce336cebd7c2c73c))
+
 ## [0.1.0-rc.1](https://github.com/chawyehsu/moonup/compare/v0.1.0-beta.2...v0.1.0-rc.1) (2024-07-22)
 
 
