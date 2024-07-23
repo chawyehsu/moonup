@@ -117,7 +117,9 @@ pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
         let _ = std::fs::remove_file(&dest_old);
 
         tracing::debug!("Renaming current exe: {}", old.display());
-        std::fs::rename(old, &dest_old).into_diagnostic()?;
+        if old.exists() {
+            std::fs::rename(old, &dest_old).into_diagnostic()?;
+        }
         std::fs::copy(new, old).into_diagnostic()?;
 
         tracing::debug!("Removing old exe: {}", &dest_old.display());
