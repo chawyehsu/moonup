@@ -67,6 +67,10 @@ Moonup downloads MoonBit releases from [chawyehsu/moonbit-binaries],
 which is powered by GitHub Actions and archives MoonBit releases
 continuously from the official website.
 
+### Known Limitations
+
+- Isolation of MoonBit core standard library is problematic, see #7.
+
 ## Development
 
 Prerequisites: Git, Rust

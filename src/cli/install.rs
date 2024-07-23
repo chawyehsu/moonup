@@ -54,6 +54,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     populate_package(&release).await?;
     post_install(&release)?;
+    link_lib(&release)?;
 
     println!(
         "{}Installed toolchain version '{}'",
@@ -155,6 +156,58 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     cmd.env("PATH", bin_dir.display().to_string());
     tracing::debug!("Running command: {:?}", cmd);
     cmd.status().into_diagnostic()?;
+
+    Ok(())
+}
+
+// Link the library directory to `MOON_HOME`/lib
+// The latest toolchain's core library will be linked if available,
+// otherwise the installed toolchain's core library will be linked
+//
+// This is a workaround for the issue of MoonBit's VSCode extension
+// reporting errors when the core library is not found, as the extension
+// always looks for the core library in `MOON_HOME`/lib/core.
+fn link_lib(release: &ReleaseCombined) -> miette::Result<()> {
+    let lnk = crate::moon_home().join("lib");
+    let src = {
+        let latest_toolchain_lib_core = crate::moonup_home()
+            .join("toolchains")
+            .join("latest")
+            .join("lib");
+
+        if latest_toolchain_lib_core.exists() {
+            latest_toolchain_lib_core
+        } else {
+            let version = release
+                .toolchain
+                .as_ref()
+                .map(|r| r.version.to_string())
+                .expect("should have a toolchain version");
+            crate::moonup_home()
+                .join("toolchains")
+                .join(version)
+                .join("lib")
+        }
+    };
+
+    let _ = std::fs::remove_dir_all(&lnk);
+    tracing::debug!(
+        "Linking lib directory: {} -> {}",
+        lnk.display(),
+        src.display()
+    );
+
+    #[cfg(target_os = "windows")]
+    {
+        junction::create(src, lnk)
+            .map_err(|e| miette::miette!("Failed to create junction: {}", e))?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::os::unix::fs::symlink(src, lnk)
+            .map_err(|e| miette::miette!("Failed to create symlink: {}", e))?;
+    }
 
     Ok(())
 }

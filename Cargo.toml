@@ -39,6 +39,9 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.2"
 zip = "2.1.3"
 
+[target.'cfg(windows)'.dependencies]
+junction = "1.1.0"
+
 [profile.release]
 debug = false
 lto = "fat"
