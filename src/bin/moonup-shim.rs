@@ -14,8 +14,8 @@ pub fn main() {
 }
 
 fn run() -> Result<()> {
-    let mut recursion_count = recursion_guard()?;
-    recursion_count += 1;
+    // Ensure recursion guard is at the top of the function
+    let recursion_count = recursion_guard()?;
 
     let args = env::args_os().collect::<Vec<_>>();
     let current_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
@@ -24,6 +24,7 @@ fn run() -> Result<()> {
         .map(|name| name.to_string_lossy().to_ascii_lowercase());
 
     let shim_name = current_exe_name.unwrap_or_default();
+    let is_shim_moon = shim_name == "moon";
 
     if shim_name.is_empty() {
         return Err(anyhow::anyhow!("bad shim name"));
@@ -72,18 +73,20 @@ fn run() -> Result<()> {
 
     let mut cmd = Command::new(actual_exe);
     cmd.args(args[1..].iter().cloned());
-    cmd.env("MOONUP_RECURSION_COUNT", recursion_count.to_string());
+    cmd.env("MOONUP_RECURSION_COUNT", (recursion_count + 1).to_string());
 
-    // Override the core standard library path to point to the one in
-    // the active toolchain.
-    // NOTE(chawyehsu): The `MOON_CORE_OVERRIDE` env is undocumented on
-    // MoonBit's official documentation. I reverse-engineered this from
-    // the `moon` executable. This is a hacky way to make things work
-    // and may not work as MoonBit evolves.
-    let env_moon_core_override = env::var("MOON_CORE_OVERRIDE")
-        .ok()
-        .unwrap_or(actual_libcore.to_string_lossy().to_string());
-    cmd.env("MOON_CORE_OVERRIDE", env_moon_core_override);
+    if is_shim_moon {
+        // Override the core standard library path to point to the one in
+        // the active toolchain.
+        // NOTE(chawyehsu): The `MOON_CORE_OVERRIDE` env is undocumented on
+        // MoonBit's official documentation. I reverse-engineered this from
+        // the `moon` executable. This is a hacky way to make things work
+        // and may not work as MoonBit evolves.
+        let env_moon_core_override = env::var("MOON_CORE_OVERRIDE")
+            .ok()
+            .unwrap_or(actual_libcore.to_string_lossy().to_string());
+        cmd.env("MOON_CORE_OVERRIDE", env_moon_core_override);
+    }
 
     Ok(cmd.status().map(|_| ())?)
 }
