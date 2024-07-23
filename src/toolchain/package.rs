@@ -1,9 +1,11 @@
 use miette::IntoDiagnostic;
+use std::sync::Arc;
 use url::Url;
 
 use crate::{
     archive::{extract_tar_gz, extract_zip},
     fs::save_file,
+    reporter::{ProgressReporter, Reporter},
     utils::{build_http_client, path_to_reader, url_to_reader},
 };
 
@@ -41,8 +43,15 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
                 toolchain.name.as_str()
             );
 
-            let reader = url_to_reader(Url::parse(&url).unwrap(), client).await?;
+            let progress_reporter = ProgressReporter::new("Downloading toolchain".to_string());
+            let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
+
+            let reader = url_to_reader(Url::parse(&url).unwrap(), client, reporter.clone()).await?;
             let sha256 = format!("{:x}", save_file(reader, &pkg_toolchain).await?);
+
+            if let Some(reporter) = &reporter {
+                reporter.on_complete();
+            }
 
             if sha256 != toolchain.sha256 {
                 let msg = format!(
@@ -98,8 +107,15 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
                 core.name.as_str()
             );
 
-            let reader = url_to_reader(Url::parse(&url).unwrap(), client).await?;
+            let progress_reporter = ProgressReporter::new("Downloading core".to_string());
+            let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
+
+            let reader = url_to_reader(Url::parse(&url).unwrap(), client, reporter.clone()).await?;
             let sha256 = format!("{:x}", save_file(reader, &pkg_core).await?);
+
+            if let Some(reporter) = &reporter {
+                reporter.on_complete();
+            }
 
             if sha256 != core.sha256 {
                 let msg = format!(

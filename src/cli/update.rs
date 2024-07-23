@@ -99,7 +99,7 @@ async fn self_update() -> miette::Result<()> {
         let file = temp_dir.path().join(&asset.name);
         tracing::debug!("Saving to {}", file.display());
 
-        let mut reader = utils::url_to_reader(url, client.clone()).await?;
+        let mut reader = utils::url_to_reader(url, client.clone(), None).await?;
         if !asset.name.ends_with(".sha256") {
             sha256_actual = format!("{:x}", save_file(reader, &file).await?);
             archive_file = file;

@@ -4,6 +4,7 @@ pub mod archive;
 pub mod cli;
 pub mod constant;
 pub mod fs;
+pub(crate) mod reporter;
 pub mod toolchain;
 pub mod utils;
 

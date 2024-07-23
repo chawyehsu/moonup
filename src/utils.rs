@@ -1,18 +1,17 @@
 use futures_util::TryStreamExt;
 use miette::IntoDiagnostic;
 use reqwest::Client;
+use std::env;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
-use std::{
-    env,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncRead, BufReader};
 use tokio_util::io::StreamReader;
 use url::Url;
 
-use crate::{constant::TOOLCHAIN_FILE, moonup_home};
+use crate::{constant::TOOLCHAIN_FILE, moonup_home, reporter::Reporter};
 
 pub(crate) fn build_http_client() -> Client {
     static APP_USER_AGENT: &str = concat!(
@@ -31,13 +30,33 @@ pub(crate) fn build_http_client() -> Client {
         .expect("failed to build HTTP client")
 }
 
-pub async fn url_to_reader(url: Url, client: Client) -> miette::Result<impl AsyncRead> {
+pub async fn url_to_reader(
+    url: Url,
+    client: Client,
+    reporter: Option<Arc<dyn Reporter>>,
+) -> miette::Result<impl AsyncRead> {
     tracing::debug!("Streaming: {}", url);
     let request = client.get(url);
     let response = request.send().await.into_diagnostic()?;
+    if let Some(reporter) = &reporter {
+        reporter.on_start(
+            response
+                .content_length()
+                .map(|len| len as usize)
+                .unwrap_or(0),
+        );
+    }
+
+    let mut current = 0;
 
     let byte_stream = response
         .bytes_stream()
+        .inspect_ok(move |chunk| {
+            current += chunk.len();
+            if let Some(reporter) = &reporter {
+                reporter.on_progress(current);
+            }
+        })
         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err));
 
     Ok(StreamReader::new(byte_stream))

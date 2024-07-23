@@ -6,7 +6,7 @@ repository = "https://github.com/chawyehsu/moonup"
 documentation = "https://docs.rs/moonup"
 keywords = ["version-manager", "moonbit"]
 categories = ["development-tools"]
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 authors = ["Chawye Hsu <su+cratesio@chawyehsu.com>"]
 license = "Apache-2.0"
 edition = "2021"
@@ -22,6 +22,7 @@ dialoguer = "0.11.0"
 dirs = "5.0.1"
 flate2 = "1.0.30"
 futures-util = "0.3.30"
+indicatif = "0.17.8"
 miette = { version = "7.2.0", features = ["fancy"] }
 rattler_digest = "0.19.4"
 reqwest = { version = "0.12.5", features = ["json", "stream"] }
