@@ -13,7 +13,7 @@
 If you have the Rust toolchain installed, you can simply install **moonup** with Cargo:
 
 ```sh
-cargo install moonup@0.1.0-rc.1
+cargo install moonup@0.1.0-rc.2
 ```
 
 Or you may download the latest release from [GitHub releases][releases],
