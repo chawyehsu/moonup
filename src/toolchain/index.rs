@@ -89,7 +89,7 @@ async fn retrieve_index() -> miette::Result<Index> {
     let client = build_http_client();
     let url = Url::parse(crate::constant::INDEX_URL).into_diagnostic()?;
 
-    let mut reader = url_to_reader(url, client).await?;
+    let mut reader = url_to_reader(url, client, None).await?;
     let mut content = String::new();
 
     reader
