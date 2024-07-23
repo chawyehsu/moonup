@@ -32,14 +32,20 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     version_file_path.push("latest");
     version_file_path.push("version");
 
-    if let Ok(local_latest_version) = tokio::fs::read_to_string(version_file_path).await {
-        if let Some(r) = &release.toolchain {
-            if local_latest_version.trim() == r.version {
-                println!("The latest toolchain is up to date");
-            } else {
-                println!("Updating the latest toolchain");
-                populate_package(&release).await?;
-                post_install(&release)?;
+    match tokio::fs::read_to_string(version_file_path).await {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            println!("latest toolchain is not installed, run 'moonup install latest' to install")
+        }
+        Err(e) => return Err(miette::miette!(e).wrap_err("Failed to read version file")),
+        Ok(local_latest_version) => {
+            if let Some(r) = &release.toolchain {
+                if local_latest_version.trim() == r.version {
+                    println!("The latest toolchain is up to date");
+                } else {
+                    println!("Updating the latest toolchain");
+                    populate_package(&release).await?;
+                    post_install(&release)?;
+                }
             }
         }
     }
