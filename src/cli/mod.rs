@@ -9,6 +9,7 @@ mod completions;
 mod default;
 mod install;
 mod pin;
+mod run;
 mod show;
 mod update;
 mod which;
@@ -43,6 +44,8 @@ pub enum Command {
 
     Pin(pin::Args),
 
+    Run(run::Args),
+
     Show(show::Args),
 
     #[clap(visible_alias = "u")]
@@ -62,6 +65,7 @@ pub async fn start() -> miette::Result<()> {
         Command::Default(args) => default::execute(args).await?,
         Command::Install(args) => install::execute(args).await?,
         Command::Pin(args) => pin::execute(args).await?,
+        Command::Run(args) => run::execute(args).await?,
         Command::Show(args) => show::execute(args).await?,
         Command::Update(args) => update::execute(args).await?,
         Command::Which(args) => which::execute(args).await?,
