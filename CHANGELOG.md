@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://github.com/chawyehsu/moonup/compare/v0.1.0-rc.2...v0.1.0) (2024-07-25)
+
+
+### Features
+
+* Add `moonup run` command ([5904fd7](https://github.com/chawyehsu/moonup/commit/5904fd7769e029a1b629430ea901bcb1b24edcb2))
+
 ## [0.1.0-rc.2](https://github.com/chawyehsu/moonup/compare/v0.1.0-rc.1...v0.1.0-rc.2) (2024-07-23)
 
 
