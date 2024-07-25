@@ -97,7 +97,7 @@ fn recursion_guard() -> Result<u8> {
         .unwrap_or(0u8);
 
     if recursion_count > RECURSION_LIMIT {
-        return Err(anyhow::anyhow!("recursion limit reached"));
+        return Err(anyhow::anyhow!("infinite recursion detected"));
     }
 
     Ok(recursion_count)

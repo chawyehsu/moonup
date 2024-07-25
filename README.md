@@ -10,10 +10,10 @@
 
 ## Getting Started
 
-If you have the Rust toolchain installed, you can simply install **moonup** with Cargo:
+If you have the Rust toolchain installed, you can install **moonup** easily with Cargo:
 
 ```sh
-cargo install moonup@0.1.0-rc.2
+cargo install moonup
 ```
 
 Or you may download the latest release from [GitHub releases][releases],
@@ -35,6 +35,7 @@ Commands:
   default      Set the default toolchain
   install      Install or update a MoonBit toolchain [aliases: i]
   pin          Pin the MoonBit toolchain to a specific version
+  run          Run a command with a specific toolchain
   show         Show installed and currently active toolchains
   update       Update MoonBit latest toolchain and moonup [aliases: u]
   which        Show the actual binary that will be run for a given command
@@ -93,7 +94,7 @@ cargo run -- help
 - [x] A `default` command to set the default toolchain
 - [x] A `show` command to show installed and currently active toolchains
 - [x] A `which` command to show the actual binary that will be run for a given command
-- [ ] A `run` command to run a command with a specific toolchain
+- [x] A `run` command to run a command with a specific toolchain
 - [x] A `update` command to self-update and update the toolchain
 - [x] A `completions` command to generate shell completions
 

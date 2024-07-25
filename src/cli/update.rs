@@ -54,18 +54,19 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 }
 
 async fn self_update() -> miette::Result<()> {
+    let current_version = env!("CARGO_PKG_VERSION");
+
     let updater = self_update::backends::github::Update::configure()
         .repo_owner("chawyehsu")
         .repo_name("moonup")
         .bin_name(env!("CARGO_PKG_NAME"))
-        .current_version(self_update::cargo_crate_version!())
+        .current_version(current_version)
         .build()
         .into_diagnostic()?;
 
     let latest_release = updater.get_latest_release().into_diagnostic()?;
-    let current_version = updater.current_version();
     let is_greater =
-        self_update::version::bump_is_greater(current_version.as_str(), &latest_release.version)
+        self_update::version::bump_is_greater(current_version, &latest_release.version)
             .ok()
             .unwrap_or(false);
 
