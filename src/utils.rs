@@ -4,14 +4,14 @@ use reqwest::Client;
 use std::env;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncRead, BufReader};
 use tokio_util::io::StreamReader;
 use url::Url;
 
-use crate::{constant::TOOLCHAIN_FILE, moonup_home, reporter::Reporter};
+use crate::reporter::Reporter;
 
 pub(crate) fn build_http_client() -> Client {
     static APP_USER_AGENT: &str = concat!(
@@ -67,41 +67,9 @@ pub async fn path_to_reader(path: &Path) -> miette::Result<impl AsyncRead> {
     Ok(BufReader::new(file))
 }
 
-pub fn detect_toolchain_file() -> Option<PathBuf> {
-    let current_dir = env::current_dir().expect("can't access current directory");
-
-    std::iter::successors(Some(current_dir.as_path()), |prev| prev.parent()).find_map(|dir| {
-        let path = dir.join(TOOLCHAIN_FILE);
-        if path.is_file() {
-            Some(path)
-        } else {
-            None
-        }
-    })
-}
-
-/// Iterates over the current directory and all its parent directories
-/// to find if there is a [`TOOLCHAIN_FILE`] and detect the toolchain version.
-///
-/// # Returns
-///
-/// The path to actual versioned toolchain
-pub fn detect_active_toolchain() -> PathBuf {
-    detect_toolchain_file().map_or_else(
-        || {
-            let default_file = moonup_home().join("default");
-            let version =
-                std::fs::read_to_string(default_file).unwrap_or_else(|_| "latest".to_string());
-
-            moonup_home().join("toolchains").join(version.trim())
-        },
-        |path| {
-            let version = std::fs::read_to_string(path)
-                .unwrap_or_else(|_| panic!("can't read {}", TOOLCHAIN_FILE));
-
-            moonup_home().join("toolchains").join(version.trim())
-        },
-    )
+#[inline]
+pub(crate) fn trimmed_or_none(s: &str) -> Option<String> {
+    Some(s.trim().to_string()).filter(|v| !v.is_empty())
 }
 
 /// Pour the new executable to the destination path.

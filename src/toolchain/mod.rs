@@ -1,5 +1,6 @@
 pub mod index;
 pub mod package;
+pub mod resolve;
 
 pub struct InstalledToolchain {
     /// Whether the installed toolchain is marked as default
@@ -14,7 +15,7 @@ pub struct InstalledToolchain {
 
 pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
     let toolchains_dir = crate::moonup_home().join("toolchains");
-    let default_version = default_toolchain();
+    let default_version = resolve::detect_default_version();
 
     let toolchains = match toolchains_dir.read_dir() {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => vec![],
@@ -51,17 +52,4 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
     };
 
     Ok(toolchains)
-}
-
-fn default_toolchain() -> Option<String> {
-    let default_file = crate::moonup_home().join("default");
-
-    std::fs::read_to_string(default_file).ok().and_then(|s| {
-        let v = s.trim().to_string();
-        if v.is_empty() {
-            None
-        } else {
-            Some(v)
-        }
-    })
 }

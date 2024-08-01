@@ -1,10 +1,9 @@
-use std::env;
-
 use clap::Parser;
 use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
+use std::env;
 
-use crate::utils::detect_toolchain_file;
+use crate::toolchain::resolve::resolve_toolchain_file;
 
 /// Pin the MoonBit toolchain to a specific version
 #[derive(Parser, Debug)]
@@ -46,7 +45,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         std::process::exit(1);
     });
 
-    let toolchain_file = detect_toolchain_file().unwrap_or_else(|| {
+    let toolchain_file = resolve_toolchain_file().unwrap_or_else(|| {
         let current_dir = env::current_dir().expect("can't access current directory");
         current_dir.join(crate::constant::TOOLCHAIN_FILE)
     });

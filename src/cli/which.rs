@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::utils::detect_active_toolchain;
+use crate::toolchain::resolve::detect_active_toolchain;
 
 /// Show the actual binary that will be run for a given command
 #[derive(Parser, Debug)]

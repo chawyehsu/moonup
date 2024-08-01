@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use moonup::constant::RECURSION_LIMIT;
-use moonup::utils::detect_active_toolchain;
+use moonup::toolchain::resolve::detect_active_toolchain;
 
 pub fn main() {
     if let Err(err) = run() {
