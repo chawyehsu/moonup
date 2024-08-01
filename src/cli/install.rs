@@ -1,5 +1,5 @@
 use clap::builder::NonEmptyStringValueParser;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use miette::IntoDiagnostic;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::{env, process::Command};
 
 use crate::toolchain::index::retrieve_releases;
+use crate::toolchain::resolve::detect_pinned_version;
 use crate::toolchain::{
     index::{retrieve_release, ReleaseCombined},
     package::populate_package,
@@ -14,7 +15,6 @@ use crate::toolchain::{
 
 /// Install or update a MoonBit toolchain
 #[derive(Parser, Debug)]
-#[clap(arg_required_else_help = true)]
 pub struct Args {
     /// Toolchain name, can be 'latest' or a specific version number
     #[clap(value_parser = NonEmptyStringValueParser::new())]
@@ -39,7 +39,14 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         return Ok(());
     }
 
-    let version = args.toolchain.unwrap_or_default();
+    let version = match args.toolchain.or(detect_pinned_version()) {
+        Some(v) => v,
+        None => {
+            let mut cmd = Args::command();
+            cmd.print_help().into_diagnostic()?;
+            std::process::exit(2);
+        }
+    };
 
     println!("Installing toolchain '{}'", version);
 
