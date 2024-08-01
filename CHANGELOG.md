@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1](https://github.com/chawyehsu/moonup/compare/v0.1.0...v0.1.1) (2024-08-01)
+
+
+### Features
+
+* Support `moonup install` using pinned version [#12](https://github.com/chawyehsu/moonup/issues/12) ([857cadc](https://github.com/chawyehsu/moonup/commit/857cadc6bb222adee8a3f87a9e40eddfcb1a33aa))
+
+
+### Bug Fixes
+
+* Print help when `moonup pin` missing toolchain version ([1f3dd90](https://github.com/chawyehsu/moonup/commit/1f3dd90c54bc211456c2ef344532af04ca4084ad))
+
 ## [0.1.0](https://github.com/chawyehsu/moonup/compare/v0.1.0-rc.2...v0.1.0) (2024-07-25)
 
 
