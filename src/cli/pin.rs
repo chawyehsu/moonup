@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
 use std::env;
@@ -14,7 +14,7 @@ pub struct Args {
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    let version = args.toolchain.unwrap_or_else(|| {
+    let version = args.toolchain.or_else(|| {
         if let Ok(toolchains) = crate::toolchain::installed_toolchains() {
             let selections = toolchains
                 .iter()
@@ -37,13 +37,21 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                     .into_diagnostic()
                     .expect("can't select a toolchain version");
 
-                return selections[selection].clone();
+                return Some(selections[selection].clone());
             }
         }
 
-        eprintln!("Please provide a toolchain version to pin");
-        std::process::exit(1);
+        None
     });
+
+    let version = match version {
+        Some(v) => v,
+        None => {
+            let mut cmd = Args::command();
+            cmd.print_help().into_diagnostic()?;
+            std::process::exit(2);
+        }
+    };
 
     let toolchain_file = resolve_toolchain_file().unwrap_or_else(|| {
         let current_dir = env::current_dir().expect("can't access current directory");
