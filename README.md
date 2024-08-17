@@ -48,6 +48,17 @@ Options:
   -V, --version     Print version
 ```
 
+### Use Moonup in GitHub Actions
+
+With the [setup-moonup] action, It's super easy to use Moonup to set up a
+MoonBit environment in GitHub CI. Here is an example workflow:
+
+```yaml
+- name: Setup MoonBit
+  uses: chawyehsu/setup-moonup@v1
+  run: moon version --all
+```
+
 ## How It Works
 
 Moonup allows you to install multiple MoonBit toolchains and switch between
@@ -113,4 +124,5 @@ cargo run -- help
 [crates-url]: https://crates.io/crates/moonup
 [license-badge]: https://img.shields.io/github/license/chawyehsu/moonup
 [downloads-badge]: https://img.shields.io/github/downloads/chawyehsu/moonup/total
+[setup-moonup]: https://github.com/chawyehsu/setup-moonup
 [chawyehsu/moonbit-binaries]: https://github.com/chawyehsu/moonbit-binaries
