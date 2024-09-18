@@ -1,4 +1,4 @@
-use miette::IntoDiagnostic;
+use miette::{Context, IntoDiagnostic};
 use std::sync::Arc;
 use url::Url;
 
@@ -32,6 +32,14 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
                 }
             })
             .join("bin");
+
+        crate::fs::empty_dir(&destination)
+            .into_diagnostic()
+            .wrap_err(format!(
+                "failed to delete old bin: {}",
+                destination.display()
+            ))
+            .wrap_err("files are in use, please close applications using moonbit and try again")?;
 
         let reader = if let Ok(reader) = path_to_reader(&pkg_toolchain).await {
             reader
@@ -96,6 +104,12 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
                 }
             })
             .join("lib");
+
+        let old_core = destination.join("core");
+        crate::fs::remove_dir(&old_core)
+            .into_diagnostic()
+            .wrap_err(format!("failed to delete old core: {}", old_core.display()))
+            .wrap_err("files are in use, please close applications using moonbit and try again")?;
 
         let reader = if let Ok(reader) = path_to_reader(&pkg_core).await {
             reader
