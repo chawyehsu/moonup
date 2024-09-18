@@ -147,7 +147,7 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
 
     for bin in bins {
-        tracing::debug!("Pouring shim for '{}'", bin.to_string_lossy());
+        tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());
         let dest = moon_home_bin.join(&bin);
         crate::utils::replace_exe(&moonup_shim_exe, &dest)?;
     }

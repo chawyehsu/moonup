@@ -10,21 +10,32 @@ use tokio_util::io::SyncIoBridge;
 ///
 /// This is a wrapper around `remove_dir_all` from the `remove_dir_all`
 /// crate that provides a more reliable implementation of removing directories.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the given `path` does not exist.
 #[inline(always)]
-pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
-    remove_dir_all::remove_dir_all(path)
+pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    match remove_dir_all::remove_dir_all(path) {
+        Ok(_) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err),
+    }
 }
 
 /// Remove all files and subdirectories in given `path`.
 ///
-/// This function will not remove the given `path` itself. No-op if the given
-/// `path` does not exist.
+/// This function will not remove the given `path` itself.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the given `path` does not exist.
 #[inline(always)]
 pub fn empty_dir<P: AsRef<Path> + ?Sized>(path: &P) -> io::Result<()> {
-    let path = path.as_ref();
-    match path.exists() {
-        true => remove_dir_all::remove_dir_contents(path),
-        false => Ok(()),
+    match remove_dir_all::remove_dir_contents(path) {
+        Ok(_) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err),
     }
 }
 
