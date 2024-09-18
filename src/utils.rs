@@ -1,4 +1,6 @@
 use futures_util::TryStreamExt;
+#[cfg(target_os = "windows")]
+use miette::Context;
 use miette::IntoDiagnostic;
 use reqwest::Client;
 use std::env;
@@ -80,18 +82,43 @@ pub(crate) fn trimmed_or_none(s: &str) -> Option<String> {
 pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        let mut dest_old = old.to_path_buf();
-        dest_old.set_extension("exe.old");
-        let _ = std::fs::remove_file(&dest_old);
+        let mut older = old.to_path_buf();
+        older.set_extension("exe.old");
 
-        tracing::debug!("Renaming current exe: {}", old.display());
-        if old.exists() {
-            std::fs::rename(old, &dest_old).into_diagnostic()?;
+        std::fs::remove_file(&older).or_else(|err| match err.kind() {
+            std::io::ErrorKind::NotFound => Ok(()),
+            std::io::ErrorKind::PermissionDenied => Err(err)
+                .into_diagnostic()
+                .wrap_err(format!("failed to remove old exe: {}", older.display()))
+                .wrap_err(
+                    "files may be in use, please close applications using moonbit and try again",
+                ),
+            _ => Err(err).into_diagnostic(),
+        })?;
+
+        match std::fs::rename(old, &older) {
+            Ok(_) => tracing::debug!("renamed old exe: {}", &older.display()),
+            Err(err) => match err.kind() {
+                std::io::ErrorKind::NotFound => { // ignore
+                }
+                _ => {
+                    return Err(err).into_diagnostic().wrap_err(format!(
+                        "failed to rename {} to {}",
+                        old.display(),
+                        &older.display()
+                    ))
+                }
+            },
         }
-        std::fs::copy(new, old).into_diagnostic()?;
 
-        tracing::debug!("Removing old exe: {}", &dest_old.display());
-        let _ = std::fs::remove_file(&dest_old);
+        std::fs::copy(new, old).into_diagnostic().wrap_err(format!(
+            "failed to copy {} to {}",
+            new.display(),
+            old.display()
+        ))?;
+
+        tracing::debug!("replaced new exe: {}", old.display());
+        let _ = std::fs::remove_file(&older);
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -99,7 +126,7 @@ pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
         let _ = std::fs::remove_file(old);
         std::fs::copy(new, old).into_diagnostic()?;
         std::fs::set_permissions(old, std::fs::Permissions::from_mode(0o755)).into_diagnostic()?;
-        tracing::debug!("Replaced new exe: {}", old.display());
+        tracing::debug!("replaced new exe: {}", old.display());
     }
 
     Ok(())
