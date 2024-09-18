@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/chawyehsu/moonup/compare/v0.1.1...v0.1.2) (2024-09-18)
+
+
+### Bug Fixes
+
+* **install:** Delete obsolete files before new installation (Close [#15](https://github.com/chawyehsu/moonup/issues/15)) ([6dffcc7](https://github.com/chawyehsu/moonup/commit/6dffcc77fd90ae0802fc813dfd5bcf31b1cf414e))
+* **install:** Filter out non exe files in `bin` on Windows ([79ee083](https://github.com/chawyehsu/moonup/commit/79ee0830fd5f40517c523275a82d7ea082c399ba))
+
 ## [0.1.1](https://github.com/chawyehsu/moonup/compare/v0.1.0...v0.1.1) (2024-08-01)
 
 
