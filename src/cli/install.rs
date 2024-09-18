@@ -119,13 +119,23 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
                 .map(|t| t.is_file())
                 .unwrap_or(false);
             if is_file {
+                #[cfg(target_os = "windows")]
+                {
+                    e.path().extension().and_then(|ext| {
+                        if ext == "exe" {
+                            Some(e.file_name())
+                        } else {
+                            None
+                        }
+                    })
+                }
+
                 #[cfg(not(target_os = "windows"))]
                 {
                     std::fs::set_permissions(e.path(), std::fs::Permissions::from_mode(0o755))
                         .unwrap();
+                    Some(e.file_name())
                 }
-
-                Some(e.file_name())
             } else {
                 None
             }
@@ -174,6 +184,8 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
 // This is a workaround for the issue of MoonBit's VSCode extension
 // reporting errors when the core library is not found, as the extension
 // always looks for the core library in `MOON_HOME`/lib/core.
+//
+// Discussion: https://github.com/chawyehsu/moonup/issues/7
 fn link_lib(release: &ReleaseCombined) -> miette::Result<()> {
     let lnk = crate::moon_home().join("lib");
     let src = {
