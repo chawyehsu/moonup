@@ -16,8 +16,15 @@ If you have the Rust toolchain installed, you can install **moonup** easily with
 cargo install moonup
 ```
 
+If you are on Windows and you have Scoop installed:
+
+```pwsh
+scoop bucket add dorado https://github.com/chawyehsu/dorado
+scoop install moonup
+```
+
 Or you may download the latest release from [GitHub releases][releases],
-manuallly extract the archive and put the executables in a directory that is in your `PATH`.
+manually extract the archive and put the executables in a directory that is in your `PATH`.
 
 After installation, run `moonup help` to see the available commands.
 
