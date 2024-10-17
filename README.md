@@ -3,10 +3,11 @@
 > Manage multiple [MoonBit] installations
 
 [![cicd][cicd-badge]][cicd]
+[![downloads][downloads-badge]][releases]
 [![release][release-badge]][releases]
 [![crates-svg]][crates-url]
+[![crates-downloads-svg]][crates-url]
 [![license][license-badge]](LICENSE)
-[![downloads][downloads-badge]][releases]
 
 ## Getting Started
 
@@ -88,7 +89,7 @@ continuously from the official website.
 
 ### Known Limitations
 
-- Isolation of MoonBit core standard library is problematic, see #7.
+- Isolation of MoonBit core standard library is problematic, see [#7].
 
 ## Development
 
@@ -123,13 +124,15 @@ cargo run -- help
 > [Blog](https://chawyehsu.com) · GitHub [@chawyehsu](https://github.com/chawyehsu) · Twitter [@chawyehsu](https://twitter.com/chawyehsu)
 
 [MoonBit]: https://www.moonbitlang.com/
-[cicd-badge]: https://github.com/chawyehsu/moonup/workflows/CICD/badge.svg
+[cicd-badge]: https://img.shields.io/github/actions/workflow/status/chawyehsu/moonup/cicd.yml?style=flat&logo=github&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
 [cicd]: https://github.com/chawyehsu/moonup/actions/workflows/cicd.yml
-[release-badge]: https://img.shields.io/github/v/release/chawyehsu/moonup
+[release-badge]: https://img.shields.io/github/v/release/chawyehsu/moonup?style=flat&logo=semanticrelease&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
 [releases]: https://github.com/chawyehsu/moonup/releases/latest
-[crates-svg]: https://img.shields.io/crates/v/moonup.svg
+[crates-svg]: https://img.shields.io/crates/v/moonup.svg?style=flat&logo=rust&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
+[crates-downloads-svg]: https://img.shields.io/crates/d/moonup?style=flat&logo=rust&label=crate%20downloads&labelColor=0B031E&color=9E1084
 [crates-url]: https://crates.io/crates/moonup
-[license-badge]: https://img.shields.io/github/license/chawyehsu/moonup
-[downloads-badge]: https://img.shields.io/github/downloads/chawyehsu/moonup/total
+[license-badge]: https://img.shields.io/github/license/chawyehsu/moonup?style=flat&logo=spdx&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
+[downloads-badge]: https://img.shields.io/github/downloads/chawyehsu/moonup/total?style=flat&logo=github&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
 [setup-moonup]: https://github.com/chawyehsu/setup-moonup
 [chawyehsu/moonbit-binaries]: https://github.com/chawyehsu/moonbit-binaries
+[#7]: https://github.com/chawyehsu/moonup/issues/7
