@@ -18,31 +18,20 @@ fn run() -> Result<()> {
     let recursion_count = recursion_guard()?;
 
     let args = env::args_os().collect::<Vec<_>>();
-    let current_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
+    let current_exe = env::current_exe()
+        .unwrap_or_else(|_| PathBuf::from(&args[0]))
+        .with_extension("");
     let current_exe_name = current_exe
         .file_name()
-        .map(|name| name.to_string_lossy().to_ascii_lowercase());
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
 
-    let shim_name = current_exe_name.unwrap_or_default();
-    let is_shim_moon = shim_name == "moon";
-
-    if shim_name.is_empty() {
-        return Err(anyhow::anyhow!("bad shim name"));
+    if current_exe_name.is_empty() {
+        return Err(anyhow::anyhow!("Unexpected bad shim name"));
     }
 
-    let shim_itself = {
-        #[cfg(target_os = "windows")]
-        {
-            shim_name == "moonup-shim.exe"
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            shim_name == "moonup-shim"
-        }
-    };
-
-    if shim_itself {
-        return Err(anyhow::anyhow!("cannot run moonup-shim directly"));
+    if current_exe_name == "moonup-shim" {
+        return Err(anyhow::anyhow!("Cannot run moonup-shim directly"));
     }
 
     let active_toolchain_root = detect_active_toolchain();
@@ -68,14 +57,14 @@ fn run() -> Result<()> {
         }
     }
 
-    let actual_exe = active_toolchain_root.join("bin").join(&shim_name);
+    let actual_exe = active_toolchain_root.join("bin").join(current_exe_name);
     let actual_libcore = active_toolchain_root.join("lib").join("core");
 
     let mut cmd = Command::new(actual_exe);
     cmd.args(args[1..].iter().cloned());
     cmd.env("MOONUP_RECURSION_COUNT", (recursion_count + 1).to_string());
 
-    if is_shim_moon {
+    if current_exe_name == "moon" {
         // Override the core standard library path to point to the one in
         // the active toolchain.
         // NOTE(chawyehsu): The `MOON_CORE_OVERRIDE` env is undocumented on
@@ -97,7 +86,7 @@ fn recursion_guard() -> Result<u8> {
         .unwrap_or(0u8);
 
     if recursion_count > RECURSION_LIMIT {
-        return Err(anyhow::anyhow!("infinite recursion detected"));
+        return Err(anyhow::anyhow!("Infinite recursion detected"));
     }
 
     Ok(recursion_count)
