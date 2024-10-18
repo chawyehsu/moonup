@@ -4,8 +4,8 @@ pub const MOON_DIR: &str = ".moon";
 /// The default MoonUp home directory is `~/.moonup`
 pub const MOONUP_DIR: &str = ".moonup";
 
-/// The URL of the MoonBit release index
-pub const INDEX_URL: &str = "https://chawyehsu.github.io/moonbit-binaries/index.json";
+/// The index URL of MoonBit releases
+pub const TOOLCHAIN_INDEX: &str = "https://moonup.csu.moe/index.json";
 
 /// The expiration time for the release index, in hours
 pub const INDEX_EXPIRATION: i64 = 2;

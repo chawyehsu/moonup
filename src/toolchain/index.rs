@@ -1,5 +1,5 @@
 use chrono::{DateTime, Duration, Local};
-use miette::IntoDiagnostic;
+use miette::{Context, IntoDiagnostic};
 use serde::Deserialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use url::Url;
@@ -87,7 +87,13 @@ async fn retrieve_index() -> miette::Result<Index> {
     }
 
     let client = build_http_client();
-    let url = Url::parse(crate::constant::INDEX_URL).into_diagnostic()?;
+    let url = Url::parse(
+        std::env::var("MOONUP_TOOLCHAIN_INDEX")
+            .as_deref()
+            .unwrap_or(crate::constant::TOOLCHAIN_INDEX),
+    )
+    .into_diagnostic()
+    .wrap_err("Invalid MOONUP_TOOLCHAIN_INDEX string, should be a valid URL")?;
 
     let mut reader = url_to_reader(url, client, None).await?;
     let mut content = String::new();
