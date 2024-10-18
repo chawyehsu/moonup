@@ -65,6 +65,19 @@ fn run() -> Result<()> {
     cmd.env("MOONUP_RECURSION_COUNT", (recursion_count + 1).to_string());
 
     if current_exe_name == "moon" {
+        // intercept `moon upgrade` and proxy it to `moonup upgrade`
+        if args.len() > 1 && args[1] == "upgrade" {
+            let mut cmd = Command::new("moonup")
+                .args(["update", "--no-self-update"])
+                .spawn()
+                .map_err(|e| anyhow::anyhow!("Failed to spawn moonup upgrade: {}", e))?;
+            let code = cmd.wait()?;
+            return code
+                .success()
+                .then(|| Ok(()))
+                .unwrap_or_else(|| Err(anyhow::anyhow!("Failed to upgrade toolchains: {}", code)));
+        }
+
         // Override the core standard library path to point to the one in
         // the active toolchain.
         // NOTE(chawyehsu): The `MOON_CORE_OVERRIDE` env is undocumented on
