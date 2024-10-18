@@ -16,7 +16,7 @@ anyhow = "1.0.86"
 chrono = "0.4.38"
 clap = { version = "4.5", features = ["derive"] }
 clap-verbosity-flag = "2.2.0"
-clap_complete = "4.5.8"
+clap_complete = "4.5.13"
 console = "0.15.8"
 dialoguer = "0.11.0"
 dirs = "5.0.1"
