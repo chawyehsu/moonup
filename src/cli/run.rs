@@ -63,10 +63,10 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         // MoonBit's official documentation. I reverse-engineered this from
         // the `moon` executable. This is a hacky way to make things work
         // and may not work as MoonBit evolves.
-        let env_moon_core_override = env::var("MOON_CORE_OVERRIDE")
-            .ok()
-            .unwrap_or(libcore.to_string_lossy().to_string());
-        cmd.env("MOON_CORE_OVERRIDE", env_moon_core_override);
+        cmd.env(
+            "MOON_CORE_OVERRIDE",
+            env::var_os("MOON_CORE_OVERRIDE").unwrap_or(libcore.into_os_string()),
+        );
     }
 
     tracing::debug!("Running command: {:?}", cmd);
