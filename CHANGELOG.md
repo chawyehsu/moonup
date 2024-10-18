@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.3](https://github.com/chawyehsu/moonup/compare/v0.1.2...v0.1.3) (2024-10-18)
+
+
+### Features
+
+* **moonup-shim:** implement `moon upgrade` interception ([#14](https://github.com/chawyehsu/moonup/issues/14)) ([b8f118b](https://github.com/chawyehsu/moonup/commit/b8f118bbb256736f6646ca2693346f9a2e31381a))
+* **moonup:** support `MOONUP_TOOLCHAIN_INDEX` configuration ([ece4859](https://github.com/chawyehsu/moonup/commit/ece4859851b8b508af42c61d49e403d126a8c39c))
+
+
+### Bug Fixes
+
+* **moonup-shim:** fix shim name checking on windows ([6d78280](https://github.com/chawyehsu/moonup/commit/6d7828014741e5c01a78051d662e491463aae8bc))
+
 ## [0.1.2](https://github.com/chawyehsu/moonup/compare/v0.1.1...v0.1.2) (2024-09-18)
 
 
