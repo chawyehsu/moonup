@@ -1539,9 +1539,9 @@ dependencies = [
 
 [[package]]
 name = "rattler_digest"
-version = "0.19.5"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eeb0228f734983274fb6938844123e88aa55158d53ead37e8ae3deb641fe05aa"
+checksum = "a87e1ed2c7df1dbbfaa79d8f520c347d511231c77f4dd5327a6c389758a98db0"
 dependencies = [
  "blake2",
  "digest",
