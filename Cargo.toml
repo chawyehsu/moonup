@@ -12,7 +12,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.91"
 chrono = "0.4.38"
 clap = { version = "4.5", features = ["derive"] }
 clap-verbosity-flag = "2.2.0"
