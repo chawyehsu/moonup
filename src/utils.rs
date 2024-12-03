@@ -40,6 +40,19 @@ pub async fn url_to_reader(
     tracing::debug!("Streaming: {}", url);
     let request = client.get(url);
     let response = request.send().await.into_diagnostic()?;
+
+    if !response.status().is_success() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!(
+                "failed to download {} (code: {})",
+                response.url(),
+                response.status()
+            ),
+        ))
+        .into_diagnostic();
+    }
+
     if let Some(reporter) = &reporter {
         reporter.on_start(
             response
