@@ -46,6 +46,7 @@ pub enum Command {
 
     Run(run::Args),
 
+    #[clap(alias = "list", alias = "ls")]
     Show(show::Args),
 
     #[clap(visible_alias = "u")]
