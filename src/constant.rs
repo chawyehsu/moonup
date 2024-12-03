@@ -18,3 +18,6 @@ pub const TOOLCHAIN_FILE: &str = "moonbit-version";
 
 /// The maximum number of recursions allowed
 pub const RECURSION_LIMIT: u8 = 20;
+
+/// The maximum number of select dialog items
+pub const MAX_SELECT_ITEMS: usize = 6;

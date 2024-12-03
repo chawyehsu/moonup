@@ -3,7 +3,7 @@ use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
 use std::env;
 
-use crate::toolchain::resolve::resolve_toolchain_file;
+use crate::{constant, toolchain::resolve::resolve_toolchain_file};
 
 /// Pin the MoonBit toolchain to a specific version
 #[derive(Parser, Debug)]
@@ -32,6 +32,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                 let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
                     .with_prompt("Pick a installed version")
                     .items(&selections)
+                    .max_length(constant::MAX_SELECT_ITEMS)
                     .default(0)
                     .interact()
                     .into_diagnostic()

@@ -2,6 +2,8 @@ use clap::Parser;
 use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
 
+use crate::constant;
+
 /// Set the default toolchain
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -28,6 +30,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                 let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
                     .with_prompt("Pick a installed version")
                     .items(&selections)
+                    .max_length(constant::MAX_SELECT_ITEMS)
                     .default(0)
                     .interact()
                     .into_diagnostic()
