@@ -113,28 +113,32 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
         .into_diagnostic()?
         .filter_map(std::io::Result::ok)
         .filter_map(|e| {
+            let path = e.path();
+            let name = e.file_name();
+            let ext = path.extension();
+
             let is_file = e
                 .file_type()
                 .into_diagnostic()
                 .map(|t| t.is_file())
                 .unwrap_or(false);
+
             if is_file {
                 #[cfg(target_os = "windows")]
                 {
-                    e.path().extension().and_then(|ext| {
-                        if ext == "exe" {
-                            Some(e.file_name())
-                        } else {
-                            None
-                        }
-                    })
+                    ext.and_then(|ext| if ext == "exe" { Some(name) } else { None })
                 }
 
                 #[cfg(not(target_os = "windows"))]
                 {
+                    // Skip if the file has an extension (.h, .a. .o, etc.)
+                    if ext.is_some() {
+                        return None;
+                    }
+
                     std::fs::set_permissions(e.path(), std::fs::Permissions::from_mode(0o755))
                         .unwrap();
-                    Some(e.file_name())
+                    Some(name)
                 }
             } else {
                 None
@@ -145,6 +149,7 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     let moon_home_bin = crate::moon_home().join("bin");
 
     std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
+    let _ = crate::fs::empty_dir(&moon_home_bin);
 
     for bin in bins {
         tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());
