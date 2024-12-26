@@ -69,7 +69,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         );
     }
 
-    tracing::debug!("Running command: {:?}", cmd);
+    tracing::debug!("running command: {:?}", cmd);
     cmd.status().into_diagnostic()?;
 
     Ok(())

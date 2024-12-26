@@ -176,7 +176,7 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
     cmd.arg("--source-dir");
     cmd.arg(&corelib_dir);
     cmd.env("PATH", bin_dir.display().to_string());
-    tracing::debug!("Running command: {:?}", cmd);
+    tracing::debug!("running command: {:?}", cmd);
     cmd.status().into_diagnostic()?;
 
     Ok(())
@@ -216,7 +216,7 @@ fn link_lib(release: &ReleaseCombined) -> miette::Result<()> {
 
     let _ = std::fs::remove_dir_all(&lnk);
     tracing::debug!(
-        "Linking lib directory: {} -> {}",
+        "linking lib directory: {} -> {}",
         lnk.display(),
         src.display()
     );

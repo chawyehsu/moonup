@@ -61,13 +61,15 @@ async fn retrieve_index() -> miette::Result<Index> {
         );
         let now = Local::now();
         let duration = Duration::hours(constant::INDEX_EXPIRATION);
-
-        tracing::debug!("Last updated: {}", lastupdated);
-        tracing::debug!("Last updated (offset): {}", lastupdated + duration);
-        tracing::debug!("Now: {}", now);
-
         let index_cache_valid = now < lastupdated + duration;
-        tracing::debug!("Index cache valid: {}", index_cache_valid);
+
+        tracing::debug!(
+            "index cache: last updated {} (offset: {}), now: {}, valid: {}",
+            lastupdated,
+            lastupdated + duration,
+            now,
+            index_cache_valid
+        );
 
         if index_cache_valid {
             if let Ok(mut indexfile) = tokio::fs::File::open(&indexfile_path)

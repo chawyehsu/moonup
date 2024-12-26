@@ -37,7 +37,7 @@ pub async fn url_to_reader(
     client: Client,
     reporter: Option<Arc<dyn Reporter>>,
 ) -> miette::Result<impl AsyncRead> {
-    tracing::debug!("Streaming: {}", url);
+    tracing::debug!("streaming: {}", url);
     let request = client.get(url);
     let response = request.send().await.into_diagnostic()?;
 

@@ -86,7 +86,7 @@ async fn self_update() -> miette::Result<()> {
         .filter(|a| a.name.contains(self_update::get_target()))
         .collect::<Vec<_>>();
 
-    tracing::trace!("Moonup assets: {:?}", assets);
+    tracing::trace!("moonup assets: {:?}", assets);
     assert_eq!(assets.len(), 2, "expected two assets");
 
     let client = build_http_client();
@@ -102,9 +102,9 @@ async fn self_update() -> miette::Result<()> {
             latest_release.version, asset.name
         );
         let url = url::Url::parse(url.as_str()).into_diagnostic()?;
-        tracing::debug!("Downloading {} from {}", asset.name, url);
+        tracing::debug!("downloading {} from {}", asset.name, url);
         let file = temp_dir.path().join(&asset.name);
-        tracing::debug!("Saving to {}", file.display());
+        tracing::debug!("saving to {}", file.display());
 
         let mut reader = utils::url_to_reader(url, client.clone(), None).await?;
         if !asset.name.ends_with(".sha256") {
