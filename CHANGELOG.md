@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.4](https://github.com/chawyehsu/moonup/compare/v0.1.3...v0.1.4) (2024-12-26)
+
+
+### Features
+
+* **cli:** add aliases for the show command ([e429289](https://github.com/chawyehsu/moonup/commit/e429289d05c545e9435892a9b14f66a86cd8b55e))
+* **cli:** set max length for select dialogs ([2de5ad8](https://github.com/chawyehsu/moonup/commit/2de5ad83bb2f70d14eac8fa95f312332db2895f3))
+
+
+### Bug Fixes
+
+* **cli:** show command should list active toolchain ([ee2fefc](https://github.com/chawyehsu/moonup/commit/ee2fefcbe798b536e80aa3d7587abef93dda4748))
+* filter out non executables when creating shims ([ccee680](https://github.com/chawyehsu/moonup/commit/ccee680177046a89e1a11d9f2f259a44d622b71a))
+* handle unsuccessful http responses in url_to_reader ([077a715](https://github.com/chawyehsu/moonup/commit/077a7152974448332ddd6c843b410c38daf01ba7))
+
 ## [0.1.3](https://github.com/chawyehsu/moonup/compare/v0.1.2...v0.1.3) (2024-10-18)
 
 
