@@ -20,7 +20,7 @@ pub(crate) fn build_http_client() -> Client {
         env!("CARGO_PKG_NAME"),
         "/",
         env!("CARGO_PKG_VERSION"),
-        " (",
+        " (+",
         env!("CARGO_PKG_HOMEPAGE"),
         ")"
     );
