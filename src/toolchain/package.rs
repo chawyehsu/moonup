@@ -17,26 +17,24 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
     }
 
     let downloads_dir = crate::moonup_home().join("downloads");
-    let toolchain_dir = crate::moonup_home().join("toolchains");
+    let toolchains_dir = crate::moonup_home().join("toolchains");
 
     if let Some(toolchain) = release.toolchain.as_ref() {
         let version = toolchain.version.as_str();
 
         let downloads_version_dir = downloads_dir.join(version);
         let pkg_toolchain = downloads_version_dir.join(&toolchain.name);
-        let mut destination = toolchain_dir
-            .join({
-                match release.latest {
-                    true => "latest",
-                    false => version,
-                }
-            })
-            .join("bin");
+        let mut destination = toolchains_dir.join({
+            match release.latest {
+                true => "latest",
+                false => version,
+            }
+        });
 
         crate::fs::empty_dir(&destination)
             .into_diagnostic()
             .wrap_err(format!(
-                "failed to delete old bin: {}",
+                "failed to delete old toolchain: {}",
                 destination.display()
             ))
             .wrap_err(
@@ -82,10 +80,44 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
             _ => unreachable!("unsupported extension"),
         }
 
-        if release.latest {
-            // Remove `bin` from the destination path
-            destination.pop();
+        let bin_subdir = destination.join("bin");
+        if !bin_subdir.is_dir() {
+            tracing::debug!("old toolchain archive layout detected (version: {version})");
+            // older toolchains (<= v0.1.20241223+62b9a1a85) don't have a `bin` subdirectory,
+            // move all files into a `bin` subdirectory
+            let files = std::fs::read_dir(&destination)
+                .into_diagnostic()
+                .wrap_err(format!(
+                    "failed to read directory: {}",
+                    destination.display()
+                ))?;
 
+            std::fs::create_dir(&bin_subdir)
+                .into_diagnostic()
+                .wrap_err(format!(
+                    "failed to create directory: {}",
+                    bin_subdir.display()
+                ))?;
+
+            for f in files {
+                let f = f
+                    .into_diagnostic()
+                    .wrap_err("failed to read directory entry")?;
+                let path = f.path();
+                let name = path.file_name().unwrap();
+                let new_path = bin_subdir.join(name);
+                std::fs::rename(&path, &new_path)
+                    .into_diagnostic()
+                    .wrap_err(format!(
+                        "failed to move file from {} to {}",
+                        path.display(),
+                        new_path.display()
+                    ))?;
+            }
+        }
+
+        // create a stub to store the actual version of the `latest` toolchain
+        if release.latest {
             destination.push("version");
             tokio::fs::write(&destination, format!("{}\n", version))
                 .await
@@ -98,7 +130,7 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
 
         let downloads_version_dir = downloads_dir.join(version);
         let pkg_core = downloads_version_dir.join(&core.name);
-        let destination = toolchain_dir
+        let destination = toolchains_dir
             .join({
                 match release.latest {
                     true => "latest",
