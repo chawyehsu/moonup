@@ -25,7 +25,7 @@ dirs = "5.0.1"
 flate2 = "1.0.34"
 futures-util = "0.3.31"
 indicatif = "0.17.8"
-miette = { version = "7.2.0", features = ["fancy"] }
+miette = { version = "7.4.0", features = ["fancy"] }
 rattler_digest = "1.0.2"
 remove_dir_all = "0.8.3"
 reqwest = { version = "0.12.5", features = ["json", "stream"] }
