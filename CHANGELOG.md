@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/chawyehsu/moonup/compare/v0.1.4...v0.1.5) (2025-01-02)
+
+
+### Features
+
+* support new toolchain archive layout ([#47](https://github.com/chawyehsu/moonup/issues/47)) ([b852702](https://github.com/chawyehsu/moonup/commit/b8527025c6f6f4dfb1ccf2cb4fc08bbe0584ce6c))
+
 ## [0.1.4](https://github.com/chawyehsu/moonup/compare/v0.1.3...v0.1.4) (2024-12-26)
 
 
