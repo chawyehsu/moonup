@@ -124,11 +124,14 @@ pub struct Component {
     pub sha256: String,
 }
 
+/// The install recipe for performing a toolchain installation
 #[derive(Debug)]
 pub struct InstallRecipe {
     /// The requested toolchain spec
     pub spec: ToolchainSpec,
+    /// The release information
     pub release: Release,
+    /// The components to install
     pub components: Vec<Component>,
 }
 
@@ -356,17 +359,14 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
     );
     let now = Local::now();
     let duration = Duration::hours(constant::INDEX_EXPIRATION);
-    let index_cache_valid = now < lastupdated + duration;
+    let cache_valid = now < lastupdated + duration;
 
-    tracing::debug!(
-        "index {} cache valid '{}' (last updated {}, now {})",
-        path.display(),
-        index_cache_valid,
-        lastupdated,
-        now,
-    );
+    tracing::debug!("index {} cache valid '{}'", path.display(), cache_valid,);
+    if !cache_valid {
+        tracing::debug!("index cache last updated {}, now {}", lastupdated, now);
+    }
 
-    match index_cache_valid {
+    match cache_valid {
         false => Ok((false, "".to_string())),
         true => {
             let mut file = tokio::fs::File::open(&path)

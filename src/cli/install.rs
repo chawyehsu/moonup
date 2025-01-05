@@ -53,9 +53,8 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     };
 
     if spec.is_bleeding() {
-        return Err(miette::miette!(
-            "'bleeding' channel installation is not implemented"
-        ));
+        eprintln!("'bleeding' channel installation is not implemented");
+        std::process::exit(1);
     }
 
     println!("Installing toolchain '{}'", spec);
