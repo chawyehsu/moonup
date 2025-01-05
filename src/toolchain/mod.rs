@@ -1,4 +1,3 @@
-use clap::{builder::PossibleValue, ValueEnum};
 use std::path::Path;
 
 pub mod index;
@@ -12,25 +11,6 @@ pub enum ToolchainSpec {
     Nightly,
     Bleeding,
     Version(String),
-}
-
-impl ValueEnum for ToolchainSpec {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[
-            ToolchainSpec::Latest,
-            ToolchainSpec::Nightly,
-            ToolchainSpec::Bleeding,
-        ]
-    }
-
-    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
-        match self {
-            ToolchainSpec::Latest => Some(PossibleValue::new("latest")),
-            ToolchainSpec::Nightly => Some(PossibleValue::new("nightly")),
-            ToolchainSpec::Bleeding => Some(PossibleValue::new("bleeding")),
-            ToolchainSpec::Version(v) => Some(PossibleValue::new(v)),
-        }
-    }
 }
 
 impl ToolchainSpec {
