@@ -384,7 +384,7 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
     }
 }
 
-pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<InstallRecipe> {
+pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
     let release = match spec {
         ToolchainSpec::Bleeding => unimplemented!(),
         ToolchainSpec::Latest => {
@@ -432,17 +432,17 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Install
     let release = match release {
         Some(r) => r,
         None => {
-            return Err(miette::miette!(
-                "No toolchain found for requested spec '{}'",
-                spec
-            ))
+            tracing::debug!("no release available for requested spec: {}", spec);
+            return Ok(None);
         }
     };
 
     let components = read_component_index(&release).await?.components;
-    Ok(InstallRecipe {
+    let recipe = InstallRecipe {
         spec: spec.clone(),
         release,
         components,
-    })
+    };
+
+    Ok(Some(recipe))
 }

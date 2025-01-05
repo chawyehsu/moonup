@@ -94,10 +94,12 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         std::process::exit(1);
     }
 
+    let recipe = build_installrecipe(&spec).await?.unwrap_or_else(|| {
+        eprintln!("No toolchain available for requested spec '{}'", spec);
+        std::process::exit(1);
+    });
+
     println!("Installing toolchain '{}'", spec);
-
-    let recipe = build_installrecipe(&spec).await?;
-
     populate_install(&recipe).await?;
     post_install(&recipe)?;
     link_lib(&recipe)?;

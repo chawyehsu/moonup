@@ -42,7 +42,9 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             }
             Err(e) => return Err(miette::miette!(e).wrap_err("failed to read version file")),
             Ok(version_local) => {
-                let recipe = build_installrecipe(&ToolchainSpec::Latest).await?;
+                let recipe = build_installrecipe(&ToolchainSpec::Latest)
+                    .await?
+                    .expect("should have recipe");
                 let version_remote = recipe.release.version.as_str();
 
                 if version_local.trim() == version_remote {
@@ -72,7 +74,9 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             }
             Err(e) => return Err(miette::miette!(e).wrap_err("failed to read version file")),
             Ok(date_local) => {
-                let recipe = build_installrecipe(&ToolchainSpec::Nightly).await?;
+                let recipe = build_installrecipe(&ToolchainSpec::Nightly)
+                    .await?
+                    .expect("should have recipe");
                 let date_remote = recipe.release.date.as_deref().expect("should have date");
 
                 if date_local.trim() == date_remote {
