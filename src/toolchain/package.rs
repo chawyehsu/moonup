@@ -4,182 +4,163 @@ use url::Url;
 
 use crate::{
     archive::{extract_tar_gz, extract_zip},
+    constant,
     fs::save_file,
     reporter::{ProgressReporter, Reporter},
     utils::{build_http_client, path_to_reader, url_to_reader},
 };
 
-use super::index::ReleaseCombined;
+use super::index::InstallRecipe;
 
-pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
-    if release.core.is_none() && release.toolchain.is_none() {
-        return Ok(());
+pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
+    let mut download_dir = crate::moonup_home();
+    download_dir.push("downloads");
+
+    let mut install_dir = crate::moonup_home();
+    install_dir.push("toolchains");
+
+    // version release tag
+    let mut tag = format!("v{}", recipe.release.version.as_str());
+
+    if let Some(date) = recipe.release.date.as_ref() {
+        download_dir.push("nightly");
+        download_dir.push(date);
+
+        let tag_nightly = format!("nightly-{}", date);
+        tag = tag_nightly;
+
+        if recipe.spec.is_nightly() {
+            install_dir.push("nightly");
+        } else {
+            install_dir.push(&tag);
+        }
+    } else {
+        let version = recipe.release.version.as_str();
+        download_dir.push(version);
+
+        if recipe.spec.is_latest() {
+            install_dir.push("latest");
+        } else {
+            install_dir.push(version);
+        }
     }
 
-    let downloads_dir = crate::moonup_home().join("downloads");
-    let toolchains_dir = crate::moonup_home().join("toolchains");
+    // used for creating the version stub after installation of components
+    let mut install_dir_root = install_dir.clone();
 
-    if let Some(toolchain) = release.toolchain.as_ref() {
-        let version = toolchain.version.as_str();
+    // ensure all components are downloaded in the first loop
+    for component in recipe.components.iter() {
+        let name = component.name.as_str();
+        let file = component.file.as_str();
+        let sha256_expected = component.sha256.as_str();
 
-        let downloads_version_dir = downloads_dir.join(version);
-        let pkg_toolchain = downloads_version_dir.join(&toolchain.name);
-        let mut destination = toolchains_dir.join({
-            match release.latest {
-                true => "latest",
-                false => version,
-            }
-        });
+        let local_file = download_dir.join(file);
 
-        crate::fs::empty_dir(&destination)
-            .into_diagnostic()
-            .wrap_err(format!(
-                "failed to delete old toolchain: {}",
-                destination.display()
-            ))
-            .wrap_err(
-                "files may be in use, please close applications using moonbit and try again",
-            )?;
+        if let Err(e) = path_to_reader(&local_file).await {
+            tracing::trace!("failed to read local file: {}", e);
+            tracing::debug!("downloading {} to {}", name, local_file.display());
 
-        let reader = if let Ok(reader) = path_to_reader(&pkg_toolchain).await {
-            reader
-        } else {
             let client = build_http_client();
-            let url = format!(
-                "https://github.com/chawyehsu/moonbit-binaries/releases/download/v{}/{}",
-                version,
-                toolchain.name.as_str()
-            );
 
-            let progress_reporter = ProgressReporter::new("Downloading toolchain".to_string());
+            let url = Url::parse(
+                format!("{}/download/{}/{}", constant::MOONUP_DIST_SERVER, tag, file).as_str(),
+            )
+            .into_diagnostic()?;
+
+            let progress_reporter = ProgressReporter::new(format!("Downloading {}", name));
             let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
 
-            let reader = url_to_reader(Url::parse(&url).unwrap(), client, reporter.clone()).await?;
-            let sha256 = format!("{:x}", save_file(reader, &pkg_toolchain).await?);
+            let reader = url_to_reader(url, client, reporter.clone()).await?;
+            let sha256_acutal = format!("{:x}", save_file(reader, &local_file).await?);
 
             if let Some(reporter) = &reporter {
                 reporter.on_complete();
             }
 
-            if sha256 != toolchain.sha256 {
+            if sha256_acutal != sha256_expected {
                 let msg = format!(
-                    "SHA256 checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
-                    toolchain.name, toolchain.sha256, sha256
+                    "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
+                    file, sha256_expected, sha256_acutal
                 );
+
+                // remove the downloaded invalid file
+                let _ = std::fs::remove_file(&local_file).inspect_err(|e| {
+                    tracing::debug!("failed to remove invalid download: {}", e);
+                });
+
                 let err = std::io::Error::new(std::io::ErrorKind::InvalidData, msg);
                 return Err(err).into_diagnostic();
             }
-
-            path_to_reader(&pkg_toolchain).await?
-        };
-
-        let extension = pkg_toolchain.extension().unwrap().to_str().unwrap();
-        match extension {
-            "gz" => extract_tar_gz(reader, &destination).await?,
-            "zip" => extract_zip(reader, &destination).await?,
-            _ => unreachable!("unsupported extension"),
         }
+    }
 
-        let bin_subdir = destination.join("bin");
-        if !bin_subdir.is_dir() {
+    // do the actual installation in the second loop
+    for component in recipe.components.iter() {
+        let name = component.name.as_str();
+        let file = component.file.as_str();
+        let sha256_expected = component.sha256.as_str();
+
+        let local_file = download_dir.join(file);
+        tracing::debug!("installing {} from {}", name, local_file.display());
+
+        let reader = path_to_reader(&local_file)
+            .await
+            .wrap_err("failed to read local file")?;
+
+        // older toolchains (<= v0.1.20241223+62b9a1a85) don't have a `bin` subdirectory,
+        // install all toolchain files into the `bin` subdirectory
+        if name == "toolchain" && recipe.release.layout_version1.unwrap_or(false) {
+            let version = recipe.release.version.as_str();
             tracing::debug!("old toolchain archive layout detected (version: {version})");
-            // older toolchains (<= v0.1.20241223+62b9a1a85) don't have a `bin` subdirectory,
-            // move all files into a `bin` subdirectory
-            let files = std::fs::read_dir(&destination)
-                .into_diagnostic()
-                .wrap_err(format!(
-                    "failed to read directory: {}",
-                    destination.display()
-                ))?;
-
-            std::fs::create_dir(&bin_subdir)
-                .into_diagnostic()
-                .wrap_err(format!(
-                    "failed to create directory: {}",
-                    bin_subdir.display()
-                ))?;
-
-            for f in files {
-                let f = f
-                    .into_diagnostic()
-                    .wrap_err("failed to read directory entry")?;
-                let path = f.path();
-                let name = path.file_name().unwrap();
-                let new_path = bin_subdir.join(name);
-                std::fs::rename(&path, &new_path)
-                    .into_diagnostic()
-                    .wrap_err(format!(
-                        "failed to move file from {} to {}",
-                        path.display(),
-                        new_path.display()
-                    ))?;
-            }
+            install_dir.push("bin");
         }
 
-        // create a stub to store the actual version of the `latest` toolchain
-        if release.latest {
-            destination.push("version");
-            tokio::fs::write(&destination, format!("{}\n", version))
-                .await
-                .into_diagnostic()?;
+        // the core library distribution does not have a `lib` top-level directory
+        if name == "libcore" {
+            install_dir.push("lib");
+        }
+
+        let is_zip = file.ends_with(".zip");
+        let sha256 = match is_zip {
+            true => extract_zip(reader, &install_dir).await?,
+            false => extract_tar_gz(reader, &install_dir).await?,
+        };
+
+        let sha256_acutal = format!("{:x}", sha256);
+
+        if sha256_acutal != sha256_expected {
+            let msg = format!(
+                "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
+                file, sha256_expected, sha256_acutal
+            );
+
+            // remove the downloaded invalid file
+            let _ = std::fs::remove_file(&local_file).inspect_err(|e| {
+                tracing::debug!("failed to remove invalid download: {}", e);
+            });
+            // clean up the invalid installation
+            let _ = crate::fs::empty_dir(&install_dir).inspect_err(|e| {
+                tracing::debug!("failed to clean up invalid installation: {}", e);
+            });
+
+            let err = std::io::Error::new(std::io::ErrorKind::InvalidData, msg);
+            return Err(err).into_diagnostic();
         }
     }
 
-    if let Some(core) = release.core.as_ref() {
-        let version = core.version.as_str();
-
-        let downloads_version_dir = downloads_dir.join(version);
-        let pkg_core = downloads_version_dir.join(&core.name);
-        let destination = toolchains_dir
-            .join({
-                match release.latest {
-                    true => "latest",
-                    false => version,
-                }
-            })
-            .join("lib");
-
-        let old_core = destination.join("core");
-        crate::fs::remove_dir_all(&old_core)
-            .into_diagnostic()
-            .wrap_err(format!("failed to delete old core: {}", old_core.display()))
-            .wrap_err(
-                "files may be in use, please close applications using moonbit and try again",
-            )?;
-
-        let reader = if let Ok(reader) = path_to_reader(&pkg_core).await {
-            reader
-        } else {
-            let client = build_http_client();
-            let url = format!(
-                "https://github.com/chawyehsu/moonbit-binaries/releases/download/v{}/{}",
-                version,
-                core.name.as_str()
-            );
-
-            let progress_reporter = ProgressReporter::new("Downloading core".to_string());
-            let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
-
-            let reader = url_to_reader(Url::parse(&url).unwrap(), client, reporter.clone()).await?;
-            let sha256 = format!("{:x}", save_file(reader, &pkg_core).await?);
-
-            if let Some(reporter) = &reporter {
-                reporter.on_complete();
-            }
-
-            if sha256 != core.sha256 {
-                let msg = format!(
-                    "SHA256 checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
-                    core.name, core.sha256, sha256
-                );
-                let err = std::io::Error::new(std::io::ErrorKind::InvalidData, msg);
-                return Err(err).into_diagnostic();
-            }
-
-            path_to_reader(&pkg_core).await?
-        };
-
-        extract_zip(reader, &destination).await?;
+    // create a stub to store the actual version when the spec is latest or nightly
+    if recipe.spec.is_latest() {
+        let acutal_version = recipe.release.version.as_str();
+        install_dir_root.push("version");
+        tokio::fs::write(&install_dir_root, format!("{}\n", acutal_version))
+            .await
+            .into_diagnostic()?;
+    } else if recipe.spec.is_nightly() {
+        let acutal_date = recipe.release.date.as_ref().expect("should have a date");
+        install_dir_root.push("version");
+        tokio::fs::write(&install_dir_root, format!("{}\n", acutal_date))
+            .await
+            .into_diagnostic()?;
     }
 
     Ok(())
