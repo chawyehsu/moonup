@@ -71,11 +71,11 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                 )
             }
             Err(e) => return Err(miette::miette!(e).wrap_err("failed to read version file")),
-            Ok(version_local) => {
+            Ok(date_local) => {
                 let recipe = build_installrecipe(&ToolchainSpec::Nightly).await?;
-                let version_remote = recipe.release.version.as_str();
+                let date_remote = recipe.release.date.as_deref().expect("should have date");
 
-                if version_local.trim() == version_remote {
+                if date_local.trim() == date_remote {
                     println!("The nightly toolchain is up to date");
                 } else {
                     println!("Updating the nightly toolchain");
