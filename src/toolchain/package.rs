@@ -105,6 +105,11 @@ pub async fn populate_package(release: &ReleaseCombined) -> miette::Result<()> {
                     .wrap_err("failed to read directory entry")?;
                 let path = f.path();
                 let name = path.file_name().unwrap();
+
+                if name == "bin" {
+                    continue;
+                }
+
                 let new_path = bin_subdir.join(name);
                 std::fs::rename(&path, &new_path)
                     .into_diagnostic()
