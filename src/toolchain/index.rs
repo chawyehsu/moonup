@@ -159,13 +159,9 @@ pub async fn read_index() -> miette::Result<Index> {
             });
     }
 
-    let main_index_url = Url::parse(
-        std::env::var("MOONUP_TOOLCHAIN_INDEX")
-            .as_deref()
-            .unwrap_or(format!("{}/{}", constant::MOONUP_DIST_SERVER, index_filename).as_str()),
-    )
-    .into_diagnostic()
-    .wrap_err("Invalid MOONUP_TOOLCHAIN_INDEX string, should be a valid URL")?;
+    let main_index_url =
+        Url::parse(format!("{}/{}", constant::MOONUP_DIST_SERVER, index_filename).as_str())
+            .into_diagnostic()?;
 
     content.clear();
 
