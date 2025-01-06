@@ -1,6 +1,6 @@
 [project]
 name = "moonup"
-version = "0.1.6"
+version = "0.2.0"
 description = "Manage multiple MoonBit installations"
 authors = ["Chawye Hsu <su+git@chawyehsu.com>"]
 channels = ["conda-forge"]
