@@ -18,13 +18,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         if let Ok(toolchains) = crate::toolchain::installed_toolchains() {
             let selections = toolchains
                 .iter()
-                .map(|t| {
-                    if t.latest {
-                        "latest".to_string()
-                    } else {
-                        t.version.clone()
-                    }
-                })
+                .map(|t| t.name.to_owned())
                 .rev()
                 .collect::<Vec<_>>();
 
@@ -38,7 +32,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                     .into_diagnostic()
                     .expect("can't select a toolchain version");
 
-                return Some(selections[selection].clone());
+                return Some(selections[selection].to_string());
             }
         }
 

@@ -1,11 +1,17 @@
+use miette::IntoDiagnostic;
 use std::path::Path;
 
 pub mod index;
 pub mod package;
 pub mod resolve;
 
-/// Toolchain specification
-#[derive(Debug, Clone)]
+/// Install specification for a toolchain
+///
+/// This can be a specific version, or one of the special values:
+/// - `latest`: the latest stable release
+/// - `nightly`: the latest nightly build
+/// - `bleeding`: the latest build from the main branch
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolchainSpec {
     Latest,
     Nightly,
@@ -30,6 +36,51 @@ impl ToolchainSpec {
     #[inline]
     pub fn is_bleeding(&self) -> bool {
         matches!(self, ToolchainSpec::Bleeding)
+    }
+}
+
+impl Ord for ToolchainSpec {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            // latest
+            (ToolchainSpec::Latest, ToolchainSpec::Latest) => std::cmp::Ordering::Equal,
+            (ToolchainSpec::Latest, ToolchainSpec::Nightly) => std::cmp::Ordering::Less,
+            (ToolchainSpec::Latest, ToolchainSpec::Bleeding) => std::cmp::Ordering::Less,
+            (ToolchainSpec::Latest, ToolchainSpec::Version(s)) => {
+                if s.starts_with("nightly") {
+                    std::cmp::Ordering::Less
+                } else {
+                    std::cmp::Ordering::Greater
+                }
+            }
+            // nightly
+            (ToolchainSpec::Nightly, ToolchainSpec::Nightly) => std::cmp::Ordering::Equal,
+            (ToolchainSpec::Nightly, ToolchainSpec::Latest) => std::cmp::Ordering::Greater,
+            (ToolchainSpec::Nightly, ToolchainSpec::Bleeding) => std::cmp::Ordering::Less,
+            (ToolchainSpec::Nightly, ToolchainSpec::Version(_)) => std::cmp::Ordering::Greater,
+            // bleeding
+            (ToolchainSpec::Bleeding, ToolchainSpec::Bleeding) => std::cmp::Ordering::Equal,
+            (ToolchainSpec::Bleeding, ToolchainSpec::Latest) => std::cmp::Ordering::Greater,
+            (ToolchainSpec::Bleeding, ToolchainSpec::Nightly) => std::cmp::Ordering::Greater,
+            (ToolchainSpec::Bleeding, ToolchainSpec::Version(_)) => std::cmp::Ordering::Greater,
+            // version
+            (ToolchainSpec::Version(a), ToolchainSpec::Version(b)) => a.cmp(b),
+            (ToolchainSpec::Version(s), ToolchainSpec::Latest) => {
+                if s.starts_with("nightly") {
+                    std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Less
+                }
+            }
+            (ToolchainSpec::Version(_), ToolchainSpec::Nightly) => std::cmp::Ordering::Less,
+            (ToolchainSpec::Version(_), ToolchainSpec::Bleeding) => std::cmp::Ordering::Less,
+        }
+    }
+}
+
+impl PartialOrd for ToolchainSpec {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -61,12 +112,15 @@ impl From<String> for ToolchainSpec {
     }
 }
 
+/// Installed toolchain information
+#[derive(Debug, Clone)]
 pub struct InstalledToolchain {
-    /// Whether this toolchain is installed as 'latest'
-    pub latest: bool,
+    /// The install name of the installed toolchain
+    pub name: ToolchainSpec,
 
-    /// The actual version of the installed toolchain
-    pub version: String,
+    /// The actual version tag (compiler version / build date) of the
+    /// installed toolchain
+    pub tag: Option<String>,
 }
 
 impl InstalledToolchain {
@@ -74,17 +128,21 @@ impl InstalledToolchain {
         let n = path
             .file_name()
             .map(|n| n.to_ascii_lowercase().to_string_lossy().to_string())
-            .ok_or_else(|| miette::miette!("Failed to get toolchain version"))?;
-        let latest = n == "latest";
-        let version = match latest {
-            false => n,
-            true => std::fs::read_to_string(path.join("version"))
-                .ok()
-                .map(|s| s.trim().to_string())
-                .unwrap_or_else(|| "latest".to_string()),
+            .ok_or_else(|| miette::miette!("failed to read toolchain install name"))?;
+
+        let name = ToolchainSpec::from(n);
+        let tag = match &name {
+            ToolchainSpec::Version(_) => None,
+            _ => Some(
+                std::fs::read_to_string(path.join("version"))
+                    .map(|s| s.trim().to_owned())
+                    .into_diagnostic()
+                    .inspect_err(|e| tracing::warn!("failed to read toolchain version stub {}", e))
+                    .unwrap_or("unknown".to_owned()),
+            ),
         };
 
-        Ok(Self { latest, version })
+        Ok(Self { name, tag })
     }
 }
 
@@ -93,13 +151,13 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
 
     let toolchains = match toolchains_dir.read_dir() {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => vec![],
-        Err(e) => return Err(miette::miette!(e).wrap_err("Failed to read toolchains directory")),
+        Err(e) => return Err(miette::miette!(e).wrap_err("failed to read toolchains directory")),
         Ok(read_dir) => {
             let mut t = read_dir
                 .filter_map(std::io::Result::ok)
                 .filter_map(|e| InstalledToolchain::from_path(&e.path()).ok())
                 .collect::<Vec<_>>();
-            t.sort_by_key(|t| t.version.clone());
+            t.sort_by_key(|t| t.name.clone());
             t
         }
     };
