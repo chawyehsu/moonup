@@ -1,45 +1,86 @@
-use clap::builder::NonEmptyStringValueParser;
+use clap::builder::TypedValueParser;
 use clap::{CommandFactory, Parser};
 use miette::IntoDiagnostic;
+use std::ops::Deref;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, process::Command};
 
-use crate::toolchain::index::retrieve_releases;
+use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_version;
-use crate::toolchain::{
-    index::{retrieve_release, ReleaseCombined},
-    package::populate_package,
-};
+use crate::toolchain::{index, ToolchainSpec};
+use crate::toolchain::{index::build_installrecipe, package::populate_install};
 
 /// Install or update a MoonBit toolchain
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Toolchain name, can be 'latest' or a specific version number
-    #[clap(value_parser = NonEmptyStringValueParser::new())]
-    toolchain: Option<String>,
+    /// Toolchain version tag or channel name [latest, nightly, bleeding]
+    #[clap(value_parser = ToolchainSpecValueParser::new())]
+    toolchain: Option<ToolchainSpec>,
 
     /// List available toolchains
     #[clap(long)]
     list_available: bool,
 }
 
+#[derive(Copy, Clone, Debug)]
+struct ToolchainSpecValueParser;
+
+impl ToolchainSpecValueParser {
+    /// Parse non-empty ToolchainSpec value
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl TypedValueParser for ToolchainSpecValueParser {
+    type Value = ToolchainSpec;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        _arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        if value.is_empty() {
+            return Err(clap::Error::new(clap::error::ErrorKind::InvalidValue).with_cmd(cmd));
+        }
+
+        let value = value
+            .to_str()
+            .ok_or_else(|| clap::Error::new(clap::error::ErrorKind::InvalidUtf8).with_cmd(cmd))?;
+
+        Ok(ToolchainSpec::from(value))
+    }
+}
+
+impl Default for ToolchainSpecValueParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub async fn execute(args: Args) -> miette::Result<()> {
     if args.list_available {
-        let releases = retrieve_releases().await?;
-        if releases.is_empty() {
+        let index = index::read_index().await?;
+        let channels = index.channels.deref();
+        if channels.is_empty() {
             println!("No available toolchains found");
         } else {
             println!("Available toolchains:");
-            for release in releases.iter().rev() {
-                println!("{}", release.version);
+            for channel in channels {
+                println!("  {}", channel);
             }
         }
+
         return Ok(());
     }
 
-    let version = match args.toolchain.or(detect_pinned_version()) {
+    let spec = match args
+        .toolchain
+        .or(detect_pinned_version().map(ToolchainSpec::from))
+    {
         Some(v) => v,
         None => {
             let mut cmd = Args::command();
@@ -48,25 +89,25 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         }
     };
 
-    println!("Installing toolchain '{}'", version);
-
-    let release = retrieve_release(&version).await?;
-
-    if release.core.is_none() && release.toolchain.is_none() {
-        return Err(miette::miette!(
-            "No toolchain found for version '{}'",
-            version
-        ));
+    if spec.is_bleeding() {
+        eprintln!("'bleeding' channel installation is not implemented");
+        std::process::exit(1);
     }
 
-    populate_package(&release).await?;
-    post_install(&release)?;
-    link_lib(&release)?;
+    let recipe = build_installrecipe(&spec).await?.unwrap_or_else(|| {
+        eprintln!("No toolchain available for requested spec '{}'", spec);
+        std::process::exit(1);
+    });
+
+    println!("Installing toolchain '{}'", spec);
+    populate_install(&recipe).await?;
+    post_install(&recipe)?;
+    link_lib(&recipe)?;
 
     println!(
         "{}Installed toolchain version '{}'",
         console::style(console::Emoji("✔ ", "")).green(),
-        version
+        spec
     );
     println!(
         "Make sure '{}' is added to your PATH",
@@ -76,8 +117,22 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     Ok(())
 }
 
+fn toolchain_install_dirname(recipe: &InstallRecipe) -> String {
+    if let Some(date) = recipe.release.date.as_ref() {
+        if recipe.spec.is_nightly() {
+            "nightly".to_owned()
+        } else {
+            format!("nightly-{}", date)
+        }
+    } else if recipe.spec.is_latest() {
+        "latest".to_owned()
+    } else {
+        recipe.release.version.clone()
+    }
+}
+
 // Post installation: pour shims and build the core library
-pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
+pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
     moonup_shim_exe.set_file_name({
@@ -91,22 +146,10 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
         }
     });
 
-    let version = match release.latest {
-        true => "latest".to_string(),
-        false => release
-            .toolchain
-            .as_ref()
-            .map(|r| r.version.to_string())
-            .unwrap_or(
-                release
-                    .core
-                    .as_ref()
-                    .map(|r| r.version.to_string())
-                    .expect("no version found"),
-            ),
-    };
+    let mut toolchain_dir = crate::moonup_home();
+    toolchain_dir.push("toolchains");
+    toolchain_dir.push(toolchain_install_dirname(recipe));
 
-    let toolchain_dir = crate::moonup_home().join("toolchains").join(version);
     let bin_dir = toolchain_dir.join("bin");
     let bins = bin_dir
         .read_dir()
@@ -191,7 +234,7 @@ pub(super) fn post_install(release: &ReleaseCombined) -> miette::Result<()> {
 // always looks for the core library in `MOON_HOME`/lib/core.
 //
 // Discussion: https://github.com/chawyehsu/moonup/issues/7
-fn link_lib(release: &ReleaseCombined) -> miette::Result<()> {
+fn link_lib(recipe: &InstallRecipe) -> miette::Result<()> {
     let lnk = crate::moon_home().join("lib");
     let src = {
         let latest_toolchain_lib_core = crate::moonup_home()
@@ -202,14 +245,9 @@ fn link_lib(release: &ReleaseCombined) -> miette::Result<()> {
         if latest_toolchain_lib_core.exists() {
             latest_toolchain_lib_core
         } else {
-            let version = release
-                .toolchain
-                .as_ref()
-                .map(|r| r.version.to_string())
-                .expect("should have a toolchain version");
             crate::moonup_home()
                 .join("toolchains")
-                .join(version)
+                .join(toolchain_install_dirname(recipe))
                 .join("lib")
         }
     };

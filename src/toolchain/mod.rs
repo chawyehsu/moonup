@@ -4,6 +4,63 @@ pub mod index;
 pub mod package;
 pub mod resolve;
 
+/// Toolchain specification
+#[derive(Debug, Clone)]
+pub enum ToolchainSpec {
+    Latest,
+    Nightly,
+    Bleeding,
+    Version(String),
+}
+
+impl ToolchainSpec {
+    /// Check if the spec is set to 'latest'
+    #[inline]
+    pub fn is_latest(&self) -> bool {
+        matches!(self, ToolchainSpec::Latest)
+    }
+
+    /// Check if the spec is set to 'nightly'
+    #[inline]
+    pub fn is_nightly(&self) -> bool {
+        matches!(self, ToolchainSpec::Nightly)
+    }
+
+    /// Check if the spec is set to 'bleeding'
+    #[inline]
+    pub fn is_bleeding(&self) -> bool {
+        matches!(self, ToolchainSpec::Bleeding)
+    }
+}
+
+impl std::fmt::Display for ToolchainSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ToolchainSpec::Latest => write!(f, "latest"),
+            ToolchainSpec::Nightly => write!(f, "nightly"),
+            ToolchainSpec::Bleeding => write!(f, "bleeding"),
+            ToolchainSpec::Version(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl From<&str> for ToolchainSpec {
+    fn from(s: &str) -> Self {
+        ToolchainSpec::from(s.to_string())
+    }
+}
+
+impl From<String> for ToolchainSpec {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "latest" => ToolchainSpec::Latest,
+            "nightly" => ToolchainSpec::Nightly,
+            "bleeding" => ToolchainSpec::Bleeding,
+            _ => ToolchainSpec::Version(s),
+        }
+    }
+}
+
 pub struct InstalledToolchain {
     /// Whether this toolchain is installed as 'latest'
     pub latest: bool,
