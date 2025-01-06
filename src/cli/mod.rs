@@ -16,6 +16,7 @@ mod which;
 
 #[derive(Debug, Parser)]
 #[command(
+    bin_name = env!("CARGO_PKG_NAME"),
     version,
     about = "
 Moonup is a tool to manage multiple MoonBit installations.
