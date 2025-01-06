@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/chawyehsu/moonup/compare/v0.1.5...v0.1.6) (2025-01-06)
+
+
+### Bug Fixes
+
+* filter bin directory, fix regression in b852702 ([977fd51](https://github.com/chawyehsu/moonup/commit/977fd51ae1d273578eb086cde4986b8819ef3d4d))
+
 ## [0.1.5](https://github.com/chawyehsu/moonup/compare/v0.1.4...v0.1.5) (2025-01-02)
 
 
