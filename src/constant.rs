@@ -4,6 +4,12 @@ pub const MOON_DIR: &str = ".moon";
 /// The default MoonUp home directory is `~/.moonup`
 pub const MOONUP_DIR: &str = ".moonup";
 
+/// The environment variable name for customizing MoonBit home directory
+pub const ENVNAME_MOON_HOME: &str = "MOON_HOME";
+
+/// The environment variable name for customizing MoonUp home directory
+pub const ENVNAME_MOONUP_HOME: &str = "MOONUP_HOME";
+
 /// The URL of the MoonUp distribution server
 pub const MOONUP_DIST_SERVER: &str = "https://moonup.csu.moe/v2";
 

@@ -17,7 +17,7 @@ pub mod utils;
 ///
 /// The MoonBit home directory
 pub fn moon_home() -> PathBuf {
-    if let Some(path) = std::env::var_os("MOON_HOME") {
+    if let Some(path) = std::env::var_os(constant::ENVNAME_MOON_HOME) {
         PathBuf::from(path)
     } else {
         dirs::home_dir()
@@ -35,7 +35,7 @@ pub fn moon_home() -> PathBuf {
 ///
 /// The MoonUp home directory
 pub fn moonup_home() -> PathBuf {
-    if let Some(path) = std::env::var_os("MOONUP_HOME") {
+    if let Some(path) = std::env::var_os(constant::ENVNAME_MOONUP_HOME) {
         PathBuf::from(path)
     } else {
         dirs::home_dir()
