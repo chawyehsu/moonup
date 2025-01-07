@@ -73,7 +73,6 @@ jobs:
         run: cargo test
 
       - name: Dev Build
-        if: matrix.os == 'macos-13' || matrix.os == 'ubuntu-latest'
         run: cargo build --locked --target ${{ matrix.target }}
 
 # Create/Update release PR
