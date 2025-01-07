@@ -62,6 +62,11 @@ default = []
 # Test with real MOONUP_DIST_SERVER APIs, default is off
 test-liveinstall = []
 
+# https://insta.rs/docs/quickstart/#optional-faster-runs
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3
+
 [profile.release]
 debug = false
 lto = "fat"
