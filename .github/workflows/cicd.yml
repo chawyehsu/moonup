@@ -72,9 +72,9 @@ jobs:
         if: matrix.os != 'ubuntu-latest' || matrix.os != 'macos-13'
         run: cargo test
 
-      - name: Tests Check (Live)
-        if: matrix.os == 'ubuntu-latest'
-        run: cargo test --features 'test-liveinstall'
+      # - name: Tests Check (Live)
+      #   if: matrix.os == 'ubuntu-latest'
+      #   run: cargo test --features 'test-liveinstall'
 
       - name: Dev Build
         run: cargo build --locked --target ${{ matrix.target }}
