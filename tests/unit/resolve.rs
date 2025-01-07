@@ -20,7 +20,7 @@ fn test_resolve_toolchain() {
     let resolved = resolve::resolve_toolchain_file();
     let expected = toolchain_file.to_path_buf();
     #[cfg(target_os = "macos")]
-    let expected = expected.canonicalize().except("should canonicalize");
+    let expected = expected.canonicalize().expect("should canonicalize");
 
     assert_eq!(resolved.as_deref(), Some(expected.as_path()));
 
