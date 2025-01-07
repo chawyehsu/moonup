@@ -10,7 +10,7 @@ success: true
 exit_code: 0
 ----- stdout -----
 Installing toolchain '0.1.20241231+ba15a9a4e'
-✔ Installed toolchain version '0.1.20241231+ba15a9a4e'
+Installed toolchain version '0.1.20241231+ba15a9a4e'
 Make sure '[MOON_HOME]/bin' is added to your PATH
 
 ----- stderr -----

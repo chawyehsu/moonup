@@ -9,6 +9,6 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-✔ Default toolchain set to version 'latest'
+Default toolchain set to version 'latest'
 
 ----- stderr -----
