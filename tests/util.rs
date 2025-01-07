@@ -87,6 +87,8 @@ macro_rules! apply_common_filters {
         settings.add_filter(r"\b[A-Z]:\\.*\\Local\\Temp\\\S+", "[TEMP_FILE]");
         // Convert windows paths to Unix Paths.
         settings.add_filter(r"\\\\?([\w\d.])", "/$1");
+        // Remove Windows `.exe` suffix
+        settings.add_filter(r"(moon.*)\.exe", "$1");
         let _bound = settings.bind_to_scope();
     }
 }
