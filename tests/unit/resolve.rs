@@ -17,12 +17,14 @@ fn test_resolve_toolchain() {
     toolchain_file.touch().unwrap();
     toolchain_file.assert("");
 
-    assert_eq!(
-        resolve::resolve_toolchain_file(),
-        Some(toolchain_file.to_path_buf())
-    );
+    let resolved = resolve::resolve_toolchain_file();
+    let expected = toolchain_file.to_path_buf();
+    #[cfg(target_os = "macos")]
+    let expected = expected.canonicalize().except("should canonicalize");
 
-    fs::write(toolchain_file.path(), "latest\n").expect("should write to file");
+    assert_eq!(resolved.as_deref(), Some(expected.as_path()));
+
+    fs::write(expected, "latest\n").expect("should write to file");
 
     assert_eq!(resolve::detect_pinned_version(), Some("latest".to_string()));
 }
