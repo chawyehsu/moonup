@@ -10,6 +10,9 @@ pub const ENVNAME_MOON_HOME: &str = "MOON_HOME";
 /// The environment variable name for customizing MoonUp home directory
 pub const ENVNAME_MOONUP_HOME: &str = "MOONUP_HOME";
 
+/// The environment variable name for customizing the MoonUp distribution server
+pub const ENVNAME_MOONUP_DIST_SERVER: &str = "MOONUP_DIST_SERVER";
+
 /// The URL of the MoonUp distribution server
 pub const MOONUP_DIST_SERVER: &str = "https://moonup.csu.moe/v2";
 

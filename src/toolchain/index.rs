@@ -4,11 +4,10 @@ use chrono::{DateTime, Duration, Local};
 use miette::{Context, IntoDiagnostic};
 use serde::Deserialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use url::Url;
 
 use crate::{
     constant,
-    utils::{build_http_client, url_to_reader},
+    utils::{build_dist_server_api, build_http_client, url_to_reader},
 };
 
 use super::ToolchainSpec;
@@ -159,9 +158,7 @@ pub async fn read_index() -> miette::Result<Index> {
             });
     }
 
-    let main_index_url =
-        Url::parse(format!("{}/{}", constant::MOONUP_DIST_SERVER, index_filename).as_str())
-            .into_diagnostic()?;
+    let main_index_url = build_dist_server_api(index_filename)?;
 
     content.clear();
 
@@ -205,15 +202,7 @@ pub async fn read_channel_index(channel: ChannelName) -> miette::Result<ChannelI
             });
     }
 
-    let channel_index_url = Url::parse(
-        format!(
-            "{}/{}",
-            constant::MOONUP_DIST_SERVER,
-            channel_index_filename
-        )
-        .as_str(),
-    )
-    .into_diagnostic()?;
+    let channel_index_url = build_dist_server_api(&channel_index_filename)?;
 
     content.clear();
 
@@ -267,26 +256,12 @@ pub async fn read_component_index(release: &Release) -> miette::Result<Component
             });
     }
 
-    let component_index_url = Url::parse(
-        {
-            match &release.date {
-                Some(date) => format!(
-                    "{}/nightly/{}/{}",
-                    constant::MOONUP_DIST_SERVER,
-                    date,
-                    component_index_filename
-                ),
-                None => format!(
-                    "{}/latest/{}/{}",
-                    constant::MOONUP_DIST_SERVER,
-                    release.version,
-                    component_index_filename
-                ),
-            }
-        }
-        .as_str(),
-    )
-    .into_diagnostic()?;
+    let component_index_urlpath = match &release.date {
+        Some(date) => format!("/nightly/{}/{}", date, component_index_filename),
+        None => format!("/latest/{}/{}", release.version, component_index_filename),
+    };
+
+    let component_index_url = build_dist_server_api(&component_index_urlpath)?;
 
     content.clear();
 

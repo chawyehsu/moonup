@@ -32,6 +32,18 @@ pub(crate) fn build_http_client() -> Client {
         .expect("failed to build HTTP client")
 }
 
+pub(crate) fn build_dist_server_api(path: &str) -> miette::Result<Url> {
+    let path = path.trim_start_matches('/');
+
+    let baseurl = env::var(crate::constant::ENVNAME_MOONUP_DIST_SERVER)
+        .unwrap_or_else(|_| crate::constant::MOONUP_DIST_SERVER.to_string());
+    Url::parse(&format!("{}/{}", baseurl, path))
+        .into_diagnostic()
+        .inspect(|u| {
+            tracing::trace!("constructed dist server API: {}", u);
+        })
+}
+
 pub async fn url_to_reader(
     url: Url,
     client: Client,
