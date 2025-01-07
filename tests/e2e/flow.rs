@@ -51,12 +51,13 @@ fn test_flow_with_network_mock() {
     // to match files outside the current directory, a base path is required.
     glob!("../fixtures/dist_server", "**/*.json", |path: &Path| {
         let path = path.display().to_string();
-        let pathname = path.rsplit_once("dist_server").unwrap().1;
         #[cfg(target_os = "windows")]
-        let pathname = pathname.replace("\\", "/");
+        let path = path.replace("\\", "/");
+
+        let pathname = path.rsplit_once("dist_server").unwrap().1;
         // println!("Mocking: {} (fullpath: {})", pathname, path);
 
-        s.mock("GET", pathname.as_str())
+        s.mock("GET", pathname)
             .with_body_from_file(path)
             .with_header("content-type", "application/json")
             .create();
