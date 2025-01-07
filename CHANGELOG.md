@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.0](https://github.com/chawyehsu/moonup/compare/v0.1.6...v0.2.0) (2025-01-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add `MOONUP_DIST_SERVER` support
+* new implementation against the new server api ([#50](https://github.com/chawyehsu/moonup/issues/50))
+
+### Features
+
+* **cli/default:** show nightly installs ([80ddac9](https://github.com/chawyehsu/moonup/commit/80ddac9704b66fb3689da741b1ed422dcf3c31b1))
+* **cli/pin:** show nightly installs ([80ddac9](https://github.com/chawyehsu/moonup/commit/80ddac9704b66fb3689da741b1ed422dcf3c31b1))
+* **cli/show:** show nightly installs ([80ddac9](https://github.com/chawyehsu/moonup/commit/80ddac9704b66fb3689da741b1ed422dcf3c31b1))
+* **dev:** add tests ([#59](https://github.com/chawyehsu/moonup/issues/59)) ([92736c5](https://github.com/chawyehsu/moonup/commit/92736c58515029cb96a1b11f797d771ec383f05d))
+* new implementation against the new server api ([#50](https://github.com/chawyehsu/moonup/issues/50)) ([8730d35](https://github.com/chawyehsu/moonup/commit/8730d35a2b44f184079ba4702cd21226077420b8))
+* **subcommands:** reflect new implementation ([80ddac9](https://github.com/chawyehsu/moonup/commit/80ddac9704b66fb3689da741b1ed422dcf3c31b1))
+
+
+### Code Refactoring
+
+* Add `MOONUP_DIST_SERVER` support ([f5013e4](https://github.com/chawyehsu/moonup/commit/f5013e4e88719f7bc95d3734acf9112679f0da7a)), closes [#50](https://github.com/chawyehsu/moonup/issues/50)
+
 ## [0.1.6](https://github.com/chawyehsu/moonup/compare/v0.1.5...v0.1.6) (2025-01-06)
 
 
