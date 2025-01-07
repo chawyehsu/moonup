@@ -1,0 +1,24 @@
+---
+source: tests/integration/cli_interface.rs
+info:
+  program: moonup
+  args:
+    - which
+    - "--help"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Show the actual binary that will be run for a given command
+
+Usage: moonup which [OPTIONS] <COMMAND>
+
+Arguments:
+  <COMMAND>  The command to inspect
+
+Options:
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+
+----- stderr -----

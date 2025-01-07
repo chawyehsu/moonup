@@ -1,0 +1,14 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - default
+    - latest
+---
+success: true
+exit_code: 0
+----- stdout -----
+Default toolchain set to version 'latest'
+
+----- stderr -----

@@ -1,0 +1,12 @@
+---
+source: tests/e2e/shim.rs
+info:
+  program: moonup-shim
+  args: []
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+Cannot run moonup-shim directly

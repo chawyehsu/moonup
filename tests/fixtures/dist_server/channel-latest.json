@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "lastModified": "20250103T1228001932Z",
+  "releases": [
+    {
+      "version": "0.1.20240704+647946c28",
+      "layoutVersion1": true
+    },
+    {
+      "version": "0.1.20241231+ba15a9a4e"
+    }
+  ]
+}

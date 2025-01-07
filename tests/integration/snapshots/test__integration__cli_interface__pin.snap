@@ -1,0 +1,24 @@
+---
+source: tests/integration/cli_interface.rs
+info:
+  program: moonup
+  args:
+    - pin
+    - "--help"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Pin the MoonBit toolchain to a specific version
+
+Usage: moonup pin [OPTIONS] [TOOLCHAIN]
+
+Arguments:
+  [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
+
+Options:
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+
+----- stderr -----

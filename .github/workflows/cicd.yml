@@ -6,6 +6,8 @@ on:
       - '.vscode'
       - '*.md'
   push:
+    branches:
+      - main
 permissions:
   contents: write
   pull-requests: write
@@ -66,8 +68,13 @@ jobs:
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@v0.0.5
 
-      # - name: Tests Check
-      #   run: cargo test --workspace
+      - name: Tests Check
+        if: matrix.os != 'ubuntu-latest' || matrix.os != 'macos-13'
+        run: cargo test
+
+      # - name: Tests Check (Live)
+      #   if: matrix.os == 'ubuntu-latest'
+      #   run: cargo test --features 'test-liveinstall'
 
       - name: Dev Build
         run: cargo build --locked --target ${{ matrix.target }}

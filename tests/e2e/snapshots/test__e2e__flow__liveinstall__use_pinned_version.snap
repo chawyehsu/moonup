@@ -1,0 +1,16 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moon
+  args:
+    - version
+    - "--all"
+---
+success: true
+exit_code: 0
+----- stdout -----
+moon 0.1.20241231 (16670d0 2024-12-31) ~/.moon/bin/moon
+moonc v0.1.20241231+ba15a9a4e ~/.moon/bin/moonc
+moonrun 0.1.20241231 (16670d0 2024-12-31) ~/.moon/bin/moonrun
+
+----- stderr -----

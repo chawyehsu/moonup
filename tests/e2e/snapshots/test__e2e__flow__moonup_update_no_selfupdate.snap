@@ -1,0 +1,15 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - update
+    - "--no-self-update"
+---
+success: true
+exit_code: 0
+----- stdout -----
+latest toolchain is not installed, run 'moonup install latest' to install
+nightly toolchain is not installed, run 'moonup install nightly' to install
+
+----- stderr -----

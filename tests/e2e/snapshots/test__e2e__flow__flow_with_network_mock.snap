@@ -1,0 +1,16 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - install
+    - "--list-available"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Available toolchains:
+  0.1.20241231+ba15a9a4e (latest)
+  0.1.20250105+c6fc2f8ed (nightly)
+
+----- stderr -----
