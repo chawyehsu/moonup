@@ -24,7 +24,7 @@ dialoguer = "0.11.0"
 dirs = "5.0.1"
 flate2 = "1.0.34"
 futures-util = "0.3.31"
-indicatif = "0.17.8"
+indicatif = "0.17.9"
 miette = { version = "7.4.0", features = ["fancy"] }
 rattler_digest = "1.0.2"
 remove_dir_all = "0.8.3"
