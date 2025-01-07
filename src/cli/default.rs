@@ -2,13 +2,16 @@ use clap::Parser;
 use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
 
-use crate::constant;
+use crate::{constant, toolchain::ToolchainSpec};
+
+use super::ToolchainSpecValueParser;
 
 /// Set the default toolchain
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Toolchain name, can be 'latest' or a specific version number
-    toolchain: Option<String>,
+    /// Toolchain version tag or channel name [latest, nightly, bleeding]
+    #[clap(value_parser = ToolchainSpecValueParser::new())]
+    toolchain: Option<ToolchainSpec>,
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
@@ -30,7 +33,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                     .into_diagnostic()
                     .expect("can't select a toolchain version");
 
-                return selections[selection].to_string();
+                return selections[selection].clone();
             }
         }
 

@@ -3,14 +3,19 @@ use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
 use std::env;
 
-use crate::{constant, toolchain::resolve::resolve_toolchain_file};
+use crate::{
+    constant,
+    toolchain::{resolve::resolve_toolchain_file, ToolchainSpec},
+};
+
+use super::ToolchainSpecValueParser;
 
 /// Pin the MoonBit toolchain to a specific version
 #[derive(Parser, Debug)]
-// #[clap(arg_required_else_help = true)]
 pub struct Args {
-    /// Toolchain name, can be 'latest' or a specific version number
-    toolchain: Option<String>,
+    /// Toolchain version tag or channel name [latest, nightly, bleeding]
+    #[clap(value_parser = ToolchainSpecValueParser::new())]
+    toolchain: Option<ToolchainSpec>,
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
@@ -32,7 +37,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                     .into_diagnostic()
                     .expect("can't select a toolchain version");
 
-                return Some(selections[selection].to_string());
+                return Some(selections[selection].clone());
             }
         }
 

@@ -1,4 +1,3 @@
-use clap::builder::TypedValueParser;
 use clap::{CommandFactory, Parser};
 use miette::IntoDiagnostic;
 use std::ops::Deref;
@@ -12,6 +11,8 @@ use crate::toolchain::resolve::detect_pinned_version;
 use crate::toolchain::{index, ToolchainSpec};
 use crate::toolchain::{index::build_installrecipe, package::populate_install};
 
+use super::ToolchainSpecValueParser;
+
 /// Install or update a MoonBit toolchain
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -22,43 +23,6 @@ pub struct Args {
     /// List available toolchains
     #[clap(long)]
     list_available: bool,
-}
-
-#[derive(Copy, Clone, Debug)]
-struct ToolchainSpecValueParser;
-
-impl ToolchainSpecValueParser {
-    /// Parse non-empty ToolchainSpec value
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl TypedValueParser for ToolchainSpecValueParser {
-    type Value = ToolchainSpec;
-
-    fn parse_ref(
-        &self,
-        cmd: &clap::Command,
-        _arg: Option<&clap::Arg>,
-        value: &std::ffi::OsStr,
-    ) -> Result<Self::Value, clap::Error> {
-        if value.is_empty() {
-            return Err(clap::Error::new(clap::error::ErrorKind::InvalidValue).with_cmd(cmd));
-        }
-
-        let value = value
-            .to_str()
-            .ok_or_else(|| clap::Error::new(clap::error::ErrorKind::InvalidUtf8).with_cmd(cmd))?;
-
-        Ok(ToolchainSpec::from(value))
-    }
-}
-
-impl Default for ToolchainSpecValueParser {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {

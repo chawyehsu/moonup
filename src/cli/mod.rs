@@ -1,9 +1,11 @@
-use clap::Parser;
+use clap::{builder::TypedValueParser, Parser};
 use clap_verbosity_flag::Verbosity;
 use miette::IntoDiagnostic;
 use tracing_subscriber::{
     filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
 };
+
+use crate::toolchain::ToolchainSpec;
 
 mod completions;
 mod default;
@@ -54,6 +56,43 @@ pub enum Command {
     Update(update::Args),
 
     Which(which::Args),
+}
+
+#[derive(Copy, Clone, Debug)]
+struct ToolchainSpecValueParser;
+
+impl ToolchainSpecValueParser {
+    /// Parse non-empty ToolchainSpec value
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl TypedValueParser for ToolchainSpecValueParser {
+    type Value = ToolchainSpec;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        _arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        if value.is_empty() {
+            return Err(clap::Error::new(clap::error::ErrorKind::InvalidValue).with_cmd(cmd));
+        }
+
+        let value = value
+            .to_str()
+            .ok_or_else(|| clap::Error::new(clap::error::ErrorKind::InvalidUtf8).with_cmd(cmd))?;
+
+        Ok(ToolchainSpec::from(value))
+    }
+}
+
+impl Default for ToolchainSpecValueParser {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// CLI entry point
