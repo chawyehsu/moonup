@@ -66,11 +66,11 @@ jobs:
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@v0.0.5
 
-      # - name: Tests Check
-      #   run: cargo test --workspace
+      - name: Tests Check
+        run: cargo test
 
-      - name: Dev Build
-        run: cargo build --locked --target ${{ matrix.target }}
+      # - name: Dev Build
+      #   run: cargo build --locked --target ${{ matrix.target }}
 
 # Create/Update release PR
   cd_release_please:
