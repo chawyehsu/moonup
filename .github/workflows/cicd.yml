@@ -69,8 +69,12 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.5
 
       - name: Tests Check
-        if: matrix.os != 'macos-13'
+        if: matrix.os != 'ubuntu-latest' || matrix.os != 'macos-13'
         run: cargo test
+
+      - name: Tests Check (Live)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo test --features 'test-liveinstall'
 
       - name: Dev Build
         run: cargo build --locked --target ${{ matrix.target }}
