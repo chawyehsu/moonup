@@ -1,0 +1,21 @@
+---
+source: tests/integration/cli_interface.rs
+info:
+  program: moonup
+  args:
+    - show
+    - "--help"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Show installed and active toolchains
+
+Usage: moonup show [OPTIONS]
+
+Options:
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+
+----- stderr -----

@@ -1,0 +1,25 @@
+---
+source: tests/integration/cli_interface.rs
+info:
+  program: moonup
+  args:
+    - run
+    - "--help"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Run a command with a specific toolchain
+
+Usage: moonup run [OPTIONS] <TOOLCHAIN> <COMMAND>...
+
+Arguments:
+  <TOOLCHAIN>   The toolchain to use for running the command
+  <COMMAND>...  The command to run, with arguments if any
+
+Options:
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+
+----- stderr -----
