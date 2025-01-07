@@ -27,13 +27,12 @@ fn test_basic_flow() {
     // Pin toolchain
     let project_path = ws.project_path();
     fs::create_dir_all(project_path).expect("should create project directory");
-    let old_dir = env::current_dir().expect("should get current directory");
     env::set_current_dir(project_path).expect("should set current directory");
 
     assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg("nightly"));
     assert!(project_path.join(constant::TOOLCHAIN_FILE).exists());
 
-    env::set_current_dir(old_dir).expect("should restore current directory");
+    env::set_current_dir(ws.tempdir()).expect("should restore current directory");
 }
 
 #[test]
@@ -90,7 +89,6 @@ mod liveinstall {
 
         fs::create_dir_all(project_path).expect("should create project directory");
 
-        let old_dir = env::current_dir().expect("should get current directory");
         env::set_current_dir(project_path).expect("should set current directory");
 
         assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg(test_install_version));
@@ -125,6 +123,6 @@ mod liveinstall {
             assert_cmd_snapshot!("use_default_version", cmd_moon.arg("version"));
         });
 
-        env::set_current_dir(old_dir).expect("should restore current directory");
+        env::set_current_dir(ws.tempdir()).expect("should restore current directory");
     }
 }
