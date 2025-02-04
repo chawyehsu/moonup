@@ -11,11 +11,27 @@
 
 ## Getting Started
 
+### Install
+
+Moonup is available for installation via different ways.
+
+#### Conda
+
+You can install moonup with conda/mamba/[pixi] from our conda-forge channel:
+
+```
+pixi global install moonup -c chawyehsu -c conda-forge
+```
+
+#### Cargo
+
 If you have the Rust toolchain installed, you can install **moonup** easily with Cargo:
 
 ```sh
 cargo install moonup
 ```
+
+#### Scoop (Windows)
 
 If you are on Windows and you have Scoop installed:
 
@@ -24,8 +40,12 @@ scoop bucket add dorado https://github.com/chawyehsu/dorado
 scoop install moonup
 ```
 
+#### GitHub Releases
+
 Or you may download the latest release from [GitHub releases][releases],
 manually extract the archive and put the executables in a directory that is in your `PATH`.
+
+### Usage
 
 After installation, run `moonup help` to see the available commands.
 
@@ -133,6 +153,7 @@ cargo run -- help
 [crates-url]: https://crates.io/crates/moonup
 [license-badge]: https://img.shields.io/github/license/chawyehsu/moonup?style=flat&logo=spdx&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
 [downloads-badge]: https://img.shields.io/github/downloads/chawyehsu/moonup/total?style=flat&logo=github&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
+[pixi]: https://pixi.sh
 [setup-moonup]: https://github.com/chawyehsu/setup-moonup
 [chawyehsu/moonbit-binaries]: https://github.com/chawyehsu/moonbit-binaries
 [#7]: https://github.com/chawyehsu/moonup/issues/7
