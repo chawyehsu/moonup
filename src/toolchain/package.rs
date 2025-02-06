@@ -45,6 +45,11 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         }
     }
 
+    crate::fs::empty_dir(&install_dir)
+        .into_diagnostic()
+        .wrap_err(format!("Failed to delete {}", install_dir.display()))
+        .wrap_err("Unable to clean up existing installation, files may be in use")?;
+
     // used for creating the version stub after installation of components
     let mut install_dir_root = install_dir.clone();
 
