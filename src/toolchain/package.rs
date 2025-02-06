@@ -71,16 +71,16 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
 
             let reader = url_to_reader(url, client, reporter.clone()).await?;
-            let sha256_acutal = format!("{:x}", save_file(reader, &local_file).await?);
+            let sha256_actual = format!("{:x}", save_file(reader, &local_file).await?);
 
             if let Some(reporter) = &reporter {
                 reporter.on_complete();
             }
 
-            if sha256_acutal != sha256_expected {
+            if sha256_actual != sha256_expected {
                 let msg = format!(
                     "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
-                    file, sha256_expected, sha256_acutal
+                    file, sha256_expected, sha256_actual
                 );
 
                 // remove the downloaded invalid file
@@ -126,12 +126,12 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             false => extract_tar_gz(reader, &install_dir).await?,
         };
 
-        let sha256_acutal = format!("{:x}", sha256);
+        let sha256_actual = format!("{:x}", sha256);
 
-        if sha256_acutal != sha256_expected {
+        if sha256_actual != sha256_expected {
             let msg = format!(
                 "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
-                file, sha256_expected, sha256_acutal
+                file, sha256_expected, sha256_actual
             );
 
             // remove the downloaded invalid file
@@ -150,15 +150,15 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // create a stub to store the actual version when the spec is latest or nightly
     if recipe.spec.is_latest() {
-        let acutal_version = recipe.release.version.as_str();
+        let actual_version = recipe.release.version.as_str();
         install_dir_root.push("version");
-        tokio::fs::write(&install_dir_root, format!("{}\n", acutal_version))
+        tokio::fs::write(&install_dir_root, format!("{}\n", actual_version))
             .await
             .into_diagnostic()?;
     } else if recipe.spec.is_nightly() {
-        let acutal_date = recipe.release.date.as_ref().expect("should have a date");
+        let actual_date = recipe.release.date.as_ref().expect("should have a date");
         install_dir_root.push("version");
-        tokio::fs::write(&install_dir_root, format!("{}\n", acutal_date))
+        tokio::fs::write(&install_dir_root, format!("{}\n", actual_date))
             .await
             .into_diagnostic()?;
     }
