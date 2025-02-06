@@ -35,7 +35,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
             .unwrap_or(false);
 
     if !is_greater {
-        println!("moonup is up to date");
+        println!("moonup is already up-to-date");
         return Ok(());
     }
 

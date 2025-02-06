@@ -9,14 +9,13 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Update MoonBit latest toolchain and moonup
+Update MoonBit toolchains
 
 Usage: moonup update [OPTIONS]
 
 Options:
-      --no-self-update  Don't perform self update when running `moonup update`
-  -v, --verbose...      Increase logging verbosity
-  -q, --quiet...        Decrease logging verbosity
-  -h, --help            Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ----- stderr -----

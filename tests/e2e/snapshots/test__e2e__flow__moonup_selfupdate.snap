@@ -1,0 +1,13 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - self-update
+---
+success: true
+exit_code: 0
+----- stdout -----
+moonup is already up-to-date
+
+----- stderr -----

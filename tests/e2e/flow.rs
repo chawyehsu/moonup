@@ -15,11 +15,8 @@ fn test_basic_flow() {
     // No toolchain installed
     assert_cmd_snapshot!("moonup_show", ws.cli().arg("show"));
 
-    // No toolchain installed
-    assert_cmd_snapshot!(
-        "moonup_update_no_selfupdate",
-        ws.cli().arg("update").arg("--no-self-update")
-    );
+    // Self update
+    assert_cmd_snapshot!("moonup_selfupdate", ws.cli().arg("self-update"));
 
     // Set default toolchain
     assert_cmd_snapshot!("moonup_default", ws.cli().arg("default").arg("latest"));

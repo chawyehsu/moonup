@@ -9,6 +9,13 @@ repos:
         language: system
         types: [text]
         stages: [pre-commit, manual]
+      - id: actionlint
+        name: Lint GitHub Actions workflows
+        entry: pixi run actionlint
+        language: system
+        types: [yaml]
+        files: ^\.github/workflows/
+        stages: [pre-commit, manual]
       - id: cargo-fmt
         name: Cargo Format
         entry: pixi run cargo fmt --all
@@ -23,10 +30,10 @@ repos:
         types: [file, rust]
         pass_filenames: false
         stages: [pre-commit, manual]
-      - id: actionlint
-        name: Lint GitHub Actions workflows
-        entry: pixi run actionlint
+      - id: cargo-test
+        name: Cargo Tests
+        entry: pixi run cargo test
         language: system
-        types: [yaml]
-        files: ^\.github/workflows/
+        types: [file, rust]
+        pass_filenames: false
         stages: [pre-commit, manual]
