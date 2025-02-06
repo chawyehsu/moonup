@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.1](https://github.com/chawyehsu/moonup/compare/v0.2.0...v0.2.1) (2025-02-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* add self-update command
+
+### Features
+
+* add self-update command ([6013b63](https://github.com/chawyehsu/moonup/commit/6013b6341211bafe008038afa7d1ed8e137bd0df))
+* **moonup-shim:** support toolchain input from cmd args (close [#67](https://github.com/chawyehsu/moonup/issues/67)) ([c95adbf](https://github.com/chawyehsu/moonup/commit/c95adbfd9cc58231bb831e9cc79f1bd744551d68))
+
+
+### Bug Fixes
+
+* correct component install dir ([ca3b059](https://github.com/chawyehsu/moonup/commit/ca3b0593ae40ac94b7056377da14ca82420bee66))
+* delete obsolete files before new installation ([27fad08](https://github.com/chawyehsu/moonup/commit/27fad081e80c010b2f31cddf6e2efa979cae5cbf))
+* handle async issue in self-update by using spawn_blocking ([78963d3](https://github.com/chawyehsu/moonup/commit/78963d35bd551851100db12b9ab4ac04ce275a37))
+* **tests:** move selfupdate test to feature test-liveinstall ([38c171b](https://github.com/chawyehsu/moonup/commit/38c171b069db1adea848a9973915fa55b6e2b63c))
+* **tests:** update tests ([e3fa537](https://github.com/chawyehsu/moonup/commit/e3fa5374e06fb34bd044e99777154c5a92174341))
+
 ## [0.2.0](https://github.com/chawyehsu/moonup/compare/v0.1.6...v0.2.0) (2025-01-07)
 
 
