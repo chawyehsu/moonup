@@ -14,15 +14,21 @@ pub struct Args {}
 pub async fn execute(_: Args) -> miette::Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
 
-    let updater = self_update::backends::github::Update::configure()
-        .repo_owner("chawyehsu")
-        .repo_name("moonup")
-        .bin_name(env!("CARGO_PKG_NAME"))
-        .current_version(current_version)
-        .build()
-        .into_diagnostic()?;
+    // self_update does not work well with async, see:
+    //   https://github.com/jaemk/self_update/issues/44
+    let latest_release = tokio::task::spawn_blocking(move || {
+        let updater = self_update::backends::github::Update::configure()
+            .repo_owner("chawyehsu")
+            .repo_name("moonup")
+            .bin_name(env!("CARGO_PKG_NAME"))
+            .current_version(current_version)
+            .build()?;
+        updater.get_latest_release()
+    })
+    .await
+    .expect("spawn blocking task")
+    .into_diagnostic()?;
 
-    let latest_release = updater.get_latest_release().into_diagnostic()?;
     let is_greater =
         self_update::version::bump_is_greater(current_version, &latest_release.version)
             .ok()
