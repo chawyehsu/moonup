@@ -50,6 +50,7 @@ pub enum Command {
 
     Run(run::Args),
 
+    #[cfg_attr(not(feature = "self_update"), clap(hide = true))]
     SelfUpdate(selfupdate::Args),
 
     #[clap(alias = "list", alias = "ls")]

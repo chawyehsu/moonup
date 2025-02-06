@@ -58,7 +58,9 @@ predicates = "3.1.3"
 temp-env = "0.3.6"
 
 [features]
-default = []
+default = ["self_update"]
+# Display the self-update subcommand in the --help output
+self_update = []
 # Test with real MOONUP_DIST_SERVER APIs, default is off
 test-liveinstall = []
 
