@@ -15,9 +15,6 @@ fn test_basic_flow() {
     // No toolchain installed
     assert_cmd_snapshot!("moonup_show", ws.cli().arg("show"));
 
-    // Self update
-    assert_cmd_snapshot!("moonup_selfupdate", ws.cli().arg("self-update"));
-
     // Set default toolchain
     assert_cmd_snapshot!("moonup_default", ws.cli().arg("default").arg("latest"));
 
@@ -75,6 +72,9 @@ mod liveinstall {
         util::apply_common_filters!();
 
         let ws = TestWorkspace::new();
+
+        // Self update
+        assert_cmd_snapshot!("moonup_selfupdate", ws.cli().arg("self-update"));
 
         let test_install_version = "0.1.20241231+ba15a9a4e";
         // Install a specific version of the toolchain
