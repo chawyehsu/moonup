@@ -1,0 +1,32 @@
+# https://pre-commit.com/#creating-new-hooks
+exclude: ^.pixi/
+repos:
+  - repo: local
+    hooks:
+      - id: typos
+        name: Typos
+        entry: pixi run typos
+        language: system
+        types: [text]
+        stages: [pre-commit, manual]
+      - id: cargo-fmt
+        name: Cargo Format
+        entry: pixi run cargo fmt --all
+        language: system
+        types: [file, rust]
+        pass_filenames: false
+        stages: [pre-commit, manual]
+      - id: cargo-clippy
+        name: Cargo Clippy
+        entry: pixi run cargo clippy
+        language: system
+        types: [file, rust]
+        pass_filenames: false
+        stages: [pre-commit, manual]
+      - id: actionlint
+        name: Lint GitHub Actions workflows
+        entry: pixi run actionlint
+        language: system
+        types: [yaml]
+        files: ^\.github/workflows/
+        stages: [pre-commit, manual]
