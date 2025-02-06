@@ -16,8 +16,8 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let mut download_dir = crate::moonup_home();
     download_dir.push("downloads");
 
-    let mut install_dir = crate::moonup_home();
-    install_dir.push("toolchains");
+    let mut install_dir_root = crate::moonup_home();
+    install_dir_root.push("toolchains");
 
     // version release tag
     let mut tag = format!("v{}", recipe.release.version.as_str());
@@ -30,28 +30,25 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         tag = tag_nightly;
 
         if recipe.spec.is_nightly() {
-            install_dir.push("nightly");
+            install_dir_root.push("nightly");
         } else {
-            install_dir.push(&tag);
+            install_dir_root.push(&tag);
         }
     } else {
         let version = recipe.release.version.as_str();
         download_dir.push(version);
 
         if recipe.spec.is_latest() {
-            install_dir.push("latest");
+            install_dir_root.push("latest");
         } else {
-            install_dir.push(version);
+            install_dir_root.push(version);
         }
     }
 
-    crate::fs::empty_dir(&install_dir)
+    crate::fs::empty_dir(&install_dir_root)
         .into_diagnostic()
-        .wrap_err(format!("Failed to delete {}", install_dir.display()))
+        .wrap_err(format!("Failed to delete {}", install_dir_root.display()))
         .wrap_err("Unable to clean up existing installation, files may be in use")?;
-
-    // used for creating the version stub after installation of components
-    let mut install_dir_root = install_dir.clone();
 
     // ensure all components are downloaded in the first loop
     for component in recipe.components.iter() {
@@ -101,6 +98,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // do the actual installation in the second loop
     for component in recipe.components.iter() {
+        let mut component_install_dir = install_dir_root.clone();
         let name = component.name.as_str();
         let file = component.file.as_str();
         let sha256_expected = component.sha256.as_str();
@@ -117,18 +115,18 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         if name == "toolchain" && recipe.release.layout_version1.unwrap_or(false) {
             let version = recipe.release.version.as_str();
             tracing::debug!("old toolchain archive layout detected (version: {version})");
-            install_dir.push("bin");
+            component_install_dir.push("bin");
         }
 
         // the core library distribution does not have a `lib` top-level directory
         if name == "libcore" {
-            install_dir.push("lib");
+            component_install_dir.push("lib");
         }
 
         let is_zip = file.ends_with(".zip");
         let sha256 = match is_zip {
-            true => extract_zip(reader, &install_dir).await?,
-            false => extract_tar_gz(reader, &install_dir).await?,
+            true => extract_zip(reader, &component_install_dir).await?,
+            false => extract_tar_gz(reader, &component_install_dir).await?,
         };
 
         let sha256_actual = format!("{:x}", sha256);
@@ -141,10 +139,10 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
             // remove the downloaded invalid file
             let _ = std::fs::remove_file(&local_file).inspect_err(|e| {
-                tracing::debug!("failed to remove invalid download: {}", e);
+                tracing::debug!("failed to remove invalid component download: {}", e);
             });
             // clean up the invalid installation
-            let _ = crate::fs::empty_dir(&install_dir).inspect_err(|e| {
+            let _ = crate::fs::empty_dir(&install_dir_root).inspect_err(|e| {
                 tracing::debug!("failed to clean up invalid installation: {}", e);
             });
 
