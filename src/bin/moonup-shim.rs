@@ -34,7 +34,15 @@ fn run() -> Result<()> {
         return Err(anyhow::anyhow!("Cannot run moonup-shim directly"));
     }
 
-    let active_toolchain_root = detect_active_toolchain();
+    let args_1 = args.get(1).and_then(|arg| arg.to_str());
+    let args_1_is_toolchain = args_1.map_or(false, |arg| arg.starts_with('+'));
+
+    let active_toolchain_root = if args_1_is_toolchain {
+        let version = args_1.expect("has arg version").strip_prefix('+').unwrap();
+        moonup::moonup_home().join("toolchains").join(version)
+    } else {
+        detect_active_toolchain()
+    };
 
     // If the active toolchain is not installed, call `moonup install`
     // to install it.
@@ -44,7 +52,7 @@ fn run() -> Result<()> {
             .and_then(|v| v.to_str())
             .expect("Cannot get active toolchain version");
 
-        println!("Active toolchain version '{}' not installed", version);
+        println!("toolchain version '{version}' not installed");
 
         let mut cmd = Command::new("moonup")
             .args(["install", version])
@@ -61,7 +69,8 @@ fn run() -> Result<()> {
     let actual_libcore = active_toolchain_root.join("lib").join("core");
 
     let mut cmd = Command::new(actual_exe);
-    cmd.args(args[1..].iter().cloned());
+    let idx = if args_1_is_toolchain { 2 } else { 1 };
+    cmd.args(args[idx..].iter().cloned());
     cmd.env("MOONUP_RECURSION_COUNT", (recursion_count + 1).to_string());
 
     if current_exe_name == "moon" {
