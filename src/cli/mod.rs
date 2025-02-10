@@ -14,6 +14,7 @@ mod pin;
 mod run;
 mod selfupdate;
 mod show;
+mod uninstall;
 mod update;
 mod which;
 
@@ -60,6 +61,9 @@ pub enum Command {
     Update(update::Args),
 
     Which(which::Args),
+
+    #[clap(alias = "rm")]
+    Uninstall(uninstall::Args),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -112,6 +116,7 @@ pub async fn start() -> miette::Result<()> {
         Command::Run(args) => run::execute(args).await?,
         Command::SelfUpdate(args) => selfupdate::execute(args).await?,
         Command::Show(args) => show::execute(args).await?,
+        Command::Uninstall(args) => uninstall::execute(args).await?,
         Command::Update(args) => update::execute(args).await?,
         Command::Which(args) => which::execute(args).await?,
     }
