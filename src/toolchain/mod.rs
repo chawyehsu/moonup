@@ -38,6 +38,7 @@ impl ToolchainSpec {
         matches!(self, ToolchainSpec::Bleeding)
     }
 
+    //// Get the install dir root for the toolchain
     pub fn install_path(&self) -> PathBuf {
         let mut path = crate::moonup_home().join("toolchains");
         path.push(self.to_string());

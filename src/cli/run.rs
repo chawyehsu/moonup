@@ -2,12 +2,14 @@ use clap::{Parser, ValueHint};
 use miette::IntoDiagnostic;
 use std::{env, process::Command};
 
+use crate::toolchain::ToolchainSpec;
+
 /// Run a command with a specific toolchain
 #[derive(Parser, Debug)]
 #[clap(arg_required_else_help = true, trailing_var_arg = true)]
 pub struct Args {
     /// The toolchain to use for running the command
-    toolchain: String,
+    toolchain: ToolchainSpec,
 
     /// The command to run, with arguments if any
     #[clap(required = true, num_args = 1.., value_hint = ValueHint::CommandWithArguments)]
@@ -32,10 +34,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         name.to_string()
     };
 
-    let mut exe = crate::moonup_home();
-
-    exe.push("toolchains");
-    exe.push(&args.toolchain);
+    let mut exe = args.toolchain.install_path();
 
     if !exe.exists() {
         return Err(miette::miette!(
