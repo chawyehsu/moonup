@@ -10,10 +10,10 @@ use crate::toolchain::ToolchainSpec;
 mod completions;
 mod default;
 mod install;
+mod list;
 mod pin;
 mod run;
 mod selfupdate;
-mod show;
 mod uninstall;
 mod update;
 mod which;
@@ -47,6 +47,9 @@ pub enum Command {
     #[clap(visible_alias = "i")]
     Install(install::Args),
 
+    #[clap(alias = "show", visible_alias = "ls")]
+    List(list::Args),
+
     Pin(pin::Args),
 
     Run(run::Args),
@@ -54,16 +57,13 @@ pub enum Command {
     #[cfg_attr(not(feature = "self_update"), clap(hide = true))]
     SelfUpdate(selfupdate::Args),
 
-    #[clap(alias = "list", alias = "ls")]
-    Show(show::Args),
+    #[clap(alias = "rm")]
+    Uninstall(uninstall::Args),
 
     #[clap(visible_alias = "u")]
     Update(update::Args),
 
     Which(which::Args),
-
-    #[clap(alias = "rm")]
-    Uninstall(uninstall::Args),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -112,10 +112,10 @@ pub async fn start() -> miette::Result<()> {
         Command::Completions(args) => completions::execute(args).await?,
         Command::Default(args) => default::execute(args).await?,
         Command::Install(args) => install::execute(args).await?,
+        Command::List(args) => list::execute(args).await?,
         Command::Pin(args) => pin::execute(args).await?,
         Command::Run(args) => run::execute(args).await?,
         Command::SelfUpdate(args) => selfupdate::execute(args).await?,
-        Command::Show(args) => show::execute(args).await?,
         Command::Uninstall(args) => uninstall::execute(args).await?,
         Command::Update(args) => update::execute(args).await?,
         Command::Which(args) => which::execute(args).await?,

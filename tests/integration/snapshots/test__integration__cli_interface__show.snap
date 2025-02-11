@@ -9,9 +9,9 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Show installed and active toolchains
+List installed and active toolchains
 
-Usage: moonup show [OPTIONS]
+Usage: moonup list [OPTIONS]
 
 Options:
   -v, --verbose...  Increase logging verbosity

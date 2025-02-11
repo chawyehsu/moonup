@@ -2,7 +2,7 @@ use clap::Parser;
 
 use crate::toolchain::{installed_toolchains, resolve, InstalledToolchain, ToolchainSpec};
 
-/// Show installed and active toolchains
+/// List installed and active toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 

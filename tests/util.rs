@@ -79,6 +79,9 @@ impl TestWorkspace {
 macro_rules! apply_common_filters {
     {} => {
         let mut settings = insta::Settings::clone_current();
+        // Remove moon build file lock prints
+        settings.add_filter(r"Blocking waiting for file lock.*?\n", "");
+
         // Remove emojis
         settings.add_filter(r"✔ ", "");
 
