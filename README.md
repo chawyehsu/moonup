@@ -19,7 +19,7 @@ Moonup is available for installation via different ways.
 
 You can install moonup with conda/mamba/[pixi] from our conda-forge channel:
 
-```
+```sh
 pixi global install moonup -c chawyehsu -c conda-forge
 ```
 
@@ -64,9 +64,11 @@ Commands:
   install      Install or update a MoonBit toolchain [aliases: i]
   pin          Pin the MoonBit toolchain to a specific version
   run          Run a command with a specific toolchain
-  show         Show installed and currently active toolchains
-  update       Update MoonBit latest toolchain and moonup [aliases: u]
+  self-update  Update Moonup to the latest version
+  show         Show installed and active toolchains
+  update       Update MoonBit toolchains [aliases: u]
   which        Show the actual binary that will be run for a given command
+  uninstall    Uninstall a MoonBit toolchain
   help         Print this message or the help of the given subcommand(s)
 
 Options:
@@ -74,6 +76,63 @@ Options:
   -q, --quiet...    Decrease logging verbosity
   -h, --help        Print help
   -V, --version     Print version
+```
+
+#### Install a MoonBit Toolchain
+
+```sh
+# install the latest MoonBit toolchain
+moonup install latest
+# install the latest nightly MoonBit toolchain
+moonup install nightly
+# install a specific MoonBit toolchain (`v` prefix is not required)
+moonup install 0.1.20241231+ba15a9a4e
+```
+
+#### Pin a MoonBit Toolchain
+
+By pinning a MoonBit toolchain to a specific version in a project, the toolchain
+will be automatically switched to the pinned version when you're running MoonBit
+commands in the project directory. With this feature, you can ensure that the
+project is built and tested with the same MoonBit toolchain.
+
+```sh
+moonup pin 0.1.20241231+ba15a9a4e
+# remove the `moonbit-version` file to unpin
+rm moonbit-version
+```
+
+You're not required to install the pinned MoonBit toolchain in advance. Moonup
+will download and install the toolchain automatically when a command is run.
+
+#### Set the Default Toolchain
+
+The default toolchain is used when no toolchain is specified in a project. The
+`latest` toolchain is used by default.
+
+```sh
+# change the default toolchain to the latest nightly
+moonup default nightly
+```
+
+#### Check Installed and Active Toolchains
+
+```sh
+moonup list
+```
+
+#### Run a Command with a Specific Toolchain
+
+```sh
+moonup run 0.1.20241231+ba15a9a4e moon version
+# or pass the version to the command directly! (syntax: `+<spec>`)
+moon +nightly version --all
+```
+
+#### Uninstall a MoonBit Toolchain
+
+```sh
+moonup uninstall 0.1.20241231+ba15a9a4e
 ```
 
 ### Use Moonup in GitHub Actions
@@ -113,16 +172,18 @@ continuously from the official website.
 
 ## Development
 
-Prerequisites: Git, Rust
+Prerequisites: Git, [pixi]
 
 ```sh
 # clone the repo
 git clone https://github.com/chawyehsu/moonup
 cd moonup
-# build
-cargo build
-# run and test
-cargo run -- help
+# install dependencies
+pixi install
+# install git pre-commit hooks
+pixi run pre-commit install
+# dev build and run
+pixi run cargo run moonup -- help
 ```
 
 ## 0.1.0 Roadmap
