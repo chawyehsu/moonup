@@ -44,6 +44,15 @@ impl ToolchainSpec {
         path.push(self.to_string());
         path
     }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            ToolchainSpec::Latest => "latest",
+            ToolchainSpec::Nightly => "nightly",
+            ToolchainSpec::Bleeding => "bleeding",
+            ToolchainSpec::Version(v) => v.as_str(),
+        }
+    }
 }
 
 impl Ord for ToolchainSpec {

@@ -132,7 +132,10 @@ moon +nightly version --all
 #### Uninstall a MoonBit Toolchain
 
 ```sh
+# relevant cached downloads will be removed as well
 moonup uninstall 0.1.20241231+ba15a9a4e
+# delete all cached downloads
+moonup uninstall --clear
 ```
 
 ### Use Moonup in GitHub Actions

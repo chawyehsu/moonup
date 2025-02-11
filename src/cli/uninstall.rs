@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-
 use clap::{CommandFactory, Parser};
 use dialoguer::{theme, MultiSelect};
-use miette::IntoDiagnostic;
+use miette::{Context, IntoDiagnostic};
 use tracing::instrument;
 
 use crate::{
@@ -16,10 +14,34 @@ pub struct Args {
     /// The toolchain(s) to uninstall.
     #[clap(value_parser = super::ToolchainSpecValueParser::new())]
     toolchain: Vec<ToolchainSpec>,
+
+    /// Invalidate and remove all cached downloads.
+    #[clap(long)]
+    clear: bool,
+
+    /// Keep the cached downloads of the toolchain.
+    ///
+    /// Cached downloads of the toolchain will be removed as well by default.
+    /// Use this flag to keep the cached downloads.
+    #[clap(long)]
+    keep_cache: bool,
 }
 
 #[instrument(name = "uninstall", skip(args), fields(toolchain = ?args.toolchain))]
 pub async fn execute(args: Args) -> miette::Result<()> {
+    if args.clear {
+        let download_dir = crate::moonup_home().join("downloads");
+        tracing::info!("removing all cached downloads {}", download_dir.display());
+        let _ = crate::fs::empty_dir(&download_dir)
+            .into_diagnostic()
+            .wrap_err("failed to clear cached downloads")?;
+        println!(
+            "{} Cleared all cached downloads",
+            console::style(console::Emoji("✔ ", "")).green()
+        );
+        return Ok(());
+    }
+
     let toolchains = if args.toolchain.is_empty() {
         let installed = installed_toolchains()?;
         if installed.is_empty() {
@@ -61,7 +83,49 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         }
 
         tracing::info!("uninstalling toolchain {}", toolchain);
-        remove_toolchain(&toolchain_dir).await?;
+
+        if !args.keep_cache {
+            let mut download_dir = crate::moonup_home().join("downloads");
+
+            match &toolchain {
+                ToolchainSpec::Bleeding => download_dir.push("bleeding"),
+                ToolchainSpec::Version(v) => {
+                    if v.starts_with("nightly") {
+                        download_dir.push("nightly");
+                        let date = v
+                            .split_once('-')
+                            .expect("should split nightly version str")
+                            .1;
+                        download_dir.push(date);
+                    } else {
+                        download_dir.push(v);
+                    }
+                }
+                _ => {
+                    if toolchain.is_nightly() {
+                        download_dir.push("nightly");
+                    }
+
+                    let version_file = toolchain_dir.join("version");
+                    let version = tokio::fs::read_to_string(version_file)
+                        .await
+                        .into_diagnostic()?;
+                    download_dir.push(version.trim());
+                }
+            }
+
+            tracing::info!("removing cached downloads {}", download_dir.display());
+            let _ = tokio::fs::remove_dir_all(download_dir)
+                .await
+                .inspect_err(|e| {
+                    tracing::warn!("failed to remove cached downloads: {}", e);
+                });
+        }
+
+        tracing::debug!("removing toolchain from {}", toolchain_dir.display());
+        tokio::fs::remove_dir_all(toolchain_dir)
+            .await
+            .into_diagnostic()?;
 
         println!(
             "{} Uninstalled toolchain {}",
@@ -70,13 +134,5 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         );
     }
 
-    Ok(())
-}
-
-async fn remove_toolchain(toolchain_dir: &PathBuf) -> miette::Result<()> {
-    tracing::debug!("removing toolchain from {}", toolchain_dir.display());
-    tokio::fs::remove_dir_all(toolchain_dir)
-        .await
-        .into_diagnostic()?;
     Ok(())
 }

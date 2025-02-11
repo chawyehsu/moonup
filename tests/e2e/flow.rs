@@ -127,12 +127,18 @@ mod liveinstall {
                 ws.cli().arg("uninstall").arg(test_install_version)
             );
 
-            // Toolchain should be uninstalled
+            // Toolchain should be uninstalled, cache should be removed
             let install_path = ws
                 .moonup_home()
                 .join("toolchains")
                 .join(test_install_version);
+            let cache_path = ws
+                .moonup_home()
+                .join("downloads")
+                .join(test_install_version);
+
             assert!(!install_path.exists());
+            assert!(!cache_path.exists());
 
             // List installed toolchains, no toolchain should be listed
             assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
