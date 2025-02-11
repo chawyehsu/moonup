@@ -5,9 +5,6 @@ info:
   args:
     - install
     - 0.1.20241231+ba15a9a4e
-  env:
-    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpitn15L\\.moonup"
-    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpitn15L\\.moon"
 ---
 success: true
 exit_code: 0
