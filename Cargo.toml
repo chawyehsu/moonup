@@ -21,7 +21,7 @@ clap-verbosity-flag = { version = "3.0.2", features = [
 clap_complete = "4.5.40"
 console = "0.15.8"
 dialoguer = "0.11.0"
-dirs = "5.0.1"
+dirs = "6.0.0"
 flate2 = "1.0.34"
 futures-util = "0.3.31"
 indicatif = "0.17.11"
