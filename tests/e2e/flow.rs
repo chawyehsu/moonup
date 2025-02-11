@@ -96,7 +96,7 @@ mod liveinstall {
         assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg(test_install_version));
         assert!(pin_file.exists());
 
-        let moon_path = ws.moon_home().display().to_string();
+        let moon_path = ws.moon_home().join("bin").display().to_string();
         let current_path = env::var("PATH").unwrap_or_else(|_| String::new());
         let updated_path = if current_path.is_empty() {
             moon_path

@@ -1,0 +1,40 @@
+name: Coverage
+
+on:
+  pull_request:
+    paths-ignore:
+      - '.vscode'
+      - '*.md'
+  push:
+    branches:
+      - main
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_GHA_ENABLED: true
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Rust Setup
+        run: rustup update stable
+
+      - name: Cache Setup
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Generate Coverage
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.out
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.out
+          fail_ci_if_error: true

@@ -9,8 +9,8 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-moon 0.1.20241231 (16670d0 2024-12-31) ~/.moon/bin/moon
-moonc v0.1.20241231+ba15a9a4e ~/.moon/bin/moonc
-moonrun 0.1.20241231 (16670d0 2024-12-31) ~/.moon/bin/moonrun
+moon 0.1.20241231 (16670d0 2024-12-31) [MOON_HOME]/bin/moon
+moonc v0.1.20241231+ba15a9a4e [MOON_HOME]/bin/moonc
+moonrun 0.1.20241231 (16670d0 2024-12-31) [MOON_HOME]/bin/moonrun
 
 ----- stderr -----
