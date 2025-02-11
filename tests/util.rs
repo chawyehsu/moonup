@@ -56,6 +56,12 @@ impl TestWorkspace {
         self.moon_home.as_path()
     }
 
+    /// Get the MoonUp home path
+    #[allow(unused)]
+    pub fn moonup_home(&self) -> &Path {
+        self.moonup_home.as_path()
+    }
+
     /// Get the test workspace path
     #[allow(unused)]
     pub fn tempdir(&self) -> &TempDir {

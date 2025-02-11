@@ -1,5 +1,5 @@
 use miette::IntoDiagnostic;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod index;
 pub mod package;
@@ -36,6 +36,12 @@ impl ToolchainSpec {
     #[inline]
     pub fn is_bleeding(&self) -> bool {
         matches!(self, ToolchainSpec::Bleeding)
+    }
+
+    pub fn install_path(&self) -> PathBuf {
+        let mut path = crate::moonup_home().join("toolchains");
+        path.push(self.to_string());
+        path
     }
 }
 

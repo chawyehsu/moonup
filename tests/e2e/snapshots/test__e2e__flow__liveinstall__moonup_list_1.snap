@@ -1,0 +1,18 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - list
+---
+success: true
+exit_code: 0
+----- stdout -----
+Moonup home: [MOONUP_HOME]
+
+Installed toolchains:
+  0.1.20241231+ba15a9a4e
+
+Active toolchain: latest
+
+----- stderr -----
