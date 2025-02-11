@@ -1,0 +1,8 @@
+{
+  "name": "moonup (linux devpod)",
+  "image": "ghcr.io/prefix-dev/pixi:latest",
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-pixi,target=${containerWorkspaceFolder}/.pixi,type=volume"
+  ],
+  "postCreateCommand": "apt-get update && apt-get install -y ca-certificates && pixi install"
+}
