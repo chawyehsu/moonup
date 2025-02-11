@@ -72,20 +72,22 @@ mod liveinstall {
         util::apply_common_filters!();
 
         let ws = TestWorkspace::new();
+        let test_install_version = "0.1.20241231+ba15a9a4e";
 
-        // Self update
+        // Test self update (should be no update)
         assert_cmd_snapshot!("moonup_selfupdate", ws.cli().arg("self-update"));
 
-        let test_install_version = "0.1.20241231+ba15a9a4e";
         // Install a specific version of the toolchain
         assert_cmd_snapshot!("install", ws.cli().arg("install").arg(test_install_version));
+
+        // List installed toolchains, installed toolchain should be listed
+        assert_cmd_snapshot!("moonup_list_1", ws.cli().arg("list"));
 
         // Pin toolchain
         let project_path = ws.project_path();
         let pin_file = project_path.join(constant::TOOLCHAIN_FILE);
 
         fs::create_dir_all(project_path).expect("should create project directory");
-
         env::set_current_dir(project_path).expect("should set current directory");
 
         assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg(test_install_version));
@@ -118,6 +120,22 @@ mod liveinstall {
         temp_env::with_var("PATH", Some(updated_path), || {
             let mut cmd_moon = ws.cmd(std::ffi::OsStr::new("moon"));
             assert_cmd_snapshot!("use_default_version", cmd_moon.arg("version"));
+
+            // Uninstall the installed toolchain
+            assert_cmd_snapshot!(
+                "moonup_uninstall",
+                ws.cli().arg("uninstall").arg(test_install_version)
+            );
+
+            // Toolchain should be uninstalled
+            let install_path = ws
+                .moonup_home()
+                .join("toolchains")
+                .join(test_install_version);
+            assert!(!install_path.exists());
+
+            // List installed toolchains, no toolchain should be listed
+            assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
         });
 
         env::set_current_dir(ws.tempdir()).expect("should restore current directory");
