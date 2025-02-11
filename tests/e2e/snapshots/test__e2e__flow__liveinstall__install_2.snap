@@ -1,0 +1,22 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - install
+  env:
+    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpitn15L\\.moonup"
+    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpitn15L\\.moon"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Installing toolchain '0.1.20241231+ba15a9a4e'
+Installed toolchain version '0.1.20241231+ba15a9a4e'
+Make sure '[MOON_HOME]/bin' is added to your PATH
+
+----- stderr -----
+Finished. moon: ran 47 tasks, now up to date
+Finished. moon: ran 47 tasks, now up to date
+Finished. moon: ran 47 tasks, now up to date
+Finished. moon: ran 47 tasks, now up to date

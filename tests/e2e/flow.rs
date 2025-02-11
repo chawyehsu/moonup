@@ -78,7 +78,10 @@ mod liveinstall {
         assert_cmd_snapshot!("moonup_selfupdate", ws.cli().arg("self-update"));
 
         // Install a specific version of the toolchain
-        assert_cmd_snapshot!("install", ws.cli().arg("install").arg(test_install_version));
+        assert_cmd_snapshot!(
+            "install_1",
+            ws.cli().arg("install").arg(test_install_version)
+        );
 
         // List installed toolchains, installed toolchain should be listed
         assert_cmd_snapshot!("moonup_list_1", ws.cli().arg("list"));
@@ -108,6 +111,24 @@ mod liveinstall {
             assert_cmd_snapshot!("use_pinned_version", cmd_moon.arg("version").arg("--all"));
         });
 
+        // Uninstall the installed toolchain
+        assert_cmd_snapshot!(
+            "moonup_uninstall_1",
+            ws.cli()
+                .arg("uninstall")
+                .arg(test_install_version)
+                .arg("--keep-cache")
+        );
+
+        let cache_path = ws
+            .moonup_home()
+            .join("downloads")
+            .join(test_install_version);
+        assert!(cache_path.exists());
+
+        // Install the same version again, without specifying the version argument
+        assert_cmd_snapshot!("install_2", ws.cli().arg("install"));
+
         // Remove the pinned toolchain
         std::fs::remove_file(pin_file).expect("should remove pinned toolchain file");
 
@@ -121,9 +142,9 @@ mod liveinstall {
             let mut cmd_moon = ws.cmd(std::ffi::OsStr::new("moon"));
             assert_cmd_snapshot!("use_default_version", cmd_moon.arg("version"));
 
-            // Uninstall the installed toolchain
+            // Uninstall the installed toolchain again, remove cache as well
             assert_cmd_snapshot!(
-                "moonup_uninstall",
+                "moonup_uninstall_2",
                 ws.cli().arg("uninstall").arg(test_install_version)
             );
 
@@ -131,10 +152,6 @@ mod liveinstall {
             let install_path = ws
                 .moonup_home()
                 .join("toolchains")
-                .join(test_install_version);
-            let cache_path = ws
-                .moonup_home()
-                .join("downloads")
                 .join(test_install_version);
 
             assert!(!install_path.exists());

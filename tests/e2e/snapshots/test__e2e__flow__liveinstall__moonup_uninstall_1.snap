@@ -1,0 +1,18 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - uninstall
+    - 0.1.20241231+ba15a9a4e
+    - "--keep-cache"
+  env:
+    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpitn15L\\.moonup"
+    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpitn15L\\.moon"
+---
+success: true
+exit_code: 0
+----- stdout -----
+ Uninstalled toolchain 0.1.20241231+ba15a9a4e
+
+----- stderr -----
