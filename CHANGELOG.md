@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.2](https://github.com/chawyehsu/moonup/compare/v0.2.1...v0.2.2) (2025-02-12)
+
+
+### Features
+
+* add uninstall command ([#78](https://github.com/chawyehsu/moonup/issues/78)) ([5280303](https://github.com/chawyehsu/moonup/commit/52803035dea24468dd411b5de29a8ca6832f3967))
+* alias `moonup x` to moonup run ([7c6f9ab](https://github.com/chawyehsu/moonup/commit/7c6f9ab331bd047597738d770b6b716ea5ca64ef))
+* support downloads cleanup ([#61](https://github.com/chawyehsu/moonup/issues/61)) ([f033c63](https://github.com/chawyehsu/moonup/commit/f033c633ab74fde6b0752ecbfb3ca2a8b5871e61))
+
+
+### Bug Fixes
+
+* handle internal bins and link include dir ([#81](https://github.com/chawyehsu/moonup/issues/81)) ([a5bbc7a](https://github.com/chawyehsu/moonup/commit/a5bbc7a48be0c2daa64c48b7553cfcafa525999d))
+* **moonup-shim:** remove obsolete arg ([cf41426](https://github.com/chawyehsu/moonup/commit/cf414262a1fd4ccae9ab35b399d9850a39d49f31))
+* spread toolchain spec down via env var ([bdfe90f](https://github.com/chawyehsu/moonup/commit/bdfe90fc19970c1111b50fc882f342bb15b1f8ab))
+* spread toolchain spec in moonup run command ([65c2f1e](https://github.com/chawyehsu/moonup/commit/65c2f1efac55fcfc109723e5f8b8cca0b2bd1a2c))
+
 ## [0.2.1](https://github.com/chawyehsu/moonup/compare/v0.2.0...v0.2.1) (2025-02-06)
 
 
