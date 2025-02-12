@@ -100,16 +100,11 @@ fn toolchain_install_dirname(recipe: &InstallRecipe) -> String {
 pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
-    moonup_shim_exe.set_file_name({
-        #[cfg(target_os = "windows")]
-        {
-            "moonup-shim.exe"
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            "moonup-shim"
-        }
-    });
+    let moonup_shim_name = {
+        let ext = if cfg!(windows) { ".exe" } else { "" };
+        format!("moonup-shim{}", ext)
+    };
+    moonup_shim_exe.set_file_name(moonup_shim_name);
 
     let mut toolchain_dir = crate::moonup_home();
     toolchain_dir.push("toolchains");

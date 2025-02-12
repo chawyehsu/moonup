@@ -73,13 +73,17 @@ mod liveinstall {
 
         let ws = TestWorkspace::new();
         let test_install_version = "0.1.20241231+ba15a9a4e";
+        let moon_exe_name = std::ffi::OsStr::new("moon");
+
+        let build_moonup_path = insta_cmd::get_cargo_bin("moonup");
+        let build_output_path = build_moonup_path.parent().expect("should have parent");
 
         // Test self update (should be no update)
         assert_cmd_snapshot!("moonup_selfupdate", ws.cli().arg("self-update"));
 
         // Install a specific version of the toolchain
         assert_cmd_snapshot!(
-            "install_1",
+            "moonup_install",
             ws.cli().arg("install").arg(test_install_version)
         );
 
@@ -102,18 +106,47 @@ mod liveinstall {
             moon_path
         } else {
             let env_separator = if cfg!(windows) { ";" } else { ":" };
-            format!("{}{}{}", moon_path, env_separator, current_path)
+            format!(
+                "{}{}{}{}{}",
+                moon_path,
+                env_separator,
+                build_output_path.display(),
+                env_separator,
+                current_path
+            )
         };
         // println!("Updated PATH: {}", updated_path);
 
         temp_env::with_var("PATH", Some(updated_path.clone()), || {
-            let mut cmd_moon = ws.cmd(std::ffi::OsStr::new("moon"));
-            assert_cmd_snapshot!("use_pinned_version", cmd_moon.arg("version").arg("--all"));
+            let mut cmd_moon = ws.cmd(moon_exe_name);
+            assert_cmd_snapshot!(
+                "moon_use_pinned_version",
+                cmd_moon.arg("version").arg("--all")
+            );
+
+            let mut cmd_moon = ws.cmd(moon_exe_name);
+            // No toolchain should be upgraded
+            assert_cmd_snapshot!("moon_upgrade_intercept", cmd_moon.arg("upgrade"));
+        });
+
+        // Remove the pinned toolchain
+        std::fs::remove_file(pin_file).expect("should remove pinned toolchain file");
+
+        temp_env::with_var("PATH", Some(updated_path.clone()), || {
+            println!("PATH: {:?}", std::env::var("PATH"));
+
+            let mut cmd_moon = ws.cmd(moon_exe_name);
+            assert_cmd_snapshot!(
+                "moon_use_version_from_arg",
+                cmd_moon
+                    .arg(format!("+{}", test_install_version))
+                    .arg("version")
+            );
         });
 
         // Uninstall the installed toolchain
         assert_cmd_snapshot!(
-            "moonup_uninstall_1",
+            "moonup_uninstall_keep_cache",
             ws.cli()
                 .arg("uninstall")
                 .arg(test_install_version)
@@ -127,10 +160,7 @@ mod liveinstall {
         assert!(cache_path.exists());
 
         // Install the same version again, without specifying the version argument
-        assert_cmd_snapshot!("install_2", ws.cli().arg("install"));
-
-        // Remove the pinned toolchain
-        std::fs::remove_file(pin_file).expect("should remove pinned toolchain file");
+        // assert_cmd_snapshot!("install_2", ws.cli().arg("install"));
 
         // Set default toolchain
         assert_cmd_snapshot!(
@@ -139,27 +169,27 @@ mod liveinstall {
         );
 
         temp_env::with_var("PATH", Some(updated_path), || {
-            let mut cmd_moon = ws.cmd(std::ffi::OsStr::new("moon"));
-            assert_cmd_snapshot!("use_default_version", cmd_moon.arg("version"));
-
-            // Uninstall the installed toolchain again, remove cache as well
-            assert_cmd_snapshot!(
-                "moonup_uninstall_2",
-                ws.cli().arg("uninstall").arg(test_install_version)
-            );
-
-            // Toolchain should be uninstalled, cache should be removed
-            let install_path = ws
-                .moonup_home()
-                .join("toolchains")
-                .join(test_install_version);
-
-            assert!(!install_path.exists());
-            assert!(!cache_path.exists());
-
-            // List installed toolchains, no toolchain should be listed
-            assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+            let mut cmd_moon = ws.cmd(moon_exe_name);
+            assert_cmd_snapshot!("moon_use_default_version", cmd_moon.arg("version"));
         });
+
+        // Uninstall the installed toolchain again, remove cache as well
+        assert_cmd_snapshot!(
+            "moonup_uninstall",
+            ws.cli().arg("uninstall").arg(test_install_version)
+        );
+
+        // Toolchain should be uninstalled, cache should be removed
+        let install_path = ws
+            .moonup_home()
+            .join("toolchains")
+            .join(test_install_version);
+
+        assert!(!install_path.exists());
+        assert!(!cache_path.exists());
+
+        // List installed toolchains, no toolchain should be listed
+        assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
 
         env::set_current_dir(ws.tempdir()).expect("should restore current directory");
     }

@@ -1,16 +1,21 @@
 ---
 source: tests/e2e/flow.rs
 info:
-  program: moonup
+  program: moon
   args:
-    - install
+    - version
+  env:
+    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpA9PLPq\\.moonup"
+    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpA9PLPq\\.moon"
 ---
 success: true
 exit_code: 0
 ----- stdout -----
+toolchain version '0.1.20241231+ba15a9a4e' not installed
 Installing toolchain '0.1.20241231+ba15a9a4e'
 Installed toolchain version '0.1.20241231+ba15a9a4e'
 Make sure '[MOON_HOME]/bin' is added to your PATH
+moon 0.1.20241231 (16670d0 2024-12-31)
 
 ----- stderr -----
 Finished. moon: ran 47 tasks, now up to date
