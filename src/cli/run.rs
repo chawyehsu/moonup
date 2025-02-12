@@ -49,6 +49,17 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     let mut cmd = Command::new(&exe);
     cmd.args(&args.command[1..]);
 
+    // NOTE(chawyehsu): It is not ideal and hacky to store the toolchain spec
+    // in an extra environment variable, but it is the only way to spread the
+    // toolchain spec to the child shim processes without requiring upstream
+    // changes in MoonBit build system... All of these are because of and for
+    // the weak isolation of the MoonBit toolchain...
+    let spec = std::ffi::OsStr::new(args.toolchain.as_str());
+    cmd.env(
+        "MOONUP_TOOLCHAIN_SPEC",
+        env::var_os("MOONUP_TOOLCHAIN_SPEC").unwrap_or(spec.into()),
+    );
+
     if is_exe_moon {
         let mut libcore = exe.clone();
         libcore.pop();
