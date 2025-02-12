@@ -4,9 +4,6 @@ info:
   program: moon
   args:
     - version
-  env:
-    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpA9PLPq\\.moonup"
-    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpA9PLPq\\.moon"
 ---
 success: true
 exit_code: 0

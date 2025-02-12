@@ -12,6 +12,8 @@ fn test_basic_flow() {
 
     let ws = TestWorkspace::new();
 
+    assert_cmd_snapshot!("moonup_completions", ws.cli().arg("completions").arg("zsh"));
+
     // No toolchain installed
     assert_cmd_snapshot!("moonup_show", ws.cli().arg("show"));
 
@@ -99,6 +101,16 @@ mod liveinstall {
 
         assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg(test_install_version));
         assert!(pin_file.exists());
+
+        assert_cmd_snapshot!("moonup_which", ws.cli().arg("which").arg(moon_exe_name));
+        assert_cmd_snapshot!(
+            "moonup_run",
+            ws.cli()
+                .arg("run")
+                .arg(test_install_version)
+                .arg(moon_exe_name)
+                .arg("version")
+        );
 
         let moon_path = ws.moon_home().join("bin").display().to_string();
         let current_path = env::var("PATH").unwrap_or_else(|_| String::new());

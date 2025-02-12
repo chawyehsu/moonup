@@ -1,0 +1,14 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - which
+    - moon
+---
+success: true
+exit_code: 0
+----- stdout -----
+[MOONUP_HOME]/toolchains/0.1.20241231+ba15a9a4e/bin/moon
+
+----- stderr -----
