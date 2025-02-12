@@ -1,5 +1,6 @@
 use clap::{CommandFactory, Parser};
 use miette::IntoDiagnostic;
+use std::ffi::OsString;
 use std::ops::Deref;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
@@ -66,7 +67,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     println!("Installing toolchain '{}'", spec);
     populate_install(&recipe).await?;
     post_install(&recipe)?;
-    link_lib(&recipe)?;
+    link_dirs(&recipe)?;
 
     println!(
         "{}Installed toolchain version '{}'",
@@ -114,8 +115,63 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     toolchain_dir.push("toolchains");
     toolchain_dir.push(toolchain_install_dirname(recipe));
 
+    let moon_home_bin = crate::moon_home().join("bin");
+
+    std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
+    let _ = crate::fs::empty_dir(&moon_home_bin);
+
+    // bins
     let bin_dir = toolchain_dir.join("bin");
-    let bins = bin_dir
+
+    let bins = find_bins(&bin_dir)?;
+    for bin in bins {
+        tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());
+        let dest = moon_home_bin.join(&bin);
+        crate::utils::replace_exe(&moonup_shim_exe, &dest)?;
+    }
+
+    // internl bins
+    let internal_bin_dir = bin_dir.join("internal");
+    if internal_bin_dir.exists() {
+        let moon_home_bin_internal = moon_home_bin.join("internal");
+        std::fs::create_dir_all(&moon_home_bin_internal).into_diagnostic()?;
+        let _ = crate::fs::empty_dir(&moon_home_bin_internal);
+
+        let internal_bins = find_bins(&internal_bin_dir)?;
+        for bin in internal_bins {
+            tracing::debug!("pouring internal shim for '{}'", bin.to_string_lossy());
+            let dest = moon_home_bin_internal.join(&bin);
+            crate::utils::replace_exe(&moonup_shim_exe, &dest)?;
+        }
+    }
+
+    // Build core library
+    let corelib_dir = toolchain_dir.join("lib").join("core");
+    let actual_moon_exe = bin_dir.join({
+        #[cfg(target_os = "windows")]
+        {
+            "moon.exe"
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            "moon"
+        }
+    });
+
+    let mut cmd = Command::new(actual_moon_exe);
+    cmd.arg("bundle");
+    cmd.arg("--all");
+    cmd.arg("--source-dir");
+    cmd.arg(&corelib_dir);
+    cmd.env("PATH", bin_dir.display().to_string());
+    tracing::debug!("running command: {:?}", cmd);
+    cmd.status().into_diagnostic()?;
+
+    Ok(())
+}
+
+fn find_bins(dir: &PathBuf) -> miette::Result<Vec<OsString>> {
+    let bins = dir
         .read_dir()
         .into_diagnostic()?
         .filter_map(std::io::Result::ok)
@@ -153,40 +209,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
         })
         .collect::<Vec<_>>();
 
-    let moon_home_bin = crate::moon_home().join("bin");
-
-    std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
-    let _ = crate::fs::empty_dir(&moon_home_bin);
-
-    for bin in bins {
-        tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());
-        let dest = moon_home_bin.join(&bin);
-        crate::utils::replace_exe(&moonup_shim_exe, &dest)?;
-    }
-
-    // Build core library
-    let corelib_dir = toolchain_dir.join("lib").join("core");
-    let actual_moon_exe = bin_dir.join({
-        #[cfg(target_os = "windows")]
-        {
-            "moon.exe"
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            "moon"
-        }
-    });
-
-    let mut cmd = Command::new(actual_moon_exe);
-    cmd.arg("bundle");
-    cmd.arg("--all");
-    cmd.arg("--source-dir");
-    cmd.arg(&corelib_dir);
-    cmd.env("PATH", bin_dir.display().to_string());
-    tracing::debug!("running command: {:?}", cmd);
-    cmd.status().into_diagnostic()?;
-
-    Ok(())
+    Ok(bins)
 }
 
 // Link the library directory to `MOON_HOME`/lib
@@ -198,41 +221,47 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
 // always looks for the core library in `MOON_HOME`/lib/core.
 //
 // Discussion: https://github.com/chawyehsu/moonup/issues/7
-fn link_lib(recipe: &InstallRecipe) -> miette::Result<()> {
-    let lnk = crate::moon_home().join("lib");
-    let src = {
-        let latest_toolchain_lib_core = crate::moonup_home()
-            .join("toolchains")
-            .join("latest")
-            .join("lib");
+fn link_dirs(recipe: &InstallRecipe) -> miette::Result<()> {
+    let dirs = ["lib", "include"];
+    let toolchains_dir = crate::moonup_home().join("toolchains");
 
-        if latest_toolchain_lib_core.exists() {
-            latest_toolchain_lib_core
-        } else {
-            crate::moonup_home()
-                .join("toolchains")
-                .join(toolchain_install_dirname(recipe))
-                .join("lib")
+    for dir in dirs {
+        let src = {
+            let from_latest = toolchains_dir.join("latest").join(dir);
+
+            if from_latest.exists() {
+                from_latest
+            } else {
+                let from_recipe = toolchains_dir
+                    .join(toolchain_install_dirname(recipe))
+                    .join(dir);
+
+                // Older toolchains may not have the `include` directory
+                if !from_recipe.exists() {
+                    tracing::debug!("dir '{}' not found in toolchain {}", dir, recipe.spec);
+                    continue;
+                }
+                from_recipe
+            }
+        };
+
+        let lnk = crate::moon_home().join(dir);
+        let _ = std::fs::remove_dir_all(&lnk).inspect_err(|e| {
+            tracing::debug!("failed to remove link {} (err: {})", lnk.display(), e);
+        });
+        tracing::debug!("linking directory: {} -> {}", lnk.display(), src.display());
+
+        #[cfg(target_os = "windows")]
+        {
+            junction::create(src, lnk)
+                .map_err(|e| miette::miette!("Failed to create junction: {}", e))?;
         }
-    };
 
-    let _ = crate::fs::remove_dir_all(&lnk);
-    tracing::debug!(
-        "linking lib directory: {} -> {}",
-        lnk.display(),
-        src.display()
-    );
-
-    #[cfg(target_os = "windows")]
-    {
-        junction::create(src, lnk)
-            .map_err(|e| miette::miette!("Failed to create junction: {}", e))?;
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        std::os::unix::fs::symlink(src, lnk)
-            .map_err(|e| miette::miette!("Failed to create symlink: {}", e))?;
+        #[cfg(not(target_os = "windows"))]
+        {
+            std::os::unix::fs::symlink(src, lnk)
+                .map_err(|e| miette::miette!("Failed to create symlink: {}", e))?;
+        }
     }
 
     Ok(())
