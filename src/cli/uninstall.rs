@@ -115,17 +115,13 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             }
 
             tracing::info!("removing cached downloads {}", download_dir.display());
-            let _ = tokio::fs::remove_dir_all(download_dir)
-                .await
-                .inspect_err(|e| {
-                    tracing::warn!("failed to remove cached downloads: {}", e);
-                });
+            let _ = crate::fs::remove_dir_all(download_dir).inspect_err(|e| {
+                tracing::warn!("failed to remove cached downloads: {}", e);
+            });
         }
 
         tracing::debug!("removing toolchain from {}", toolchain_dir.display());
-        tokio::fs::remove_dir_all(toolchain_dir)
-            .await
-            .into_diagnostic()?;
+        crate::fs::remove_dir_all(toolchain_dir).into_diagnostic()?;
 
         println!(
             "{} Uninstalled toolchain {}",

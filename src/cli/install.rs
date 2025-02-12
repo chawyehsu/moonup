@@ -216,7 +216,7 @@ fn link_lib(recipe: &InstallRecipe) -> miette::Result<()> {
         }
     };
 
-    let _ = std::fs::remove_dir_all(&lnk);
+    let _ = crate::fs::remove_dir_all(&lnk);
     tracing::debug!(
         "linking lib directory: {} -> {}",
         lnk.display(),
