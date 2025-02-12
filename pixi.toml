@@ -17,6 +17,6 @@ typos = ">=1.29.5,<2"
 # build dependencies
 rust = "~=1.82.0"
 rust-src = "~=1.82.0"
-c-compiler = ">=1.9.0,<2"
+c-compiler = ">=1.9.0,<2"     # MSVC v142/VS2019 Build Tools is required on Windows
 openssl = ">=3.4.0,<4"
 pkg-config = ">=0.29.2,<0.30"
