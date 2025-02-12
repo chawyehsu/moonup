@@ -52,6 +52,7 @@ pub enum Command {
 
     Pin(pin::Args),
 
+    #[clap(visible_alias = "x")]
     Run(run::Args),
 
     #[cfg_attr(not(feature = "self_update"), clap(hide = true))]

@@ -21,7 +21,7 @@ Commands:
   install      Install or update a MoonBit toolchain [aliases: i]
   list         List installed and active toolchains [aliases: ls]
   pin          Pin the MoonBit toolchain to a specific version
-  run          Run a command with a specific toolchain
+  run          Run a command with a specific toolchain [aliases: x]
   self-update  Update Moonup to the latest version
   uninstall    Uninstall a MoonBit toolchain
   update       Update MoonBit toolchains [aliases: u]
