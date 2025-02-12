@@ -104,7 +104,7 @@ fn run() -> Result<()> {
         // intercept `moon upgrade` and proxy it to `moonup upgrade`
         if args.len() > 1 && args[1] == "upgrade" {
             let mut cmd = Command::new("moonup")
-                .args(["update", "--no-self-update"])
+                .args(["update"])
                 .spawn()
                 .map_err(|e| anyhow::anyhow!("Failed to spawn moonup upgrade: {}", e))?;
             let code = cmd.wait()?;
