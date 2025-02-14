@@ -15,7 +15,7 @@
 
 Moonup is available for installation via different ways.
 
-#### Conda
+#### Conda (Cross-platform)
 
 You can install moonup with conda/mamba/[pixi] from our conda-forge channel:
 
@@ -23,12 +23,20 @@ You can install moonup with conda/mamba/[pixi] from our conda-forge channel:
 pixi global install moonup -c chawyehsu -c conda-forge
 ```
 
-#### Cargo
+#### Cargo (Cross-platform, build from source)
 
 If you have the Rust toolchain installed, you can install **moonup** easily with Cargo:
 
 ```sh
 cargo install moonup
+```
+
+#### Homebrew (macOS)
+
+If you are on macOS and you have Homebrew installed, you can install moonup from our Homebrew Tap:
+
+```zsh
+brew install chawyehsu/brew/moonup
 ```
 
 #### Scoop (Windows)
