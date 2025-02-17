@@ -19,7 +19,7 @@ clap-verbosity-flag = { version = "3.0.2", features = [
     "tracing",
 ], default-features = false }
 clap_complete = "4.5.40"
-console = "0.15.8"
+console = "0.15.10"
 dialoguer = "0.11.0"
 dirs = "5.0.1"
 flate2 = "1.0.34"
