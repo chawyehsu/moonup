@@ -157,6 +157,28 @@ MoonBit environment in GitHub CI. Here is an example workflow:
   run: moon version --all
 ```
 
+### Distribution Server
+
+Moonup is backed by [chawyehsu/moonbit-binaries], a service built with
+GitHub Actions to continuously archive MoonBit releases from the official
+website and provide a distribution server with a stable API.
+
+The default dist server endpoint is `https://moonup.csu.moe/v2` at the
+time of writing. Moonup supports overriding the distribution server with
+the `MOONUP_DIST_SERVER` environment variable.
+
+```sh
+# set the distribution server to a custom endpoint
+export MOONUP_DIST_SERVER=https://moonup.corporate.internal/
+```
+
+With this feature, you can configure Moonup to fetch and install MoonBit
+toolchains from a custom distribution server. This is useful when the default
+distribution server is not accessible in your environment, or when you want
+to host your own distribution server for MoonBit toolchains.
+
+You have to build up the distribution server yourself though.
+
 ## How It Works
 
 Moonup allows you to install multiple MoonBit toolchains and switch between
@@ -170,12 +192,6 @@ command to the actual MoonBit executable in the desired toolchain.
 
 With this approach, you can switch between MoonBit toolchains across
 projects easily without needing to change the PATH.
-
-### MoonBit Releases
-
-Moonup downloads MoonBit releases from [chawyehsu/moonbit-binaries],
-which is powered by GitHub Actions and archives MoonBit releases
-continuously from the official website.
 
 ### Known Limitations
 
