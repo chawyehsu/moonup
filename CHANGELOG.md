@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/chawyehsu/moonup/compare/v0.2.2...v0.2.3) (2025-03-31)
+
+
+### Bug Fixes
+
+* replace URL construction with build_dist_server_api utility ([1b22000](https://github.com/chawyehsu/moonup/commit/1b22000ee40885753ae6a0dbc6b23099b0a70cf8))
+
 ## [0.2.2](https://github.com/chawyehsu/moonup/compare/v0.2.1...v0.2.2) (2025-02-12)
 
 
