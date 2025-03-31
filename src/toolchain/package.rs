@@ -1,13 +1,11 @@
 use miette::{Context, IntoDiagnostic};
 use std::sync::Arc;
-use url::Url;
 
 use crate::{
     archive::{extract_tar_gz, extract_zip},
-    constant,
     fs::save_file,
     reporter::{ProgressReporter, Reporter},
-    utils::{build_http_client, path_to_reader, url_to_reader},
+    utils::{build_dist_server_api, build_http_client, path_to_reader, url_to_reader},
 };
 
 use super::index::InstallRecipe;
@@ -64,10 +62,8 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
             let client = build_http_client();
 
-            let url = Url::parse(
-                format!("{}/download/{}/{}", constant::MOONUP_DIST_SERVER, tag, file).as_str(),
-            )
-            .into_diagnostic()?;
+            let pathname = format!("/download/{}/{}", tag, file);
+            let url = build_dist_server_api(&pathname)?;
 
             let progress_reporter = ProgressReporter::new(format!("Downloading {}", name));
             let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
