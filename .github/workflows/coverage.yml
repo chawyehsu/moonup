@@ -24,7 +24,7 @@ jobs:
         run: rustup update stable
 
       - name: Cache Setup
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
