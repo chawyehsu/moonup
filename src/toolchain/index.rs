@@ -2,126 +2,17 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Duration, Local};
 use miette::{Context, IntoDiagnostic};
-use serde::Deserialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::dist_server::schema::{
+    ChannelIndex, ChannelName, Component, ComponentIndex, Index, Release, Target,
+};
 use crate::{
     constant,
     utils::{build_dist_server_api, build_http_client, url_to_reader},
 };
 
 use super::ToolchainSpec;
-
-/// The main index
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Index {
-    pub version: u8,
-    pub last_modified: String,
-    pub channels: Vec<Channel>,
-    pub targets: Vec<Target>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Channel {
-    pub name: ChannelName,
-    pub version: String,
-    pub date: Option<String>,
-}
-
-impl std::fmt::Display for Channel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({})", self.version, self.name)
-    }
-}
-
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum ChannelName {
-    Latest,
-    Nightly,
-}
-
-impl std::fmt::Display for ChannelName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ChannelName::Latest => write!(f, "latest"),
-            ChannelName::Nightly => write!(f, "nightly"),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq)]
-pub enum Target {
-    #[serde(rename = "aarch64-apple-darwin")]
-    Aarch64MacOS,
-    #[serde(rename = "x86_64-apple-darwin")]
-    Amd64MacOS,
-    #[serde(rename = "x86_64-unknown-linux")]
-    Amd64Linux,
-    #[serde(rename = "x86_64-pc-windows")]
-    Amd64Windows,
-}
-
-impl Target {
-    pub fn from_host() -> miette::Result<Self> {
-        match std::env::consts::OS {
-            "macos" => match std::env::consts::ARCH {
-                "aarch64" => Ok(Target::Aarch64MacOS),
-                "x86_64" => Ok(Target::Amd64MacOS),
-                _ => Err(miette::miette!("unsupported architecture")),
-            },
-            "linux" => Ok(Target::Amd64Linux),
-            "windows" => Ok(Target::Amd64Windows),
-            _ => Err(miette::miette!("unsupported platform")),
-        }
-    }
-}
-
-impl std::fmt::Display for Target {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Target::Aarch64MacOS => write!(f, "aarch64-apple-darwin"),
-            Target::Amd64MacOS => write!(f, "x86_64-apple-darwin"),
-            Target::Amd64Linux => write!(f, "x86_64-unknown-linux"),
-            Target::Amd64Windows => write!(f, "x86_64-pc-windows"),
-        }
-    }
-}
-
-/// The channel index
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ChannelIndex {
-    pub version: u8,
-    pub last_modified: String,
-    pub releases: Vec<Release>,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct Release {
-    /// The (compiler) version number of the release
-    pub version: String,
-    /// Flag to indicate if the distribution layout of the release is version 1
-    pub layout_version1: Option<bool>,
-    /// The (nightly build) date of the release
-    pub date: Option<String>,
-}
-
-/// The component index
-#[derive(Debug, Deserialize)]
-pub struct ComponentIndex {
-    pub version: u8,
-    pub components: Vec<Component>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Component {
-    pub name: String,
-    pub file: String,
-    pub sha256: String,
-}
 
 /// The install recipe for performing a toolchain installation
 #[derive(Debug)]
@@ -162,7 +53,7 @@ pub async fn read_index() -> miette::Result<Index> {
 
     content.clear();
 
-    let mut reader = url_to_reader(main_index_url, build_http_client(), None).await?;
+    let mut reader = url_to_reader(main_index_url, &build_http_client(), None).await?;
     reader
         .read_to_string(&mut content)
         .await
@@ -206,7 +97,7 @@ pub async fn read_channel_index(channel: ChannelName) -> miette::Result<ChannelI
 
     content.clear();
 
-    let mut reader = url_to_reader(channel_index_url, build_http_client(), None).await?;
+    let mut reader = url_to_reader(channel_index_url, &build_http_client(), None).await?;
     reader
         .read_to_string(&mut content)
         .await
@@ -265,7 +156,7 @@ pub async fn read_component_index(release: &Release) -> miette::Result<Component
 
     content.clear();
 
-    let mut reader = url_to_reader(component_index_url, build_http_client(), None).await?;
+    let mut reader = url_to_reader(component_index_url, &build_http_client(), None).await?;
     reader
         .read_to_string(&mut content)
         .await

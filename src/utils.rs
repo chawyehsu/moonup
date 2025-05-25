@@ -46,7 +46,7 @@ pub(crate) fn build_dist_server_api(path: &str) -> miette::Result<Url> {
 
 pub async fn url_to_reader(
     url: Url,
-    client: Client,
+    client: &Client,
     reporter: Option<Arc<dyn Reporter>>,
 ) -> miette::Result<impl AsyncRead> {
     tracing::debug!("streaming: {}", url);
@@ -94,9 +94,11 @@ pub async fn path_to_reader(path: &Path) -> miette::Result<impl AsyncRead> {
     Ok(BufReader::new(file))
 }
 
+/// Trim the given string and return `None` if the string is empty.
 #[inline]
-pub(crate) fn trimmed_or_none(s: &str) -> Option<String> {
-    Some(s.trim().to_string()).filter(|v| !v.is_empty())
+pub(crate) fn trimmed_or_none(s: &str) -> Option<&str> {
+    let trimmed = s.trim();
+    (!trimmed.is_empty()).then_some(trimmed)
 }
 
 /// Pour the new executable to the destination path.

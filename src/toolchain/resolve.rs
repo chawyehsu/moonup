@@ -14,30 +14,32 @@ pub fn resolve_toolchain_file() -> Option<PathBuf> {
         .find_map(|dir| Some(dir.join(TOOLCHAIN_FILE)).filter(|p| p.is_file()))
 }
 
-/// Detect the pinned version from the current working directory
+/// Detect the pinned toolchain from the current working directory
 ///
 /// # Returns
 ///
-/// The pinned version number if found
-pub fn detect_pinned_version() -> Option<String> {
+/// The pinned toolchain version if found
+pub fn detect_pinned_toolchain() -> Option<String> {
     resolve_toolchain_file()
         .and_then(|path| {
             std::fs::read_to_string(path)
-                .map(|s| trimmed_or_none(&s))
+                .map(|s| trimmed_or_none(&s).map(str::to_owned))
                 .ok()
         })
         .flatten()
 }
 
-/// Detect the default version
+/// Detect the default toolchain
+///
+/// The default toolchain version is stored in the `$MOONUP_HOME/default` file
 ///
 /// # Returns
 ///
-/// The default version number if found
-pub fn detect_default_version() -> Option<String> {
+/// The default toolchain version if found
+pub fn detect_default_toolchain() -> Option<String> {
     let default_file = crate::moonup_home().join("default");
     std::fs::read_to_string(default_file)
-        .map(|s| trimmed_or_none(&s))
+        .map(|s| trimmed_or_none(&s).map(str::to_owned))
         .ok()
         .flatten()
 }
@@ -54,8 +56,8 @@ pub fn detect_default_version() -> Option<String> {
 /// This function is used by the `moonup-shim`, and because we don't want to
 /// bloated the shim, miette/tracing should not be used here.
 pub fn detect_active_toolchain() -> PathBuf {
-    let active = detect_pinned_version()
-        .or(detect_default_version())
+    let active = detect_pinned_toolchain()
+        .or(detect_default_toolchain())
         .unwrap_or("latest".to_string());
     crate::moonup_home().join("toolchains").join(active)
 }

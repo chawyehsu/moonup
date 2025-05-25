@@ -68,7 +68,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             let progress_reporter = ProgressReporter::new(format!("Downloading {}", name));
             let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
 
-            let reader = url_to_reader(url, client, reporter.clone()).await?;
+            let reader = url_to_reader(url, &client, reporter.clone()).await?;
             let sha256_actual = format!("{:x}", save_file(reader, &local_file).await?);
 
             if let Some(reporter) = &reporter {

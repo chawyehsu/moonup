@@ -69,7 +69,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         let url = url::Url::parse(url.as_str()).into_diagnostic()?;
         tracing::debug!("downloading {} from {}", asset.name, url);
 
-        let mut reader = utils::url_to_reader(url, client.clone(), None).await?;
+        let mut reader = utils::url_to_reader(url, &client, None).await?;
 
         if asset.name.ends_with(".sha256") {
             let mut content = String::new();

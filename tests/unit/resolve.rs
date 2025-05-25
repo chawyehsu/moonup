@@ -26,5 +26,8 @@ fn test_resolve_toolchain() {
 
     fs::write(expected, "latest\n").expect("should write to file");
 
-    assert_eq!(resolve::detect_pinned_version(), Some("latest".to_string()));
+    assert_eq!(
+        resolve::detect_pinned_toolchain(),
+        Some("latest".to_string())
+    );
 }

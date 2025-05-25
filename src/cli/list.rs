@@ -13,7 +13,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
     if installs.is_empty() {
         println!("No toolchains installed");
     } else {
-        let default = resolve::detect_default_version();
+        let default = resolve::detect_default_toolchain();
 
         println!("Installed toolchains:");
         for i in installs {

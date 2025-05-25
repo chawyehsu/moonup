@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::{env, process::Command};
 
 use crate::toolchain::index::InstallRecipe;
-use crate::toolchain::resolve::detect_pinned_version;
+use crate::toolchain::resolve::detect_pinned_toolchain;
 use crate::toolchain::{index, ToolchainSpec};
 use crate::toolchain::{index::build_installrecipe, package::populate_install};
 
@@ -44,7 +44,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     let spec = match args
         .toolchain
-        .or(detect_pinned_version().map(ToolchainSpec::from))
+        .or(detect_pinned_toolchain().map(ToolchainSpec::from))
     {
         Some(v) => v,
         None => {
