@@ -1,5 +1,5 @@
 use clap::{CommandFactory, Parser};
-use miette::IntoDiagnostic;
+use miette::{Context, IntoDiagnostic};
 use std::ffi::OsString;
 use std::ops::Deref;
 #[cfg(not(target_os = "windows"))]
@@ -86,6 +86,8 @@ fn toolchain_install_dirname(recipe: &InstallRecipe) -> String {
         }
     } else if recipe.spec.is_latest() {
         "latest".to_owned()
+    } else if recipe.spec.is_bleeding() {
+        "bleeding".to_owned()
     } else {
         recipe.release.version.clone()
     }
@@ -113,7 +115,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     // bins
     let bin_dir = toolchain_dir.join("bin");
 
-    let bins = find_bins(&bin_dir)?;
+    let bins = find_bins(&bin_dir).wrap_err("failed to find bins")?;
     for bin in bins {
         tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());
         let dest = moon_home_bin.join(&bin);
@@ -163,7 +165,8 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
 fn find_bins(dir: &PathBuf) -> miette::Result<Vec<OsString>> {
     let bins = dir
         .read_dir()
-        .into_diagnostic()?
+        .into_diagnostic()
+        .wrap_err(format!("cannot read dir: {}", dir.display()))?
         .filter_map(std::io::Result::ok)
         .filter_map(|e| {
             let path = e.path();
