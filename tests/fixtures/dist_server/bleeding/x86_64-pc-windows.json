@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "components": [
+    {
+      "name": "toolchain",
+      "file": "moonbit-bleeding-x86_64-pc-windows.zip",
+      "sha256": "4fe75fd126a1a74d63f593f3e2d4379c9b072ffcc7d9e53a05f0e393c2f4df41"
+    },
+    {
+      "name": "libcore",
+      "file": "moonbit-core-bleeding-universal.zip",
+      "sha256": "c8ee208b406a9a18fc0a3a9301440ecd4e32e5b2ab1dd65d0f48ea1205df987f"
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 use miette::IntoDiagnostic;
 use std::path::{Path, PathBuf};
 
+use crate::dist_server::schema::ChannelName;
+
 pub mod index;
 pub mod package;
 pub mod resolve;
@@ -13,9 +15,18 @@ pub mod resolve;
 /// - `bleeding`: the latest build from the main branch
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolchainSpec {
+    /// `latest` toolchain
     Latest,
+
+    /// `nightly` toolchain
     Nightly,
+
+    /// `bleeding` toolchain
     Bleeding,
+
+    /// A specific version of the toolchain
+    /// This can be a version number (e.g., "1.0.0") or a nightly
+    /// build (e.g., "nightly-2025-01-01")
     Version(String),
 }
 
@@ -124,6 +135,24 @@ impl From<String> for ToolchainSpec {
             "nightly" => ToolchainSpec::Nightly,
             "bleeding" => ToolchainSpec::Bleeding,
             _ => ToolchainSpec::Version(s),
+        }
+    }
+}
+
+/// Derives a `ChannelName` from a `ToolchainSpec`.
+impl From<&ToolchainSpec> for ChannelName {
+    fn from(spec: &ToolchainSpec) -> Self {
+        match spec {
+            ToolchainSpec::Latest => ChannelName::Latest,
+            ToolchainSpec::Nightly => ChannelName::Nightly,
+            ToolchainSpec::Bleeding => ChannelName::Bleeding,
+            ToolchainSpec::Version(v) => {
+                if v.starts_with("nightly") {
+                    ChannelName::Nightly
+                } else {
+                    ChannelName::Latest
+                }
+            }
         }
     }
 }

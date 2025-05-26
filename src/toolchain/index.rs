@@ -69,7 +69,7 @@ pub async fn read_index() -> miette::Result<Index> {
 }
 
 /// Read the channel index
-pub async fn read_channel_index(channel: ChannelName) -> miette::Result<ChannelIndex> {
+pub async fn read_channel_index(channel: &ChannelName) -> miette::Result<ChannelIndex> {
     let channel_index_filename = format!("channel-{}.json", channel);
 
     let mut channel_index_file = crate::moonup_home();
@@ -113,24 +113,37 @@ pub async fn read_channel_index(channel: ChannelName) -> miette::Result<ChannelI
 }
 
 /// Read the component index
-pub async fn read_component_index(release: &Release) -> miette::Result<ComponentIndex> {
+pub async fn read_component_index(
+    channel: &ChannelName,
+    release: &Release,
+) -> miette::Result<ComponentIndex> {
     let host_target = Target::from_host()?;
-    let component_index_filename = format!("{}.json", host_target);
+    let filename = format!("{}.json", host_target);
 
-    let mut component_index_file = crate::moonup_home();
-    component_index_file.push("downloads");
+    let mut component_index_local = crate::moonup_home();
+    component_index_local.push("downloads");
 
-    match &release.date {
-        Some(date) => {
-            component_index_file.push("nightly");
-            component_index_file.push(date);
+    match channel {
+        ChannelName::Bleeding => component_index_local.push("bleeding"),
+        ChannelName::Latest => {
+            component_index_local.push("latest");
+            component_index_local.push(&release.version);
         }
-        None => component_index_file.push(&release.version),
+        ChannelName::Nightly => {
+            component_index_local.push("nightly");
+            component_index_local.push(
+                &release
+                    .date
+                    .as_deref()
+                    .expect("nightly release should have build date"),
+            );
+        }
+        _ => return Err(miette::miette!("unsupported channel: {}", channel)),
     }
 
-    component_index_file.push(&component_index_filename);
+    component_index_local.push(&filename);
 
-    let (cache_valid, mut content) = match read_json_with_lock(&component_index_file).await {
+    let (cache_valid, mut content) = match read_json_with_lock(&component_index_local).await {
         Ok((cache_valid, content)) => (cache_valid, content),
         Err(e) => {
             tracing::debug!("failed to read component index json: {}", e);
@@ -143,13 +156,19 @@ pub async fn read_component_index(release: &Release) -> miette::Result<Component
             .into_diagnostic()
             .inspect_err(|e| {
                 tracing::info!("malformed component index json: {}", e);
-                let _ = std::fs::remove_file(&component_index_file);
+                let _ = std::fs::remove_file(&component_index_local);
             });
     }
 
-    let component_index_urlpath = match &release.date {
-        Some(date) => format!("/nightly/{}/{}", date, component_index_filename),
-        None => format!("/latest/{}/{}", release.version, component_index_filename),
+    let component_index_urlpath = match channel {
+        ChannelName::Bleeding => format!("/bleeding/{}", filename),
+        ChannelName::Latest => format!("/latest/{}/{}", release.version, filename),
+        ChannelName::Nightly => format!(
+            "/nightly/{}/{}",
+            (release.date.as_deref()).expect("nightly release should have build date"),
+            filename
+        ),
+        _ => return Err(miette::miette!("unsupported channel: {}", channel)),
     };
 
     let component_index_url = build_dist_server_api(&component_index_urlpath)?;
@@ -166,7 +185,7 @@ pub async fn read_component_index(release: &Release) -> miette::Result<Component
         .into_diagnostic()
         .wrap_err("malformed component index json")?;
 
-    write_json_with_lock(&component_index_file, content.as_bytes()).await?;
+    write_json_with_lock(&component_index_local, content.as_bytes()).await?;
 
     Ok(index)
 }
@@ -247,14 +266,11 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
 }
 
 pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
+    let channel = ChannelName::from(spec);
+    let index = read_channel_index(&channel).await?;
+
     let release = match spec {
-        ToolchainSpec::Bleeding => unimplemented!(),
-        ToolchainSpec::Latest => {
-            let index = read_channel_index(ChannelName::Latest).await?;
-            index.releases.last().cloned().or(None)
-        }
-        ToolchainSpec::Nightly => {
-            let index = read_channel_index(ChannelName::Nightly).await?;
+        ToolchainSpec::Bleeding | ToolchainSpec::Latest | ToolchainSpec::Nightly => {
             index.releases.last().cloned().or(None)
         }
         ToolchainSpec::Version(s) => {
@@ -264,12 +280,6 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
                 s.trim_start_matches("nightly-")
             } else {
                 s
-            };
-
-            let index = if is_nightly {
-                read_channel_index(ChannelName::Nightly).await?
-            } else {
-                read_channel_index(ChannelName::Latest).await?
             };
 
             index
@@ -299,7 +309,7 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
         }
     };
 
-    let components = read_component_index(&release).await?.components;
+    let components = read_component_index(&channel, &release).await?.components;
     let recipe = InstallRecipe {
         spec: spec.clone(),
         release,

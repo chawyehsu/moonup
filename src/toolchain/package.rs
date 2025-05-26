@@ -5,6 +5,7 @@ use crate::{
     archive::{extract_tar_gz, extract_zip},
     fs::save_file,
     reporter::{ProgressReporter, Reporter},
+    toolchain::ToolchainSpec,
     utils::{build_dist_server_api, build_http_client, path_to_reader, url_to_reader},
 };
 
@@ -17,31 +18,55 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let mut install_dir_root = crate::moonup_home();
     install_dir_root.push("toolchains");
 
-    // version release tag
-    let mut tag = format!("v{}", recipe.release.version.as_str());
+    // GitHub release tag
+    let tag = match recipe.spec {
+        ToolchainSpec::Bleeding => {
+            download_dir.push("bleeding");
 
-    if let Some(date) = recipe.release.date.as_ref() {
-        download_dir.push("nightly");
-        download_dir.push(date);
+            install_dir_root.push("bleeding");
 
-        let tag_nightly = format!("nightly-{}", date);
-        tag = tag_nightly;
+            "bleeding".to_string()
+        }
+        ToolchainSpec::Nightly => {
+            let date = recipe.release.date.as_deref().expect("should have date");
 
-        if recipe.spec.is_nightly() {
+            download_dir.push("nightly");
+            download_dir.push(date);
+
             install_dir_root.push("nightly");
-        } else {
-            install_dir_root.push(&tag);
-        }
-    } else {
-        let version = recipe.release.version.as_str();
-        download_dir.push(version);
 
-        if recipe.spec.is_latest() {
-            install_dir_root.push("latest");
-        } else {
-            install_dir_root.push(version);
+            format!("nightly-{date}")
         }
-    }
+        ToolchainSpec::Latest => {
+            let version = recipe.release.version.as_str();
+
+            download_dir.push("latest");
+            download_dir.push(version);
+
+            install_dir_root.push("latest");
+
+            format!("v{}", version)
+        }
+        ToolchainSpec::Version(ref v) => {
+            if v.starts_with("nightly-") {
+                let date = recipe.release.date.as_deref().expect("should have date");
+
+                download_dir.push("nightly");
+                download_dir.push(date);
+
+                install_dir_root.push(v);
+
+                v.to_owned()
+            } else {
+                download_dir.push("latest");
+                download_dir.push(v);
+
+                install_dir_root.push(v);
+
+                format!("v{}", v)
+            }
+        }
+    };
 
     crate::fs::empty_dir(&install_dir_root)
         .into_diagnostic()
@@ -148,7 +173,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     }
 
     // create a stub to store the actual version when the spec is latest or nightly
-    if recipe.spec.is_latest() {
+    if recipe.spec.is_latest() || recipe.spec.is_bleeding() {
         let actual_version = recipe.release.version.as_str();
         install_dir_root.push("version");
         tokio::fs::write(&install_dir_root, format!("{}\n", actual_version))

@@ -74,8 +74,29 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         }
     }
 
-    // TODO(chawyehsu): Update the `bleeding` toolchain if installed
-    { /* */ }
+    // Update the `bleeding` toolchain if installed
+    {
+        version_file_path.push("bleeding");
+        version_file_path.push("version");
+
+        match tokio::fs::read_to_string(&version_file_path).await {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                println!(
+                    "bleeding toolchain is not installed, run 'moonup install bleeding' to install"
+                )
+            }
+            Err(e) => return Err(miette::miette!(e).wrap_err("failed to read version file")),
+            Ok(_) => {
+                // Always update the bleeding toolchain despite the version
+                let recipe = build_installrecipe(&ToolchainSpec::Bleeding)
+                    .await?
+                    .expect("should have recipe");
+                println!("Updating the bleeding toolchain");
+                populate_install(&recipe).await?;
+                post_install(&recipe)?;
+            }
+        }
+    }
 
     Ok(())
 }
