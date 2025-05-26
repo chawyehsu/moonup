@@ -168,6 +168,7 @@ mod liveinstall {
         let cache_path = ws
             .moonup_home()
             .join("downloads")
+            .join("latest")
             .join(test_install_version);
         assert!(cache_path.exists());
 
