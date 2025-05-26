@@ -46,12 +46,19 @@ pub struct ComponentIndex {
 }
 
 /// Channel names
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum ChannelName {
+    /// The latest/stable channel
     Latest,
+
+    /// The nightly channel
     Nightly,
+
+    /// All other channel unsupported (yet) are treated as unknown
+    #[serde(untagged)]
+    Unknown(String),
 }
 
 impl std::fmt::Display for ChannelName {
@@ -59,6 +66,7 @@ impl std::fmt::Display for ChannelName {
         match self {
             ChannelName::Latest => write!(f, "latest"),
             ChannelName::Nightly => write!(f, "nightly"),
+            ChannelName::Unknown(c) => write!(f, "{c}"),
         }
     }
 }
@@ -85,7 +93,7 @@ pub struct Release {
 }
 
 /// The target architecture of the toolchain
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Target {
     #[serde(rename = "aarch64-apple-darwin")]
@@ -96,6 +104,9 @@ pub enum Target {
     Amd64Linux,
     #[serde(rename = "x86_64-pc-windows")]
     Amd64Windows,
+    /// All other targets unsupported (yet) are treated as unknown
+    #[serde(untagged)]
+    Unknown(String),
 }
 
 impl Target {
@@ -120,6 +131,7 @@ impl std::fmt::Display for Target {
             Target::Amd64MacOS => write!(f, "x86_64-apple-darwin"),
             Target::Amd64Linux => write!(f, "x86_64-unknown-linux"),
             Target::Amd64Windows => write!(f, "x86_64-pc-windows"),
+            Target::Unknown(t) => write!(f, "{t}"),
         }
     }
 }
