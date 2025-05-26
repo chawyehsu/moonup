@@ -4,11 +4,15 @@ info:
   program: moon
   args:
     - upgrade
+  env:
+    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmp1rdhq1\\.moonup"
+    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmp1rdhq1\\.moon"
 ---
 success: true
 exit_code: 0
 ----- stdout -----
 latest toolchain is not installed, run 'moonup install latest' to install
 nightly toolchain is not installed, run 'moonup install nightly' to install
+bleeding toolchain is not installed, run 'moonup install bleeding' to install
 
 ----- stderr -----
