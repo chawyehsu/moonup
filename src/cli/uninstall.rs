@@ -98,12 +98,15 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                             .1;
                         download_dir.push(date);
                     } else {
+                        download_dir.push("latest");
                         download_dir.push(v);
                     }
                 }
                 _ => {
                     if toolchain.is_nightly() {
                         download_dir.push("nightly");
+                    } else {
+                        download_dir.push("latest");
                     }
 
                     let version_file = toolchain_dir.join("version");

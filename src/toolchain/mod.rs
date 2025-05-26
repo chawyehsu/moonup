@@ -15,9 +15,18 @@ pub mod resolve;
 /// - `bleeding`: the latest build from the main branch
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolchainSpec {
+    /// `latest` toolchain
     Latest,
+
+    /// `nightly` toolchain
     Nightly,
+
+    /// `bleeding` toolchain
     Bleeding,
+
+    /// A specific version of the toolchain
+    /// This can be a version number (e.g., "1.0.0") or a nightly
+    /// build (e.g., "nightly-2025-01-01")
     Version(String),
 }
 
