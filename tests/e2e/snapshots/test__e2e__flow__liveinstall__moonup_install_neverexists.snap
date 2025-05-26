@@ -1,0 +1,14 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - install
+    - neverexists
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+No toolchain available for requested spec 'neverexists'
