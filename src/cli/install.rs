@@ -54,11 +54,6 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         }
     };
 
-    if spec.is_bleeding() {
-        eprintln!("'bleeding' channel installation is not implemented");
-        std::process::exit(1);
-    }
-
     let recipe = build_installrecipe(&spec).await?.unwrap_or_else(|| {
         eprintln!("No toolchain available for requested spec '{}'", spec);
         std::process::exit(1);

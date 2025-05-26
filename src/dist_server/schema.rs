@@ -50,6 +50,9 @@ pub struct ComponentIndex {
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum ChannelName {
+    /// The bleeding channel
+    Bleeding,
+
     /// The latest/stable channel
     Latest,
 
@@ -64,6 +67,7 @@ pub enum ChannelName {
 impl std::fmt::Display for ChannelName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ChannelName::Bleeding => write!(f, "bleeding"),
             ChannelName::Latest => write!(f, "latest"),
             ChannelName::Nightly => write!(f, "nightly"),
             ChannelName::Unknown(c) => write!(f, "{c}"),

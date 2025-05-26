@@ -1,6 +1,8 @@
 use miette::IntoDiagnostic;
 use std::path::{Path, PathBuf};
 
+use crate::dist_server::schema::ChannelName;
+
 pub mod index;
 pub mod package;
 pub mod resolve;
@@ -124,6 +126,24 @@ impl From<String> for ToolchainSpec {
             "nightly" => ToolchainSpec::Nightly,
             "bleeding" => ToolchainSpec::Bleeding,
             _ => ToolchainSpec::Version(s),
+        }
+    }
+}
+
+/// Derives a `ChannelName` from a `ToolchainSpec`.
+impl From<&ToolchainSpec> for ChannelName {
+    fn from(spec: &ToolchainSpec) -> Self {
+        match spec {
+            ToolchainSpec::Latest => ChannelName::Latest,
+            ToolchainSpec::Nightly => ChannelName::Nightly,
+            ToolchainSpec::Bleeding => ChannelName::Bleeding,
+            ToolchainSpec::Version(v) => {
+                if v.starts_with("nightly") {
+                    ChannelName::Nightly
+                } else {
+                    ChannelName::Latest
+                }
+            }
         }
     }
 }
