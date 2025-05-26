@@ -17,7 +17,7 @@ Arguments:
   [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
 
 Options:
-      --list-available  List available toolchains
+      --list-available  List available channels
   -v, --verbose...      Increase logging verbosity
   -q, --quiet...        Decrease logging verbosity
   -h, --help            Print help

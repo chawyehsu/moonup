@@ -9,9 +9,9 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Available toolchains:
-  0.1.20241231+ba15a9a4e (latest)
-  0.1.20250105+c6fc2f8ed (nightly)
-  0.1.20250525+30d3f4e0d (bleeding)
+Available channel(s):
+  latest (0.1.20241231+ba15a9a4e)
+  nightly (0.1.20250105+c6fc2f8ed, 2025-01-05)
+  bleeding (0.1.20250525+30d3f4e0d)
 
 ----- stderr -----

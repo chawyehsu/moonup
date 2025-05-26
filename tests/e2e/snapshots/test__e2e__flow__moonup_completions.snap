@@ -5,6 +5,10 @@ info:
   args:
     - completions
     - zsh
+  env:
+    MOONUP_DIST_SERVER: "https://moonup.csu.moe/testing/v2"
+    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmp1Cc3y7\\.moonup"
+    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmp1Cc3y7\\.moon"
 ---
 success: true
 exit_code: 0
@@ -67,7 +71,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (install)
 _arguments "${_arguments_options[@]}" : \
-'--list-available[List available toolchains]' \
+'--list-available[List available channels]' \
 '*-v[Increase logging verbosity]' \
 '*--verbose[Increase logging verbosity]' \
 '(-v --verbose)*-q[Decrease logging verbosity]' \
@@ -79,7 +83,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (i)
 _arguments "${_arguments_options[@]}" : \
-'--list-available[List available toolchains]' \
+'--list-available[List available channels]' \
 '*-v[Increase logging verbosity]' \
 '*--verbose[Increase logging verbosity]' \
 '(-v --verbose)*-q[Decrease logging verbosity]' \

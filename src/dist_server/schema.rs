@@ -23,7 +23,21 @@ pub struct Channel {
 
 impl std::fmt::Display for Channel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({})", self.version, self.name)
+        match self.name {
+            ChannelName::Bleeding | ChannelName::Latest => {
+                write!(f, "{} ({})", self.name, self.version)
+            }
+            ChannelName::Nightly => {
+                write!(
+                    f,
+                    "{} ({}, {})",
+                    self.name,
+                    self.version,
+                    self.date.as_deref().unwrap_or("unknown")
+                )
+            }
+            ChannelName::Unknown(_) => Ok(()),
+        }
     }
 }
 

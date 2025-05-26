@@ -21,7 +21,7 @@ pub struct Args {
     #[clap(value_parser = ToolchainSpecValueParser::new())]
     toolchain: Option<ToolchainSpec>,
 
-    /// List available toolchains
+    /// List available channels
     #[clap(long)]
     list_available: bool,
 }
@@ -31,9 +31,9 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         let index = index::read_index().await?;
         let channels = index.channels.deref();
         if channels.is_empty() {
-            println!("No available toolchains found");
+            println!("No available channel found");
         } else {
-            println!("Available toolchains:");
+            println!("Available channel(s):");
             for channel in channels {
                 println!("  {}", channel);
             }
