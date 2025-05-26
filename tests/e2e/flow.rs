@@ -206,7 +206,10 @@ mod liveinstall {
         assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
 
         // Test more installations
-        // Install a specific version of the toolchain
+        assert_cmd_snapshot!(
+            "moonup_install_neverexists",
+            ws.cli().arg("install").arg("neverexists")
+        );
         assert_cmd_snapshot!(
             "moonup_install_latest",
             ws.cli().arg("install").arg("latest")
@@ -214,6 +217,10 @@ mod liveinstall {
         assert_cmd_snapshot!(
             "moonup_install_nightly",
             ws.cli().arg("install").arg("nightly")
+        );
+        assert_cmd_snapshot!(
+            "moonup_install_nightly_2",
+            ws.cli().arg("install").arg("nightly-2025-05-21")
         );
 
         env::set_current_dir(ws.tempdir()).expect("should restore current directory");
