@@ -58,6 +58,7 @@ fn test_flow_with_network_mock() {
             .create();
     });
 
+    // Override the dist server URL with the mock server URL
     assert_cmd_snapshot!(cli
         .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
         .arg("install")
@@ -203,6 +204,17 @@ mod liveinstall {
 
         // List installed toolchains, no toolchain should be listed
         assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+
+        // Test more installations
+        // Install a specific version of the toolchain
+        assert_cmd_snapshot!(
+            "moonup_install_latest",
+            ws.cli().arg("install").arg("latest")
+        );
+        assert_cmd_snapshot!(
+            "moonup_install_nightly",
+            ws.cli().arg("install").arg("nightly")
+        );
 
         env::set_current_dir(ws.tempdir()).expect("should restore current directory");
     }

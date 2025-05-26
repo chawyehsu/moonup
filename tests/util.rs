@@ -47,7 +47,13 @@ impl TestWorkspace {
 
     /// Get the MoonUp CLI command
     pub fn cli(&self) -> Command {
-        self.cmd(insta_cmd::get_cargo_bin("moonup").as_os_str())
+        // Use a test distribution server that serves a fixed version of release
+        // index for testing, so that we can ensure the same version is used in tests.
+        static TEST_DIST_SERVER: &str = "https://moonup.csu.moe/testing/v2";
+
+        let mut cmd = self.cmd(insta_cmd::get_cargo_bin("moonup").as_os_str());
+        cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, TEST_DIST_SERVER);
+        cmd
     }
 
     /// Get the MoonBit home path

@@ -4,9 +4,6 @@ info:
   program: moon
   args:
     - upgrade
-  env:
-    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmp1rdhq1\\.moonup"
-    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmp1rdhq1\\.moon"
 ---
 success: true
 exit_code: 0
