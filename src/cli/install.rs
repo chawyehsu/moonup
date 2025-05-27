@@ -1,4 +1,5 @@
 use clap::{CommandFactory, Parser};
+use dialoguer::theme::ColorfulTheme;
 use miette::{Context, IntoDiagnostic};
 use std::ffi::OsString;
 use std::ops::Deref;
@@ -7,6 +8,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, process::Command};
 
+use crate::dist_server::schema::ChannelName;
 use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_toolchain;
 use crate::toolchain::{index, ToolchainSpec};
@@ -21,13 +23,17 @@ pub struct Args {
     #[clap(value_parser = ToolchainSpecValueParser::new())]
     toolchain: Option<ToolchainSpec>,
 
-    /// List available channels
-    #[clap(long)]
+    /// List available channels or versions
+    ///
+    /// If `toolchain` is not specified, this will list all available channels.
+    /// If `toolchain` is specified as `latest`, `nightly`, this will list all
+    /// available versions for that channel.
+    #[clap(long, short = 'l')]
     list_available: bool,
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    if args.list_available {
+    if args.list_available && args.toolchain.is_none() {
         let index = index::read_index().await?;
         let channels = index.channels.deref();
         if channels.is_empty() {
@@ -42,16 +48,57 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         return Ok(());
     }
 
-    let spec = match args
-        .toolchain
-        .or(detect_pinned_toolchain().map(ToolchainSpec::from))
-    {
-        Some(v) => v,
-        None => {
-            let mut cmd = Args::command();
-            cmd.print_help().into_diagnostic()?;
-            std::process::exit(2);
+    let spec = match args.toolchain {
+        Some(s) => {
+            if args.list_available && (s.is_latest() || s.is_nightly()) {
+                let channel = ChannelName::from(&s);
+                let channel_index = index::read_channel_index(&channel).await?;
+
+                let selections = channel_index
+                    .releases
+                    .iter()
+                    .map(|c| {
+                        if s.is_latest() {
+                            c.version.as_str()
+                        } else {
+                            c.date.as_ref().expect("nightly release should have a date")
+                        }
+                    })
+                    .rev()
+                    .collect::<Vec<_>>();
+
+                if !selections.is_empty() {
+                    let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
+                        .with_prompt(format!("Pick a version from {} channel", channel))
+                        .items(&selections)
+                        .max_length(crate::constant::MAX_SELECT_ITEMS)
+                        .default(0)
+                        .interact()
+                        .into_diagnostic()
+                        .expect("can't select a toolchain version");
+
+                    let mut picked = selections[selection].to_owned();
+                    if s.is_nightly() {
+                        picked = format!("nightly-{}", picked);
+                    }
+
+                    ToolchainSpec::from(picked)
+                } else {
+                    eprintln!("No available toolchain versions to select");
+                    std::process::exit(1);
+                }
+            } else {
+                s
+            }
         }
+        None => match detect_pinned_toolchain().map(ToolchainSpec::from) {
+            Some(v) => v,
+            None => {
+                let mut cmd = Args::command();
+                cmd.print_help().into_diagnostic()?;
+                std::process::exit(2);
+            }
+        },
     };
 
     let recipe = build_installrecipe(&spec).await?.unwrap_or_else(|| {

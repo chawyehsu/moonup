@@ -14,12 +14,22 @@ Install or update a MoonBit toolchain
 Usage: moonup install [OPTIONS] [TOOLCHAIN]
 
 Arguments:
-  [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
+  [TOOLCHAIN]
+          Toolchain version tag or channel name [latest, nightly, bleeding]
 
 Options:
-      --list-available  List available channels
-  -v, --verbose...      Increase logging verbosity
-  -q, --quiet...        Decrease logging verbosity
-  -h, --help            Print help
+  -l, --list-available
+          List available channels or versions
+          
+          If `toolchain` is not specified, this will list all available channels. If `toolchain` is specified as `latest`, `nightly`, this will list all available versions for that channel.
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+  -h, --help
+          Print help (see a summary with '-h')
 
 ----- stderr -----
