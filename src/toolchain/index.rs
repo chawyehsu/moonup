@@ -151,7 +151,8 @@ pub async fn read_component_index(
         }
     };
 
-    if cache_valid {
+    // For bleeding channel, the component index is always fetched from remote
+    if cache_valid && channel != &ChannelName::Bleeding {
         return serde_json::from_str(&content)
             .into_diagnostic()
             .inspect_err(|e| {

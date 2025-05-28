@@ -102,7 +102,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
             if sha256_actual != sha256_expected {
                 let msg = format!(
-                    "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
+                    "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}\n\nPlease try again.",
                     file, sha256_expected, sha256_actual
                 );
 
@@ -154,7 +154,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
         if sha256_actual != sha256_expected {
             let msg = format!(
-                "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}",
+                "Checksum mismatch for file {}\nExpected: {}\n  Actual: {}\n\nPlease try again.",
                 file, sha256_expected, sha256_actual
             );
 

@@ -17,7 +17,7 @@ pub const ENVNAME_MOONUP_DIST_SERVER: &str = "MOONUP_DIST_SERVER";
 pub const MOONUP_DIST_SERVER: &str = "https://moonup.csu.moe/v2";
 
 /// The expiration time for the release index, in hours
-pub const INDEX_EXPIRATION: i64 = 2;
+pub const INDEX_EXPIRATION: i64 = 1;
 
 /// The timeout for reading HTTP responses, in seconds
 pub const HTTP_READ_TIMEOUT: u64 = 5 * 60;
