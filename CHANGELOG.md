@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0](https://github.com/chawyehsu/moonup/compare/v0.2.3...v0.3.0) (2025-05-28)
+
+
+### Features
+
+* add bleeding channel support ([4c49f96](https://github.com/chawyehsu/moonup/commit/4c49f962c6eb76a52ae5579bfa69af249a54e706))
+* always invalidate component index for bleeding channel ([d308d10](https://github.com/chawyehsu/moonup/commit/d308d109698702c7bc60a0c89b697f3fefc362ce))
+* implement bleeding channel update ([af76f1a](https://github.com/chawyehsu/moonup/commit/af76f1abc9eef88168c86e1387805222c5c81bc1))
+* support bleeding channel installation ([#97](https://github.com/chawyehsu/moonup/issues/97)) ([6e372ed](https://github.com/chawyehsu/moonup/commit/6e372ed234ac003541429b8d36a7428b438c7fa5))
+* support selecting a version to install (close [#77](https://github.com/chawyehsu/moonup/issues/77)) ([ee6feb1](https://github.com/chawyehsu/moonup/commit/ee6feb1e037b32af1847381669243a949504a893))
+
+
+### Bug Fixes
+
+* correct bleeding toolchain install dir ([f146cf3](https://github.com/chawyehsu/moonup/commit/f146cf3ae44122fd9ebb8d83bebab468c764b7d9))
+* handle unknown channel/target variants (forward compatibility improvement) ([060b4de](https://github.com/chawyehsu/moonup/commit/060b4de1c3f9024bd3336ee4159a2967e837f295))
+* update cache removal reflecting new cache layout ([b57b9ea](https://github.com/chawyehsu/moonup/commit/b57b9eadde84d8eebeb9757d5ef462132422b593))
+
 ## [0.2.3](https://github.com/chawyehsu/moonup/compare/v0.2.2...v0.2.3) (2025-03-31)
 
 
