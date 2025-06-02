@@ -13,6 +13,7 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
     env:
       SCCACHE_GHA_ENABLED: true
       RUSTC_WRAPPER: sccache
