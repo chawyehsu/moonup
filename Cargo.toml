@@ -28,7 +28,7 @@ indicatif = "0.17.11"
 miette = { version = "7.5.0", features = ["fancy"] }
 rattler_digest = "1.0.5"
 remove_dir_all = "1.0.0"
-reqwest = { version = "0.12.12", features = ["json", "stream"] }
+reqwest = { version = "0.12.19", features = ["json", "stream"] }
 reqwest-middleware = "0.3.2"
 self_update = "0.42.0"
 serde = { version = "1.0.217", features = ["derive"] }
