@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/chawyehsu/moonup/compare/v0.3.0...v0.3.1) (2025-06-21)
+
+
+### Bug Fixes
+
+* invalidate local caches for bleeding channel ([102d8c1](https://github.com/chawyehsu/moonup/commit/102d8c18b667f2316e18743a1655ad55ea8f881e))
+
 ## [0.3.0](https://github.com/chawyehsu/moonup/compare/v0.2.3...v0.3.0) (2025-05-28)
 
 
