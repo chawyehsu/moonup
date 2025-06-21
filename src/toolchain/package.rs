@@ -73,6 +73,8 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         .wrap_err(format!("Failed to delete {}", install_dir_root.display()))
         .wrap_err("Unable to clean up existing installation, files may be in use")?;
 
+    let is_bleeding = recipe.spec.is_bleeding();
+
     // ensure all components are downloaded in the first loop
     for component in recipe.components.iter() {
         let name = component.name.as_str();
@@ -81,8 +83,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
         let local_file = download_dir.join(file);
 
-        if let Err(e) = path_to_reader(&local_file).await {
-            tracing::trace!("failed to read local file: {}", e);
+        if is_bleeding || !local_file.exists() {
             tracing::debug!("downloading {} to {}", name, local_file.display());
 
             let client = build_http_client();
