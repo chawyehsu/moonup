@@ -9,4 +9,4 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-Error: cannot run moonup-shim directly
+Error: Cannot run moonup-shim directly

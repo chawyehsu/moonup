@@ -33,11 +33,11 @@ fn run() -> Result<ExitStatus> {
         .unwrap_or_default();
 
     if current_exe_name.is_empty() {
-        return Err(anyhow::anyhow!("unexpected bad shim name"));
+        return Err(anyhow::anyhow!("Unexpected bad shim name"));
     }
 
     if current_exe_name == "moonup-shim" {
-        return Err(anyhow::anyhow!("cannot run moonup-shim directly"));
+        return Err(anyhow::anyhow!("Cannot run moonup-shim directly"));
     }
 
     let args_1 = args.get(1).and_then(|arg| arg.to_str());
@@ -70,9 +70,9 @@ fn run() -> Result<ExitStatus> {
         cmd.args(["install", version]);
 
         match cmd.status() {
-            Err(e) => return Err(anyhow::anyhow!("failed to run moonup install: {}", e)),
+            Err(e) => return Err(anyhow::anyhow!("Failed to run moonup install: {}", e)),
             Ok(status) if !status.success() => {
-                return Err(anyhow::anyhow!("failed to install active toolchain"));
+                return Err(anyhow::anyhow!("Failed to install active toolchain"));
             }
             Ok(_) => {}
         }
@@ -114,7 +114,7 @@ fn run() -> Result<ExitStatus> {
 
             return cmd
                 .status()
-                .map_err(|e| anyhow::anyhow!("failed to run moonup upgrade: {}", e));
+                .map_err(|e| anyhow::anyhow!("Failed to run moonup upgrade: {}", e));
         }
 
         // Override the core standard library path to point to the one in
@@ -138,7 +138,7 @@ fn recursion_guard() -> Result<u8> {
         .unwrap_or(0u8);
 
     if recursion_count > RECURSION_LIMIT {
-        return Err(anyhow::anyhow!("infinite recursion detected"));
+        return Err(anyhow::anyhow!("Infinite recursion detected"));
     }
 
     Ok(recursion_count)
