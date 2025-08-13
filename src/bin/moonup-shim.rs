@@ -1,20 +1,25 @@
 use anyhow::Result;
 use std::env;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 
 use moonup::constant::RECURSION_LIMIT;
 use moonup::toolchain::resolve::detect_active_toolchain;
 use moonup::{moon_home, moonup_home};
 
 pub fn main() {
-    if let Err(err) = run() {
-        eprintln!("{err:?}");
-        std::process::exit(1);
+    match run() {
+        Err(err) => {
+            eprintln!("Error: {err}");
+            std::process::exit(1);
+        }
+        Ok(status) => {
+            std::process::exit(status.code().unwrap_or(1));
+        }
     }
 }
 
-fn run() -> Result<()> {
+fn run() -> Result<ExitStatus> {
     // Ensure recursion guard is at the top of the function
     let recursion_count = recursion_guard()?;
 
@@ -28,11 +33,11 @@ fn run() -> Result<()> {
         .unwrap_or_default();
 
     if current_exe_name.is_empty() {
-        return Err(anyhow::anyhow!("Unexpected bad shim name"));
+        return Err(anyhow::anyhow!("unexpected bad shim name"));
     }
 
     if current_exe_name == "moonup-shim" {
-        return Err(anyhow::anyhow!("Cannot run moonup-shim directly"));
+        return Err(anyhow::anyhow!("cannot run moonup-shim directly"));
     }
 
     let args_1 = args.get(1).and_then(|arg| arg.to_str());
@@ -61,14 +66,15 @@ fn run() -> Result<()> {
 
         println!("toolchain version '{version}' not installed");
 
-        let mut cmd = Command::new("moonup")
-            .args(["install", version])
-            .spawn()
-            .map_err(|e| anyhow::anyhow!("Failed to spawn moonup install: {}", e))?;
+        let mut cmd = Command::new("moonup");
+        cmd.args(["install", version]);
 
-        let code = cmd.wait()?;
-        if !code.success() {
-            return Err(anyhow::anyhow!("Failed to install active toolchain"));
+        match cmd.status() {
+            Err(e) => return Err(anyhow::anyhow!("failed to run moonup install: {}", e)),
+            Ok(status) if !status.success() => {
+                return Err(anyhow::anyhow!("failed to install active toolchain"));
+            }
+            Ok(_) => {}
         }
     }
 
@@ -103,15 +109,12 @@ fn run() -> Result<()> {
     if current_exe_name == "moon" {
         // intercept `moon upgrade` and proxy it to `moonup upgrade`
         if args.len() > 1 && args[1] == "upgrade" {
-            let mut cmd = Command::new("moonup")
-                .args(["update"])
-                .spawn()
-                .map_err(|e| anyhow::anyhow!("Failed to spawn moonup upgrade: {}", e))?;
-            let code = cmd.wait()?;
-            return code
-                .success()
-                .then(|| Ok(()))
-                .unwrap_or_else(|| Err(anyhow::anyhow!("Failed to upgrade toolchains: {}", code)));
+            let mut cmd = Command::new("moonup");
+            cmd.args(["update"]);
+
+            return cmd
+                .status()
+                .map_err(|e| anyhow::anyhow!("failed to run moonup upgrade: {}", e));
         }
 
         // Override the core standard library path to point to the one in
@@ -126,7 +129,7 @@ fn run() -> Result<()> {
         );
     }
 
-    Ok(cmd.status().map(|_| ())?)
+    cmd.status().map_err(anyhow::Error::from)
 }
 
 fn recursion_guard() -> Result<u8> {
@@ -135,7 +138,7 @@ fn recursion_guard() -> Result<u8> {
         .unwrap_or(0u8);
 
     if recursion_count > RECURSION_LIMIT {
-        return Err(anyhow::anyhow!("Infinite recursion detected"));
+        return Err(anyhow::anyhow!("infinite recursion detected"));
     }
 
     Ok(recursion_count)
