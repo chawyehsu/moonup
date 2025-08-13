@@ -164,7 +164,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
                 tracing::debug!("failed to remove invalid component download: {}", e);
             });
             // clean up the invalid installation
-            let _ = crate::fs::empty_dir(&install_dir_root).inspect_err(|e| {
+            let _ = crate::fs::remove_dir_all(&install_dir_root).inspect_err(|e| {
                 tracing::debug!("failed to clean up invalid installation: {}", e);
             });
 
