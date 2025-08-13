@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::toolchain::resolve::detect_active_toolchain;
+use crate::toolchain::resolve::{detect_active_toolchain, resolve_exe};
 
 /// Show the actual binary that will be run for a given command
 #[derive(Parser, Debug)]
@@ -11,30 +11,13 @@ pub struct Args {
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    let command_name = {
-        let name = args.command.as_str();
-
-        #[cfg(target_os = "windows")]
-        {
-            if !name.ends_with(".exe") {
-                format!("{}.exe", name)
-            } else {
-                name.to_string()
-            }
-        }
-
-        #[cfg(not(target_os = "windows"))]
-        name.to_string()
-    };
     let mut active_toolchain = detect_active_toolchain();
-
     active_toolchain.push("bin");
-    active_toolchain.push(command_name);
 
-    if active_toolchain.exists() {
-        println!("{}", active_toolchain.display());
-    } else {
-        eprintln!("No command for '{}'", active_toolchain.display());
+    let exe_resolved = resolve_exe(args.command.as_str(), &active_toolchain);
+    match exe_resolved {
+        None => eprintln!("No command found for '{}'", args.command),
+        Some(exe) => println!("{}", exe.display()),
     }
 
     Ok(())

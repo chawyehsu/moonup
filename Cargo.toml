@@ -39,6 +39,7 @@ tokio-util = { version = "0.7.13", features = ["io-util"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 url = "2.5.4"
+which = "8.0.0"
 zip = "2.3.0"
 
 [target.'cfg(windows)'.dependencies]

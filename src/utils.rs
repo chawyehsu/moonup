@@ -109,8 +109,9 @@ pub(crate) fn trimmed_or_none(s: &str) -> Option<&str> {
 pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        let mut older = old.to_path_buf();
-        older.set_extension("exe.old");
+        // On Windows, ensure shims created with `.exe` extension
+        let old = old.with_extension("exe");
+        let older = old.with_extension("exe.old");
 
         std::fs::remove_file(&older).or_else(|err| match err.kind() {
             std::io::ErrorKind::NotFound => Ok(()),
@@ -123,7 +124,7 @@ pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
             _ => Err(err).into_diagnostic(),
         })?;
 
-        match std::fs::rename(old, &older) {
+        match std::fs::rename(&old, &older) {
             Ok(_) => tracing::debug!("renamed old exe: {}", &older.display()),
             Err(err) => match err.kind() {
                 std::io::ErrorKind::NotFound => { // ignore
@@ -138,11 +139,13 @@ pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
             },
         }
 
-        std::fs::copy(new, old).into_diagnostic().wrap_err(format!(
-            "failed to copy {} to {}",
-            new.display(),
-            old.display()
-        ))?;
+        std::fs::copy(&new, &old)
+            .into_diagnostic()
+            .wrap_err(format!(
+                "failed to copy {} to {}",
+                new.display(),
+                old.display()
+            ))?;
 
         tracing::debug!("replaced new exe: {}", old.display());
         let _ = std::fs::remove_file(&older);

@@ -30,3 +30,7 @@ pub const RECURSION_LIMIT: u8 = 20;
 
 /// The maximum number of select dialog items
 pub const MAX_SELECT_ITEMS: usize = 6;
+
+/// The allowed file extensions to be detected as executables on Windows
+#[cfg(target_os = "windows")]
+pub const ALLOWED_EXTENSIONS: [&str; 3] = ["exe", "bat", "cmd"];

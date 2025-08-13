@@ -1,11 +1,13 @@
 use anyhow::Result;
 use std::env;
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
 use moonup::constant::RECURSION_LIMIT;
-use moonup::toolchain::resolve::detect_active_toolchain;
-use moonup::{moon_home, moonup_home};
+use moonup::toolchain::resolve::detect_active_toolchainspec;
+use moonup::toolchain::ToolchainSpec;
+use moonup::{moonup_home, runner};
 
 pub fn main() {
     match run() {
@@ -47,14 +49,19 @@ fn run() -> Result<ExitStatus> {
     // - If the first argument is a toolchain spec, use it.
     // - If the `MOONUP_TOOLCHAIN_SPEC` environment variable is set, use it.
     // - Otherwise, detect the active toolchain.
-    let active_toolchain_root = if args_1_is_toolchain {
+    let active_toolchain = if args_1_is_toolchain {
         let version = args_1.expect("has arg version").strip_prefix('+').unwrap();
-        moonup_home().join("toolchains").join(version)
+        version.to_string()
     } else if let Some(toolchain_spec) = env::var_os("MOONUP_TOOLCHAIN_SPEC") {
-        moonup_home().join("toolchains").join(toolchain_spec)
+        toolchain_spec
+            .to_str()
+            .expect("MOONUP_TOOLCHAIN_SPEC should be valid UTF-8")
+            .to_string()
     } else {
-        detect_active_toolchain()
+        detect_active_toolchainspec()
     };
+
+    let active_toolchain_root = moonup_home().join("toolchains").join(&active_toolchain);
 
     // If the active toolchain is not installed, call `moonup install`
     // to install it.
@@ -78,34 +85,6 @@ fn run() -> Result<ExitStatus> {
         }
     }
 
-    let exe_relative_path = current_exe
-        .strip_prefix(moon_home())
-        .expect("should extract exe path");
-
-    let actual_exe = active_toolchain_root.join(exe_relative_path);
-    // println!("Running '{}'", actual_exe.display());
-    let actual_libcore = active_toolchain_root.join("lib").join("core");
-
-    let mut cmd = Command::new(actual_exe);
-    let idx = if args_1_is_toolchain { 2 } else { 1 };
-    cmd.args(args[idx..].iter().cloned());
-    cmd.env("MOONUP_RECURSION_COUNT", (recursion_count + 1).to_string());
-
-    // NOTE(chawyehsu): It is not ideal and hacky to store the toolchain spec
-    // in an extra environment variable, but it is the only way to spread the
-    // toolchain spec to the child shim processes without requiring upstream
-    // changes in MoonBit build system... All of these are because of and for
-    // the weak isolation of the MoonBit toolchain...
-    cmd.env(
-        "MOONUP_TOOLCHAIN_SPEC",
-        env::var_os("MOONUP_TOOLCHAIN_SPEC").unwrap_or(
-            active_toolchain_root
-                .file_name()
-                .expect("should have toolchain version")
-                .to_os_string(),
-        ),
-    );
-
     if current_exe_name == "moon" {
         // intercept `moon upgrade` and proxy it to `moonup upgrade`
         if args.len() > 1 && args[1] == "upgrade" {
@@ -116,18 +95,16 @@ fn run() -> Result<ExitStatus> {
                 .status()
                 .map_err(|e| anyhow::anyhow!("Failed to run moonup upgrade: {}", e));
         }
-
-        // Override the core standard library path to point to the one in
-        // the active toolchain.
-        // NOTE(chawyehsu): The `MOON_CORE_OVERRIDE` env is undocumented on
-        // MoonBit's official documentation. I reverse-engineered this from
-        // the `moon` executable. This is a hacky way to make things work
-        // and may not work as MoonBit evolves.
-        cmd.env(
-            "MOON_CORE_OVERRIDE",
-            env::var_os("MOON_CORE_OVERRIDE").unwrap_or(actual_libcore.into_os_string()),
-        );
     }
+
+    let spec = ToolchainSpec::from(active_toolchain.as_str());
+    let mut run_args = vec![OsString::from(current_exe_name)];
+
+    let idx = if args_1_is_toolchain { 2 } else { 1 };
+    run_args.extend(args[idx..].iter().cloned());
+
+    let mut cmd = runner::build_command(spec, run_args)?;
+    cmd.env("MOONUP_RECURSION_COUNT", (recursion_count + 1).to_string());
 
     cmd.status().map_err(anyhow::Error::from)
 }

@@ -8,6 +8,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, process::Command};
 
+#[cfg(target_os = "windows")]
+use crate::constant::ALLOWED_EXTENSIONS;
 use crate::dist_server::schema::ChannelName;
 use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_toolchain;
@@ -229,7 +231,10 @@ fn find_bins(dir: &PathBuf) -> miette::Result<Vec<OsString>> {
             if is_file {
                 #[cfg(target_os = "windows")]
                 {
-                    ext.and_then(|ext| if ext == "exe" { Some(name) } else { None })
+                    ext.and_then(|ext| {
+                        let ext = ext.to_str().unwrap_or_default();
+                        ALLOWED_EXTENSIONS.contains(&ext).then_some(name)
+                    })
                 }
 
                 #[cfg(not(target_os = "windows"))]

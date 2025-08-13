@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
 use crate::{constant::TOOLCHAIN_FILE, utils::trimmed_or_none};
 
@@ -50,14 +51,35 @@ pub fn detect_default_toolchain() -> Option<String> {
 /// # Returns
 ///
 /// The path to actual versioned toolchain
+pub fn detect_active_toolchain() -> PathBuf {
+    let active = detect_active_toolchainspec();
+    crate::moonup_home().join("toolchains").join(active)
+}
+
+/// Iterates over the current directory and all its parent directories
+/// to find if there is a [`TOOLCHAIN_FILE`] and detect the toolchain spec.
+///
+/// # Returns
+///
+/// The toolchain spec
 ///
 /// # Note
 ///
 /// This function is used by the `moonup-shim`, and because we don't want to
 /// bloated the shim, miette/tracing should not be used here.
-pub fn detect_active_toolchain() -> PathBuf {
-    let active = detect_pinned_toolchain()
+pub fn detect_active_toolchainspec() -> String {
+    detect_pinned_toolchain()
         .or(detect_default_toolchain())
-        .unwrap_or("latest".to_string());
-    crate::moonup_home().join("toolchains").join(active)
+        .unwrap_or("latest".to_string())
+}
+
+/// Resolves the executable binary in the given paths.
+///
+/// # Returns
+///
+/// The path to the executable binary if found, otherwise `None`.
+pub fn resolve_exe<S: AsRef<OsStr>>(binary_name: S, paths: &Path) -> Option<PathBuf> {
+    which::which_in_global(binary_name, Some(paths))
+        .and_then(|mut i| i.next().ok_or(which::Error::CannotFindBinaryPath))
+        .ok()
 }

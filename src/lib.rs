@@ -6,6 +6,7 @@ pub mod constant;
 pub mod dist_server;
 pub mod fs;
 pub(crate) mod reporter;
+pub mod runner;
 pub mod toolchain;
 pub mod utils;
 
