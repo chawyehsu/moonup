@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.2](https://github.com/chawyehsu/moonup/compare/v0.3.1...v0.3.2) (2025-08-13)
+
+
+### Bug Fixes
+
+* delete directory of invalid install ([21e7bfc](https://github.com/chawyehsu/moonup/commit/21e7bfc262f4a342885fbfd86268412fbbb8172c))
+* improve shim generator to support .bat executables ([7f3f880](https://github.com/chawyehsu/moonup/commit/7f3f88014525ec825c5128a8d837b46842fc58dd))
+* **moonup-shim:** child process exitcode pass-through ([887ff15](https://github.com/chawyehsu/moonup/commit/887ff1534420671c04402ea6ade783d96223c6a6))
+
 ## [0.3.1](https://github.com/chawyehsu/moonup/compare/v0.3.0...v0.3.1) (2025-06-21)
 
 
