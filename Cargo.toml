@@ -26,7 +26,7 @@ flate2 = "1.1.2"
 futures-util = "0.3.31"
 indicatif = "0.17.11"
 miette = { version = "7.6.0", features = ["fancy"] }
-rattler_digest = "1.1.2"
+rattler_digest = "1.1.5"
 remove_dir_all = "1.0.0"
 reqwest = { version = "0.12.20", features = ["json", "stream"] }
 reqwest-middleware = "0.3.2"
