@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths-ignore:
-      - '.vscode'
-      - '*.md'
+      - ".vscode"
+      - "*.md"
   push:
     branches:
       - main
@@ -46,10 +46,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-            - { name: "Windows",     target: x86_64-pc-windows-msvc,     os: windows-latest,   zip: moonup-x86_64-pc-windows-msvc.zip }
-            - { name: "Linux",       target: x86_64-unknown-linux-gnu,   os: ubuntu-latest,    zip: moonup-x86_64-unknown-linux-gnu.tar.gz }
-            - { name: "macOS ARM",   target: aarch64-apple-darwin,       os: macos-latest,     zip: moonup-aarch64-apple-darwin.tar.gz }
-            - { name: "macOS",       target: x86_64-apple-darwin,        os: macos-13,         zip: moonup-x86_64-apple-darwin.tar.gz }
+          - {
+              name: "Windows",
+              target: x86_64-pc-windows-msvc,
+              os: windows-latest,
+              zip: moonup-x86_64-pc-windows-msvc.zip,
+            }
+          - {
+              name: "Linux",
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              zip: moonup-x86_64-unknown-linux-gnu.tar.gz,
+            }
+          - {
+              name: "macOS ARM",
+              target: aarch64-apple-darwin,
+              os: macos-latest,
+              zip: moonup-aarch64-apple-darwin.tar.gz,
+            }
+          - {
+              name: "macOS",
+              target: x86_64-apple-darwin,
+              os: macos-13,
+              zip: moonup-x86_64-apple-darwin.tar.gz,
+            }
 
     runs-on: ${{ matrix.os }}
     env:
@@ -79,7 +99,7 @@ jobs:
       - name: Dev Build
         run: cargo build --locked --target ${{ matrix.target }}
 
-# Create/Update release PR
+  # Create/Update release PR
   cd_release_please:
     name: Release Please
     needs: ci_test_build
@@ -105,10 +125,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "Windows",     target: x86_64-pc-windows-msvc,     os: windows-latest,   zip: moonup-x86_64-pc-windows-msvc.zip }
-          - { name: "Linux",       target: x86_64-unknown-linux-gnu,   os: ubuntu-latest,    zip: moonup-x86_64-unknown-linux-gnu.tar.gz }
-          - { name: "macOS ARM",   target: aarch64-apple-darwin,       os: macos-latest,     zip: moonup-aarch64-apple-darwin.tar.gz }
-          - { name: "macOS",       target: x86_64-apple-darwin,        os: macos-13,         zip: moonup-x86_64-apple-darwin.tar.gz }
+          - {
+              name: "Windows",
+              target: x86_64-pc-windows-msvc,
+              os: windows-latest,
+              zip: moonup-x86_64-pc-windows-msvc.zip,
+            }
+          - {
+              name: "Linux",
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              zip: moonup-x86_64-unknown-linux-gnu.tar.gz,
+            }
+          - {
+              name: "macOS ARM",
+              target: aarch64-apple-darwin,
+              os: macos-latest,
+              zip: moonup-aarch64-apple-darwin.tar.gz,
+            }
+          - {
+              name: "macOS",
+              target: x86_64-apple-darwin,
+              os: macos-13,
+              zip: moonup-x86_64-apple-darwin.tar.gz,
+            }
 
     runs-on: ${{ matrix.os }}
     continue-on-error: true
@@ -194,12 +234,17 @@ jobs:
     name: Publish Cargo Package
     runs-on: ubuntu-latest
     needs: [cd_attach_artifacts]
+    permissions:
+      id-token: write
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      - name: Rust Setup
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup crates.io Auth
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
 
       - name: Cargo Publish
-        run: cargo publish --registry crates-io --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --registry crates-io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
