@@ -7,7 +7,7 @@ environments:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-2_gnu.tar.bz2
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/actionlint-1.7.7-hd0c01bc_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/actionlint-1.7.8-h965158b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/binutils-2.43-h4852527_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/binutils_impl_linux-64-2.43-h4bf12b8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/binutils_linux-64-2.43-h4852527_2.conda
@@ -64,7 +64,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.29.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-h7f98852_2.tar.bz2
       osx-64:
-      - conda: https://conda.anaconda.org/conda-forge/osx-64/actionlint-1.7.7-h23c3e72_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-64/actionlint-1.7.8-h8080635_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-hfdf4475_7.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/c-compiler-1.9.0-h09a7c41_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/ca-certificates-2025.1.31-h8857fd0_0.conda
@@ -128,7 +128,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/yaml-0.2.5-h0d85af4_2.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstd-1.5.6-h915ae27_0.conda
       osx-arm64:
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/actionlint-1.7.7-h48c0fde_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/actionlint-1.7.8-h43f6c71_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/bzip2-1.0.8-h99b78c6_7.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/c-compiler-1.9.0-hdf49b6b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ca-certificates-2025.1.31-hf0a4a13_0.conda
@@ -196,7 +196,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/yaml-0.2.5-h3422bc3_2.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.6-hb46c0d2_0.conda
       win-64:
-      - conda: https://conda.anaconda.org/conda-forge/win-64/actionlint-1.7.7-h2466b09_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/actionlint-1.7.8-he477eed_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/bzip2-1.0.8-h2466b09_7.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/c-compiler-1.9.0-hcfcfb64_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/ca-certificates-2025.1.31-h56e8100_0.conda
@@ -238,9 +238,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/ucrt-10.0.22621.0-h57928b3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/ukkonen-1.0.1-py313h1ec8472_5.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/vc-14.3-h5fd82a7_24.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.42.34433-h6356254_24.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.44.35208-h818238b_32.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/vcomp14-14.44.35208-h818238b_32.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.29.1-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/vs2015_runtime-14.42.34433-hfef2bbc_24.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/vs2015_runtime-14.44.35208-h38c0c73_32.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/vs2019_win-64-19.29.30139-h7dcff83_24.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/vswhere-3.1.7-h57928b3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/yaml-0.2.5-h8ffe710_2.tar.bz2
@@ -264,58 +265,56 @@ packages:
   license_family: BSD
   size: 23621
   timestamp: 1650670423406
-- conda: https://conda.anaconda.org/conda-forge/linux-64/actionlint-1.7.7-hd0c01bc_0.conda
-  sha256: a6fb8bfb2ef6c7f48195ac2b7683656aecc55429f7fc3123ec6bbb1e1ce06b2b
-  md5: 4dcdf2570573cf76931efb97d14e4641
+- conda: https://conda.anaconda.org/conda-forge/linux-64/actionlint-1.7.8-h965158b_0.conda
+  sha256: a7245cb879a5d2e3c3a76617b55aa1b740d1fd0c8e5d23469c2e6ec69c8c7c26
+  md5: 90f1e02ab112937f37a2322d6e6ebbd0
   depends:
-  - __glibc >=2.17
-  - libgcc >=13
   - __glibc >=2.17,<3.0.a0
+  - libgcc >=14
+  - __glibc >=2.17
   license: MIT
   license_family: MIT
-  size: 1947627
-  timestamp: 1737388180543
-- conda: https://conda.anaconda.org/conda-forge/osx-64/actionlint-1.7.7-h23c3e72_0.conda
-  sha256: f5f76d36306925f2fbb098a33bcb937553556c5de96d742c8fcef082c75bdee8
-  md5: 3d18f82a97621e9e39541eb189ff0534
+  size: 1984203
+  timestamp: 1760199609591
+- conda: https://conda.anaconda.org/conda-forge/osx-64/actionlint-1.7.8-h8080635_0.conda
+  sha256: bb860c0c282fb6953d7e374d145d8cb1e4aaf81cc730ac8f26abcd343daae102
+  md5: 32aeac533e5bc51ea04fa87de864c021
   depends:
-  - __osx >=11.0
+  - __osx >=12.3
   constrains:
   - __osx >=10.12
   license: MIT
   license_family: MIT
-  size: 1907446
-  timestamp: 1737388230173
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/actionlint-1.7.7-h48c0fde_0.conda
-  sha256: 93f9426c61265adaa8afa900bf2b35627732fed1fa15886e8836af58547e7830
-  md5: 2ec2ec4893bcee0ccd4858b7c8c14d23
+  size: 1942329
+  timestamp: 1760199648994
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/actionlint-1.7.8-h43f6c71_0.conda
+  sha256: d225bef2c199d83c1e365f483715964372348f639259d7a1fb105da771c6cf81
+  md5: 659328c73b0d41b1dd4d064bc1188fd9
   depends:
   - __osx >=11.0
   license: MIT
   license_family: MIT
-  size: 1727363
-  timestamp: 1737388223041
-- conda: https://conda.anaconda.org/conda-forge/win-64/actionlint-1.7.7-h2466b09_0.conda
-  sha256: bbfa6aa49bd19117fdc36efb26956a1ff57dab5fddc3579b8c30f6ceb853ba5d
-  md5: bea57e97ccf892453f8dc40f4b72d329
+  size: 1752491
+  timestamp: 1760199640655
+- conda: https://conda.anaconda.org/conda-forge/win-64/actionlint-1.7.8-he477eed_0.conda
+  sha256: 76f90c393903f33564826bbd54055384747b0a6f38e0ff317ada4bbaec69ce0a
+  md5: 3abfff0c12bb43be26bed854d01226f8
   depends:
-  - vc >=14.2,<15
-  - vc14_runtime >=14.29.30139
+  - vc >=14.3,<15
+  - vc14_runtime >=14.44.35208
   - ucrt >=10.0.20348.0
-  - vc >=14.2,<15
-  - vc14_runtime >=14.29.30139
+  - vc >=14.3,<15
+  - vc14_runtime >=14.44.35208
   - ucrt >=10.0.20348.0
   license: MIT
   license_family: MIT
-  size: 2014904
-  timestamp: 1737388233822
+  size: 2053082
+  timestamp: 1760199668776
 - conda: https://conda.anaconda.org/conda-forge/linux-64/binutils-2.43-h4852527_2.conda
   sha256: 92be0f8ccd501ceeb3c782e2182e6ea04dca46799038176de40a57bca45512c5
   md5: 348619f90eee04901f4a70615efff35b
   depends:
   - binutils_impl_linux-64 >=2.43,<2.44.0a0
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only
   license_family: GPL
   size: 33876
@@ -335,8 +334,6 @@ packages:
   md5: 18aba879ddf1f8f28145ca6fcb873d8c
   depends:
   - binutils_impl_linux-64 2.43 h4bf12b8_2
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only
   license_family: GPL
   size: 34945
@@ -387,8 +384,6 @@ packages:
   - binutils
   - gcc
   - gcc_linux-64 13.*
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   size: 6196
@@ -401,8 +396,6 @@ packages:
   - clang_osx-64 18.*
   - ld64 >=530
   - llvm-openmp
-  arch: x86_64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 6236
@@ -415,8 +408,6 @@ packages:
   - clang_osx-arm64 18.*
   - ld64 >=530
   - llvm-openmp
-  arch: arm64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 6244
@@ -426,8 +417,6 @@ packages:
   md5: 7d9b49b7ef31f9a23bdbc7ea0dd9996e
   depends:
   - vs2019_win-64
-  arch: x86_64
-  platform: win
   license: BSD-3-Clause
   license_family: BSD
   size: 6481
@@ -463,8 +452,6 @@ packages:
   - cctools_osx-64 1010.6 hd19c6af_3
   - ld64 951.9 h4e51db5_3
   - libllvm18 >=18.1.8,<18.2.0a0
-  arch: x86_64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 21297
@@ -476,8 +463,6 @@ packages:
   - cctools_osx-arm64 1010.6 h3b4f5d3_3
   - ld64 951.9 h4c6efb1_3
   - libllvm18 >=18.1.8,<18.2.0a0
-  arch: arm64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 21328
@@ -497,8 +482,6 @@ packages:
   - cctools 1010.6.*
   - ld64 951.9.*
   - clang 18.1.*
-  arch: x86_64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 1121052
@@ -518,8 +501,6 @@ packages:
   - clang 18.1.*
   - cctools 1010.6.*
   - ld64 951.9.*
-  arch: arm64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 1104781
@@ -593,8 +574,6 @@ packages:
   md5: 623987a715f5fb4cbee8f059d91d0397
   depends:
   - clang-18 18.1.8 default_h3571c67_7
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 71151
@@ -604,8 +583,6 @@ packages:
   md5: 0d19d68f06474d97b1b945b3eae132ac
   depends:
   - clang-18 18.1.8 default_hf90f093_7
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 71114
@@ -618,8 +595,6 @@ packages:
   - libclang-cpp18.1 18.1.8 default_h3571c67_7
   - libcxx >=18.1.8
   - libllvm18 >=18.1.8,<18.2.0a0
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 807874
@@ -632,8 +607,6 @@ packages:
   - libclang-cpp18.1 18.1.8 default_hf90f093_7
   - libcxx >=18.1.8
   - libllvm18 >=18.1.8,<18.2.0a0
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 807189
@@ -647,8 +620,6 @@ packages:
   - compiler-rt 18.1.8.*
   - ld64_osx-64
   - llvm-tools 18.1.8.*
-  arch: x86_64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 17783
@@ -662,8 +633,6 @@ packages:
   - compiler-rt 18.1.8.*
   - ld64_osx-arm64
   - llvm-tools 18.1.8.*
-  arch: arm64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 17923
@@ -673,8 +642,6 @@ packages:
   md5: 207116d6cb3762c83661bb49e6976e7d
   depends:
   - clang_impl_osx-64 18.1.8 h6a44ed1_23
-  arch: x86_64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 21092
@@ -684,8 +651,6 @@ packages:
   md5: 29513735b8af0018e3ce8447531d69dd
   depends:
   - clang_impl_osx-arm64 18.1.8 h2ae9ea5_23
-  arch: arm64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 21100
@@ -696,8 +661,6 @@ packages:
   depends:
   - clang 18.1.8 default_h576c50e_7
   - libcxx-devel 18.1.8.*
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 71187
@@ -708,8 +671,6 @@ packages:
   depends:
   - clang 18.1.8 default_h474c9e2_7
   - libcxx-devel 18.1.8.*
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 71194
@@ -722,8 +683,6 @@ packages:
   - clang 18.1.8.*
   - clangxx 18.1.8.*
   - compiler-rt_osx-64 18.1.8.*
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: APACHE
   size: 95345
@@ -736,8 +695,6 @@ packages:
   - clang 18.1.8.*
   - clangxx 18.1.8.*
   - compiler-rt_osx-arm64 18.1.8.*
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: APACHE
   size: 95451
@@ -788,8 +745,6 @@ packages:
   md5: 606924335b5bcdf90e9aed9a2f5d22ed
   depends:
   - gcc_impl_linux-64 13.3.0.*
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   size: 53864
@@ -816,8 +771,6 @@ packages:
   - binutils_linux-64
   - gcc_impl_linux-64 13.3.0.*
   - sysroot_linux-64
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   size: 32005
@@ -827,8 +780,6 @@ packages:
   md5: 5eb22c1d7b3fc4abb50d92d621583137
   depends:
   - __osx >=11.0
-  arch: arm64
-  platform: osx
   license: MIT
   license_family: MIT
   size: 11857802
@@ -861,8 +812,6 @@ packages:
   constrains:
   - cctools 1010.6.*
   - cctools_osx-64 1010.6.*
-  arch: x86_64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 18577
@@ -876,8 +825,6 @@ packages:
   constrains:
   - cctools 1010.6.*
   - cctools_osx-arm64 1010.6.*
-  arch: arm64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 18607
@@ -896,8 +843,6 @@ packages:
   - ld 951.9.*
   - cctools_osx-64 1010.6.*
   - cctools 1010.6.*
-  arch: x86_64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 1100751
@@ -916,8 +861,6 @@ packages:
   - cctools 1010.6.*
   - ld 951.9.*
   - clang >=18.1.8,<19.0a0
-  arch: arm64
-  platform: osx
   license: APSL-2.0
   license_family: Other
   size: 1018029
@@ -940,8 +883,6 @@ packages:
   - __osx >=10.13
   - libcxx >=18.1.8
   - libllvm18 >=18.1.8,<18.2.0a0
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 13901227
@@ -953,8 +894,6 @@ packages:
   - __osx >=11.0
   - libcxx >=18.1.8
   - libllvm18 >=18.1.8,<18.2.0a0
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 13325600
@@ -982,8 +921,6 @@ packages:
   md5: 0c389f3214ce8cad37a12cb0bae44c54
   depends:
   - libcxx >=18.1.8
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 792227
@@ -993,8 +930,6 @@ packages:
   md5: b0f818db788046d60ffc693ddec7e26e
   depends:
   - libcxx >=18.1.8
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 793242
@@ -1199,8 +1134,6 @@ packages:
   - libxml2 >=2.13.5,<3.0a0
   - libzlib >=1.3.1,<2.0a0
   - zstd >=1.5.6,<1.6.0a0
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 27771340
@@ -1214,8 +1147,6 @@ packages:
   - libxml2 >=2.13.5,<3.0a0
   - libzlib >=1.3.1,<2.0a0
   - zstd >=1.5.6,<1.6.0a0
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 25986548
@@ -1370,8 +1301,6 @@ packages:
   - libzlib >=1.3.1,<2.0a0
   constrains:
   - icu <0.0a0
-  arch: x86_64
-  platform: osx
   license: MIT
   license_family: MIT
   size: 609081
@@ -1385,8 +1314,6 @@ packages:
   - libiconv >=1.17,<2.0a0
   - liblzma >=5.6.3,<6.0a0
   - libzlib >=1.3.1,<2.0a0
-  arch: arm64
-  platform: osx
   license: MIT
   license_family: MIT
   size: 582898
@@ -1445,8 +1372,6 @@ packages:
   - __osx >=10.13
   constrains:
   - openmp 19.1.7|19.1.7.*
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: APACHE
   size: 304885
@@ -1458,8 +1383,6 @@ packages:
   - __osx >=11.0
   constrains:
   - openmp 19.1.7|19.1.7.*
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: APACHE
   size: 280830
@@ -1479,8 +1402,6 @@ packages:
   - llvm        18.1.8
   - clang-tools 18.1.8
   - llvmdev     18.1.8
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 88081
@@ -1500,8 +1421,6 @@ packages:
   - llvmdev     18.1.8
   - llvm        18.1.8
   - clang       18.1.8
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 88046
@@ -1515,8 +1434,6 @@ packages:
   - libxml2 >=2.13.5,<3.0a0
   - libzlib >=1.3.1,<2.0a0
   - zstd >=1.5.6,<1.6.0a0
-  arch: x86_64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 25229705
@@ -1530,8 +1447,6 @@ packages:
   - libxml2 >=2.13.5,<3.0a0
   - libzlib >=1.3.1,<2.0a0
   - zstd >=1.5.6,<1.6.0a0
-  arch: arm64
-  platform: osx
   license: Apache-2.0 WITH LLVM-exception
   license_family: Apache
   size: 23610271
@@ -2161,8 +2076,6 @@ packages:
   md5: fbfb84b9de9a6939cb165c02c69b1865
   depends:
   - openssl >=3.0.0,<4.0a0
-  arch: x86_64
-  platform: osx
   license: MIT
   license_family: MIT
   size: 213817
@@ -2172,8 +2085,6 @@ packages:
   md5: 4a2cac04f86a4540b8c9b8d8f597848f
   depends:
   - openssl >=3.0.0,<4.0a0
-  arch: arm64
-  platform: osx
   license: MIT
   license_family: MIT
   size: 210264
@@ -2195,8 +2106,6 @@ packages:
   - __osx >=10.13
   - libcxx >=17.0.0.a0
   - ncurses >=6.5,<7.0a0
-  arch: x86_64
-  platform: osx
   license: NCSA
   license_family: MIT
   size: 221236
@@ -2208,8 +2117,6 @@ packages:
   - __osx >=11.0
   - libcxx >=17.0.0.a0
   - ncurses >=6.5,<7.0a0
-  arch: arm64
-  platform: osx
   license: NCSA
   license_family: MIT
   size: 207679
@@ -2393,17 +2300,29 @@ packages:
   license_family: BSD
   size: 17693
   timestamp: 1737627189024
-- conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.42.34433-h6356254_24.conda
-  sha256: abda97b8728cf6e3c37df8f1178adde7219bed38b96e392cb3be66336386d32e
-  md5: 2441e010ee255e6a38bf16705a756e94
+- conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.44.35208-h818238b_32.conda
+  sha256: e3a3656b70d1202e0d042811ceb743bd0d9f7e00e2acdf824d231b044ef6c0fd
+  md5: 378d5dcec45eaea8d303da6f00447ac0
+  depends:
+  - ucrt >=10.0.20348.0
+  - vcomp14 14.44.35208 h818238b_32
+  constrains:
+  - vs2015_runtime 14.44.35208.* *_32
+  license: LicenseRef-MicrosoftVisualCpp2015-2022Runtime
+  license_family: Proprietary
+  size: 682706
+  timestamp: 1760418629729
+- conda: https://conda.anaconda.org/conda-forge/win-64/vcomp14-14.44.35208-h818238b_32.conda
+  sha256: f3790c88fbbdc55874f41de81a4237b1b91eab75e05d0e58661518ff04d2a8a1
+  md5: 58f67b437acbf2764317ba273d731f1d
   depends:
   - ucrt >=10.0.20348.0
   constrains:
-  - vs2015_runtime 14.42.34433.* *_24
+  - vs2015_runtime 14.44.35208.* *_32
   license: LicenseRef-MicrosoftVisualCpp2015-2022Runtime
   license_family: Proprietary
-  size: 753531
-  timestamp: 1737627061911
+  size: 114846
+  timestamp: 1760418593847
 - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.29.1-pyhd8ed1ab_0.conda
   sha256: f09a9f2034669762ae875858253d472588f03689843e5f0b8ddc5cc48a1d0e50
   md5: de06336c9833cffd2a4bd6f27c4cf8ea
@@ -2416,15 +2335,15 @@ packages:
   license_family: MIT
   size: 3501167
   timestamp: 1737145224475
-- conda: https://conda.anaconda.org/conda-forge/win-64/vs2015_runtime-14.42.34433-hfef2bbc_24.conda
-  sha256: 09102e0bd283af65772c052d85028410b0c31989b3cd96c260485d28e270836e
-  md5: 117fcc5b86c48f3b322b0722258c7259
+- conda: https://conda.anaconda.org/conda-forge/win-64/vs2015_runtime-14.44.35208-h38c0c73_32.conda
+  sha256: 65cea43f4de99bc81d589e746c538908b2e95aead9042fecfbc56a4d14684a87
+  md5: dfc1e5bbf1ecb0024a78e4e8bd45239d
   depends:
-  - vc14_runtime >=14.42.34433
+  - vc14_runtime >=14.44.35208
   license: BSD-3-Clause
   license_family: BSD
-  size: 17669
-  timestamp: 1737627066773
+  size: 18919
+  timestamp: 1760418632059
 - conda: https://conda.anaconda.org/conda-forge/win-64/vs2019_win-64-19.29.30139-h7dcff83_24.conda
   sha256: 4125acd871ba3498f25799b1999bf0fa4d80b0b353eb56ac170809f9eda19dd1
   md5: 41aaa71a5d4f668f5795c0647eeea776
@@ -2432,8 +2351,6 @@ packages:
   - vswhere
   constrains:
   - vs_win-64 2019.11
-  arch: x86_64
-  platform: win
   track_features:
   - vc14
   license: BSD-3-Clause
@@ -2443,8 +2360,6 @@ packages:
 - conda: https://conda.anaconda.org/conda-forge/win-64/vswhere-3.1.7-h57928b3_0.conda
   sha256: 8caeda9c0898cb8ee2cf4f45640dbbbdf772ddc01345cfb0f7b352c58b4d8025
   md5: ba83df93b48acfc528f5464c9a882baa
-  arch: x86_64
-  platform: win
   license: MIT
   license_family: MIT
   size: 219013
@@ -2488,8 +2403,6 @@ packages:
   depends:
   - __osx >=10.9
   - libzlib >=1.2.13,<2.0.0a0
-  arch: x86_64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 498900
@@ -2500,8 +2413,6 @@ packages:
   depends:
   - __osx >=11.0
   - libzlib >=1.2.13,<2.0.0a0
-  arch: arm64
-  platform: osx
   license: BSD-3-Clause
   license_family: BSD
   size: 405089

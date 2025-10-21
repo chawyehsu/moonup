@@ -10,7 +10,7 @@ build-release = "cargo build --release"
 test-all = "cargo insta test --review --all-features"
 
 [dependencies]
-actionlint = ">=1.7.7,<2"
+actionlint = ">=1.7.8,<2"
 pre-commit = ">=4.1.0,<5"
 pre-commit-hooks = ">=5.0.0,<6"
 typos = ">=1.29.5,<2"
