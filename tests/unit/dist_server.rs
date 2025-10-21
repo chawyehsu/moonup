@@ -1,4 +1,6 @@
-use moonup::dist_server::schema::{Channel, ChannelName, Index, Target, VersionedIndex};
+use moonup::dist_server::schema::{
+    Channel, ChannelIndex, ChannelName, Index, Target, VersionedChannelIndex, VersionedIndex,
+};
 
 #[test]
 fn test_handle_future_channel() {
@@ -50,7 +52,7 @@ fn test_schema_v2_handle_future_target() {
 }
 
 #[test]
-fn test_schema_v3_parse() {
+fn test_schema_v3_index_parse() {
     let json = r#"
     {
         "version": 3,
@@ -67,6 +69,123 @@ fn test_schema_v3_parse() {
 
     let inner = match index {
         Index::Versioned(VersionedIndex::V3(i)) => Some(i),
+        _ => None,
+    };
+
+    assert_eq!(inner.is_some(), true);
+}
+
+#[test]
+fn test_schema_unsupported_index_parse() {
+    let json = r#"
+    {
+        "version": 999,
+        "channels": []
+    }"#;
+
+    let index = serde_json::from_str::<Index>(json).expect("should parse json successfully");
+    let inner = match index {
+        Index::Versioned(VersionedIndex::Unsupported) => Some(VersionedIndex::Unsupported),
+        _ => None,
+    };
+
+    assert_eq!(inner.is_some(), true);
+
+    let json = r#"
+    {
+        "malformedField": []
+    }"#;
+
+    let index = serde_json::from_str::<Index>(json).expect("should parse json successfully");
+    let inner = match index {
+        Index::Unsupported(value) => Some(value),
+        _ => None,
+    };
+
+    assert_eq!(inner.is_some(), true);
+}
+
+#[test]
+fn test_schema_v2_channel_index_parse() {
+    let json = r#"
+    {
+        "version": 2,
+        "lastModified": "20251020T1405571173Z",
+        "releases": [
+            {
+                "version": "0.1.20240704+647946c28",
+                "layoutVersion1": true
+            }
+        ]
+    }"#;
+
+    let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
+
+    let inner = match index {
+        ChannelIndex::Versioned(VersionedChannelIndex::V2(i)) => Some(i),
+        _ => None,
+    };
+
+    assert_eq!(inner.is_some(), true);
+}
+
+#[test]
+fn test_schema_v3_channel_index_parse() {
+    let json = r#"
+    {
+        "version": 3,
+        "lastModified": "20251020T1405571173Z",
+        "releases": [
+            {
+                "version": "0.1.20240704+647946c28",
+                "layoutVersion1": true,
+                "targets": [
+                    "aarch64-apple-darwin",
+                    "x86_64-apple-darwin",
+                    "x86_64-unknown-linux",
+                    "x86_64-pc-windows"
+                ]
+            }
+        ]
+    }"#;
+
+    let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
+
+    let inner = match index {
+        ChannelIndex::Versioned(VersionedChannelIndex::V3(i)) => Some(i),
+        _ => None,
+    };
+
+    assert_eq!(inner.is_some(), true);
+}
+
+#[test]
+fn test_schema_unsupported_channel_index_parse() {
+    let json = r#"
+    {
+        "version": 999,
+        "lastModified": "20251020T1405571173Z",
+        "malformedField": []
+    }"#;
+
+    let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
+    let inner = match index {
+        ChannelIndex::Versioned(VersionedChannelIndex::Unsupported) => {
+            Some(VersionedChannelIndex::Unsupported)
+        }
+        _ => None,
+    };
+
+    assert_eq!(inner.is_some(), true);
+
+    let json = r#"
+    {
+        "malformedField": []
+    }"#;
+
+    let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
+    let inner = match index {
+        ChannelIndex::Unsupported(value) => Some(value),
         _ => None,
     };
 

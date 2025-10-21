@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{de::Error, Deserialize};
 
 mod legacy;
 mod v2;
@@ -22,11 +22,12 @@ impl<'de> serde::Deserialize<'de> for VersionedIndex {
         let value = serde_json::Value::deserialize(d)?;
         let version = value.get("version").and_then(serde_json::Value::as_u64);
 
-        Ok(match version {
-            Some(2) => VersionedIndex::V2(v2::Index::deserialize(value).unwrap()),
-            Some(3) => VersionedIndex::V3(v3::Index::deserialize(value).unwrap()),
-            _ => VersionedIndex::Unsupported,
-        })
+        match version {
+            None => Err(D::Error::custom("missing version field in versioned index")),
+            Some(2) => Ok(VersionedIndex::V2(v2::Index::deserialize(value).unwrap())),
+            Some(3) => Ok(VersionedIndex::V3(v3::Index::deserialize(value).unwrap())),
+            _ => Ok(VersionedIndex::Unsupported),
+        }
     }
 }
 
@@ -131,10 +132,15 @@ impl<'de> serde::Deserialize<'de> for VersionedComponentIndex {
         let value = serde_json::Value::deserialize(d)?;
         let version = value.get("version").and_then(serde_json::Value::as_u64);
 
-        Ok(match version {
-            Some(2) => VersionedComponentIndex::V2(v2::ComponentIndex::deserialize(value).unwrap()),
-            _ => VersionedComponentIndex::Unsupported,
-        })
+        match version {
+            None => Err(D::Error::custom(
+                "missing version field in versioned component index",
+            )),
+            Some(2) => Ok(VersionedComponentIndex::V2(
+                v2::ComponentIndex::deserialize(value).unwrap(),
+            )),
+            _ => Ok(VersionedComponentIndex::Unsupported),
+        }
     }
 }
 
@@ -189,11 +195,18 @@ impl<'de> serde::Deserialize<'de> for VersionedChannelIndex {
         let value = serde_json::Value::deserialize(d)?;
         let version = value.get("version").and_then(serde_json::Value::as_u64);
 
-        Ok(match version {
-            Some(2) => VersionedChannelIndex::V2(v2::ChannelIndex::deserialize(value).unwrap()),
-            Some(3) => VersionedChannelIndex::V3(v3::ChannelIndex::deserialize(value).unwrap()),
-            _ => VersionedChannelIndex::Unsupported,
-        })
+        match version {
+            None => Err(D::Error::custom(
+                "missing version field in versioned channel index",
+            )),
+            Some(2) => Ok(VersionedChannelIndex::V2(
+                v2::ChannelIndex::deserialize(value).unwrap(),
+            )),
+            Some(3) => Ok(VersionedChannelIndex::V3(
+                v3::ChannelIndex::deserialize(value).unwrap(),
+            )),
+            _ => Ok(VersionedChannelIndex::Unsupported),
+        }
     }
 }
 
