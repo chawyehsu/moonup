@@ -1,4 +1,4 @@
-use moonup::dist_server::schema::{Channel, ChannelName, Index, Target};
+use moonup::dist_server::schema::{Channel, ChannelName, Index, Target, VersionedIndex};
 
 #[test]
 fn test_handle_future_channel() {
@@ -14,7 +14,7 @@ fn test_handle_future_channel() {
 }
 
 #[test]
-fn test_handle_future_target() {
+fn test_schema_v2_handle_future_target() {
     let json = r#"
     {
         "version": 2,
@@ -36,8 +36,39 @@ fn test_handle_future_target() {
 
     let index = serde_json::from_str::<Index>(json).expect("should parse json successfully");
 
+    let inner = match index {
+        Index::Versioned(VersionedIndex::V2(i)) => Some(i),
+        _ => None,
+    };
+
+    let index = inner.expect("should be v2 index");
+
     assert_eq!(
         index.targets.last(),
         Some(&Target::Unknown("aarch64-unknown-linux".to_string()))
     );
+}
+
+#[test]
+fn test_schema_v3_parse() {
+    let json = r#"
+    {
+        "version": 3,
+        "lastModified": "20250525T1906552765Z",
+        "channels": [
+            {
+                "name": "latest",
+                "version": "0.1.20250522+2b70d2531"
+            }
+        ]
+    }"#;
+
+    let index = serde_json::from_str::<Index>(json).expect("should parse json successfully");
+
+    let inner = match index {
+        Index::Versioned(VersionedIndex::V3(i)) => Some(i),
+        _ => None,
+    };
+
+    assert_eq!(inner.is_some(), true);
 }
