@@ -269,10 +269,11 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
 pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
     let channel = ChannelName::from(spec);
     let index = read_channel_index(&channel).await?;
+    let releases = index.releases();
 
     let release = match spec {
         ToolchainSpec::Bleeding | ToolchainSpec::Latest | ToolchainSpec::Nightly => {
-            index.releases.last().cloned().or(None)
+            releases.last().cloned().or(None)
         }
         ToolchainSpec::Version(s) => {
             let is_nightly = s.starts_with("nightly");
@@ -283,10 +284,13 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
                 s
             };
 
-            index
-                .releases
+            releases
                 .iter()
                 .find(|&release| {
+                    if release.is_host_supported() == false {
+                        return false;
+                    }
+
                     if is_nightly {
                         release
                             .date
@@ -310,7 +314,10 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
         }
     };
 
-    let components = read_component_index(&channel, &release).await?.components;
+    let components = read_component_index(&channel, &release)
+        .await?
+        .components()
+        .to_vec();
     let recipe = InstallRecipe {
         spec: spec.clone(),
         release,

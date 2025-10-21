@@ -2,7 +2,6 @@ use clap::{CommandFactory, Parser};
 use dialoguer::theme::ColorfulTheme;
 use miette::{Context, IntoDiagnostic};
 use std::ffi::OsString;
-use std::ops::Deref;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -37,7 +36,7 @@ pub struct Args {
 pub async fn execute(args: Args) -> miette::Result<()> {
     if args.list_available && args.toolchain.is_none() {
         let index = index::read_index().await?;
-        let channels = index.channels.deref();
+        let channels = index.channels();
         if channels.is_empty() {
             println!("No available channel found");
         } else {
@@ -55,15 +54,16 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             if args.list_available && (s.is_latest() || s.is_nightly()) {
                 let channel = ChannelName::from(&s);
                 let channel_index = index::read_channel_index(&channel).await?;
+                let releases = channel_index.releases();
 
-                let selections = channel_index
-                    .releases
+                let selections = releases
                     .iter()
-                    .map(|c| {
+                    .filter(|r| r.is_host_supported()) // only show releases that support the current host
+                    .map(|r| {
                         if s.is_latest() {
-                            c.version.as_str()
+                            r.version.as_str()
                         } else {
-                            c.date.as_ref().expect("nightly release should have a date")
+                            r.date.as_ref().expect("nightly release should have a date")
                         }
                     })
                     .rev()
