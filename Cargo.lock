@@ -2114,14 +2114,15 @@ dependencies = [
 
 [[package]]
 name = "rattler_digest"
-version = "1.1.2"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45545350983320f57f435adeee4dfa90cb1dee57490a9eb276e4f2870c084bc5"
+checksum = "886e9a6254e74a830c2b8555e14862d6b2f4cc498b43767d4adf1c71421a4796"
 dependencies = [
  "blake2",
  "digest",
  "hex",
  "md-5",
+ "serde_bytes",
  "serde_with",
  "sha2",
  "url",
@@ -2468,6 +2469,16 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde_bytes"
+version = "0.11.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d440709e79d88e51ac01c4b72fc6cb7314017bb7da9eeff678aa94c10e3ea8"
+dependencies = [
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
