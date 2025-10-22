@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/chawyehsu/moonup/compare/v0.3.2...v0.4.0) (2025-10-22)
+
+
+### Features
+
+* add retry policy to underlying http client ([1697bd7](https://github.com/chawyehsu/moonup/commit/1697bd7f1ba639f86ad4311cbe010d27cecaa296))
+* support index v3 ([#128](https://github.com/chawyehsu/moonup/issues/128)) ([d59b607](https://github.com/chawyehsu/moonup/commit/d59b6072a1bf966c7f9c39b864d337af8b4140aa))
+
 ## [0.3.2](https://github.com/chawyehsu/moonup/compare/v0.3.1...v0.3.2) (2025-08-13)
 
 
