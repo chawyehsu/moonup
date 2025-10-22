@@ -6,7 +6,7 @@ use crate::{
     fs::save_file,
     reporter::{ProgressReporter, Reporter},
     toolchain::ToolchainSpec,
-    utils::{build_dist_server_api, build_http_client, path_to_reader, url_to_reader},
+    utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
 };
 
 use super::index::InstallRecipe;
@@ -86,7 +86,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         if is_bleeding || !local_file.exists() {
             tracing::debug!("downloading {} to {}", name, local_file.display());
 
-            let client = build_http_client();
+            let client = build_http_client_with_retry();
 
             let pathname = format!("/download/{}/{}", tag, file);
             let url = build_dist_server_api(&pathname)?;

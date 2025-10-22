@@ -4,13 +4,11 @@ use chrono::{DateTime, Duration, Local};
 use miette::{Context, IntoDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::constant;
 use crate::dist_server::schema::{
     ChannelIndex, ChannelName, Component, ComponentIndex, Index, Release, Target,
 };
-use crate::{
-    constant,
-    utils::{build_dist_server_api, build_http_client, url_to_reader},
-};
+use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
 
 use super::ToolchainSpec;
 
@@ -53,7 +51,7 @@ pub async fn read_index() -> miette::Result<Index> {
 
     content.clear();
 
-    let mut reader = url_to_reader(main_index_url, &build_http_client(), None).await?;
+    let mut reader = url_to_reader(main_index_url, &build_http_client_with_retry(), None).await?;
     reader
         .read_to_string(&mut content)
         .await
@@ -97,7 +95,8 @@ pub async fn read_channel_index(channel: &ChannelName) -> miette::Result<Channel
 
     content.clear();
 
-    let mut reader = url_to_reader(channel_index_url, &build_http_client(), None).await?;
+    let mut reader =
+        url_to_reader(channel_index_url, &build_http_client_with_retry(), None).await?;
     reader
         .read_to_string(&mut content)
         .await
@@ -176,7 +175,8 @@ pub async fn read_component_index(
 
     content.clear();
 
-    let mut reader = url_to_reader(component_index_url, &build_http_client(), None).await?;
+    let mut reader =
+        url_to_reader(component_index_url, &build_http_client_with_retry(), None).await?;
     reader
         .read_to_string(&mut content)
         .await

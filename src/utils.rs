@@ -3,6 +3,8 @@ use futures_util::TryStreamExt;
 use miette::Context;
 use miette::IntoDiagnostic;
 use reqwest::Client;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use std::env;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
@@ -15,6 +17,7 @@ use url::Url;
 
 use crate::reporter::Reporter;
 
+/// Build a basic HTTP client
 pub(crate) fn build_http_client() -> Client {
     static APP_USER_AGENT: &str = concat!(
         env!("CARGO_PKG_NAME"),
@@ -32,6 +35,16 @@ pub(crate) fn build_http_client() -> Client {
         .expect("failed to build HTTP client")
 }
 
+/// Build an HTTP client with exponential backoff retry policy
+pub(crate) fn build_http_client_with_retry() -> ClientWithMiddleware {
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let retry_middleware = RetryTransientMiddleware::new_with_policy(retry_policy);
+
+    ClientBuilder::new(build_http_client())
+        .with(retry_middleware)
+        .build()
+}
+
 pub(crate) fn build_dist_server_api(path: &str) -> miette::Result<Url> {
     let path = path.trim_start_matches('/');
 
@@ -46,7 +59,7 @@ pub(crate) fn build_dist_server_api(path: &str) -> miette::Result<Url> {
 
 pub async fn url_to_reader(
     url: Url,
-    client: &Client,
+    client: &ClientWithMiddleware,
     reporter: Option<Arc<dyn Reporter>>,
 ) -> miette::Result<impl AsyncRead> {
     tracing::debug!("streaming: {}", url);

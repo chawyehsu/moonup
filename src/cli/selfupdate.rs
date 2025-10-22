@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tokio::io::AsyncReadExt;
 
 use crate::archive;
-use crate::utils::{self, build_http_client};
+use crate::utils::{self, build_http_client_with_retry};
 
 /// Update Moonup to the latest version
 #[derive(Parser, Debug)]
@@ -53,7 +53,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
     tracing::trace!("moonup assets: {:?}", assets);
     assert_eq!(assets.len(), 2, "expected two assets");
 
-    let client = build_http_client();
+    let client = build_http_client_with_retry();
     let temp_dir = self_update::TempDir::with_prefix("moonup").into_diagnostic()?;
 
     let mut sha256_actual = String::new();
