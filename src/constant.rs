@@ -14,7 +14,7 @@ pub const ENVNAME_MOONUP_HOME: &str = "MOONUP_HOME";
 pub const ENVNAME_MOONUP_DIST_SERVER: &str = "MOONUP_DIST_SERVER";
 
 /// The URL of the MoonUp distribution server
-pub const MOONUP_DIST_SERVER: &str = "https://moonup.csu.moe/v2";
+pub const MOONUP_DIST_SERVER: &str = "https://moonup.csu.moe/v3";
 
 /// The expiration time for the release index, in hours
 pub const INDEX_EXPIRATION: i64 = 1;
