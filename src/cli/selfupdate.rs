@@ -34,7 +34,10 @@ pub async fn execute(_: Args) -> miette::Result<()> {
             .ok()
             .unwrap_or(false);
 
-    if !is_greater {
+    // Environment variable to force self-update for testing purposes
+    let env_test_trigger = std::env::var("MOONUP_TEST_FORCE_SELFUPDATE").is_ok();
+
+    if !is_greater && !env_test_trigger {
         println!("moonup is already up-to-date");
         return Ok(());
     }

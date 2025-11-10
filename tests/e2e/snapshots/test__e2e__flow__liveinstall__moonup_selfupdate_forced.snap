@@ -1,0 +1,17 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - self-update
+  env:
+    MOONUP_DIST_SERVER: "https://moonup.csu.moe/testing/v2"
+    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmppTwN9M\\.moonup"
+    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmppTwN9M\\.moon"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Updating moonup: [MOONUP_VERSION] -> [MOONUP_VERSION]
+
+----- stderr -----

@@ -95,6 +95,8 @@ macro_rules! apply_common_filters {
         settings.add_filter(r"(\b[A-Z]:)?[\\/].*?[\\/].moonup", "[MOONUP_HOME]");
         // moon home
         settings.add_filter(r"~?(\b[A-Z]:)?[\\/].*?[\\/].moon", "[MOON_HOME]");
+        // moonup selfupdate
+        settings.add_filter(r"Updating moonup: ([\d.]+) -> ([\d.]+)", "Updating moonup: [MOONUP_VERSION] -> [MOONUP_VERSION]");
 
         // Macos Temp Folder
         settings.add_filter(r"(/private)?/var/folders/\S+?/T/\S+", "[TEMP_FILE]");

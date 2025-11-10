@@ -223,6 +223,13 @@ mod liveinstall {
             ws.cli().arg("install").arg("nightly-2025-05-21")
         );
 
+        // Test self update with forced update (for coverage)
+        // This test is placed at the end because it will replace the currently running
+        // executable.
+        temp_env::with_var("MOONUP_TEST_FORCE_SELFUPDATE", Some("1"), || {
+            assert_cmd_snapshot!("moonup_selfupdate_forced", ws.cli().arg("self-update"));
+        });
+
         env::set_current_dir(ws.tempdir()).expect("should restore current directory");
     }
 }
