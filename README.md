@@ -207,10 +207,15 @@ git clone https://github.com/chawyehsu/moonup
 cd moonup
 # install dependencies
 pixi install
-# install git pre-commit hooks
-pixi run pre-commit install
+# install git prek(pre-commit) hooks
+pixi run prek install
 # dev build and run
 pixi run cargo run moonup -- help
+# run tests
+pixi run test
+# enter dev environment shell
+pixi shell
+# dev tools available in the shell
 ```
 
 ## 0.1.0 Roadmap

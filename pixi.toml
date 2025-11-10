@@ -7,11 +7,12 @@ platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
 [tasks]
 build = "cargo build"
 build-release = "cargo build --release"
+test = "cargo insta test --review"
 test-all = "cargo insta test --review --all-features"
 
 [dependencies]
 actionlint = ">=1.7.8,<2"
-pre-commit = ">=4.1.0,<5"
+prek = ">=0.2.13,<0.3"
 pre-commit-hooks = ">=5.0.0,<6"
 typos = ">=1.29.5,<2"
 # build dependencies
