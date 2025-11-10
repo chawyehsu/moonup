@@ -100,7 +100,7 @@ macro_rules! apply_common_filters {
         settings.add_filter(r"Blocking waiting for file lock.*?\n", "");
 
         // Remove emojis
-        settings.add_filter(r"✔ ", "");
+        // settings.add_filter(r"✔ ", "");
         // Remove escape sequences
         settings.add_filter(r"\x1b(?:\[[0-9;?]*[A-Za-z]|\][^\x07]*\x07)", "");
 

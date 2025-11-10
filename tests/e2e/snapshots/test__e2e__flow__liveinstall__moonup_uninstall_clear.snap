@@ -9,6 +9,6 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
- Cleared all cached downloads
+✔  Cleared all cached downloads
 
 ----- stderr -----

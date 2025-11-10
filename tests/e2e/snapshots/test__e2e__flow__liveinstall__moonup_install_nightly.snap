@@ -10,7 +10,7 @@ success: true
 exit_code: 0
 ----- stdout -----
 Installing toolchain 'nightly'
-Installed toolchain version 'nightly'
+✔ Installed toolchain version 'nightly'
 Make sure '[MOON_HOME]/bin' is added to your PATH
 
 ----- stderr -----

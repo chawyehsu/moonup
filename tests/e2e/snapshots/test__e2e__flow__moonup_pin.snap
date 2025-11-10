@@ -9,7 +9,7 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Pinned toolchain to version 'nightly'
+✔ Pinned toolchain to version 'nightly'
 Toolchain file: [TEMP_FILE]
 
 ----- stderr -----

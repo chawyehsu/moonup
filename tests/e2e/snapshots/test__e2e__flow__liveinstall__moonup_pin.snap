@@ -9,7 +9,7 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Pinned toolchain to version '0.1.20241231+ba15a9a4e'
+✔ Pinned toolchain to version '0.1.20241231+ba15a9a4e'
 Toolchain file: [TEMP_FILE]
 
 ----- stderr -----

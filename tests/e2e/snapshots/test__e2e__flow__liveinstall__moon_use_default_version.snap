@@ -10,7 +10,7 @@ exit_code: 0
 ----- stdout -----
 toolchain version '0.1.20241231+ba15a9a4e' not installed
 Installing toolchain '0.1.20241231+ba15a9a4e'
-Installed toolchain version '0.1.20241231+ba15a9a4e'
+✔ Installed toolchain version '0.1.20241231+ba15a9a4e'
 Make sure '[MOON_HOME]/bin' is added to your PATH
 moon 0.1.20241231 (16670d0 2024-12-31)
 

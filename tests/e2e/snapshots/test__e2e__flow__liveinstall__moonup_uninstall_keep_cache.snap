@@ -10,6 +10,6 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
- Uninstalled toolchain 0.1.20241231+ba15a9a4e
+✔  Uninstalled toolchain 0.1.20241231+ba15a9a4e
 
 ----- stderr -----
