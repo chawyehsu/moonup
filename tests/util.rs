@@ -47,6 +47,16 @@ impl TestWorkspace {
         let mut cli = Command::new(cmd);
         cli.env(constant::ENVNAME_MOONUP_HOME, self.moonup_home.as_os_str());
         cli.env(constant::ENVNAME_MOON_HOME, self.moon_home.as_os_str());
+
+        // Force emoji support on Windows during tests by setting WT_SESSION
+        // see:
+        //   https://github.com/console-rs/console/issues/207
+        //   https://github.com/microsoft/terminal/issues/1040
+        #[cfg(windows)]
+        {
+            cli.env("WT_SESSION", "1");
+        }
+
         cli.current_dir(self.project_path.as_path());
         cli
     }
@@ -99,8 +109,6 @@ macro_rules! apply_common_filters {
         // Remove moon build file lock prints
         settings.add_filter(r"Blocking waiting for file lock.*?\n", "");
 
-        // Remove emojis
-        // settings.add_filter(r"✔ ", "");
         // Remove escape sequences
         settings.add_filter(r"\x1b(?:\[[0-9;?]*[A-Za-z]|\][^\x07]*\x07)", "");
 
