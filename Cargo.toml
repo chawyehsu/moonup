@@ -61,12 +61,19 @@ mockito = "1.7.0"
 predicates = "3.1.3"
 temp-env = "0.3.6"
 
+# expectrl has some issues on Windows
+# see: https://github.com/zhiburt/expectrl/issues/52
+[target.'cfg(not(windows))'.dev-dependencies]
+expectrl = "0.8.0"
+
 [features]
 default = ["self_update"]
 # Display the self-update subcommand in the --help output
 self_update = []
 # Test with real MOONUP_DIST_SERVER APIs, default is off
 test-liveinstall = []
+# Test interactive commands that require TTY
+test-interactive = []
 
 # https://insta.rs/docs/quickstart/#optional-faster-runs
 [profile.dev.package]

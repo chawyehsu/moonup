@@ -1,0 +1,9 @@
+---
+source: tests/e2e/flow.rs
+expression: output
+---
+ ›
+❯ 0.1.20241231+ba15a9a4e
+✔ Pick a installed version · 0.1.20241231+ba15a9a4e
+Pinned toolchain to version '0.1.20241231+ba15a9a4e'
+Toolchain file: [TEMP_FILE]

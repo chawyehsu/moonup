@@ -4,13 +4,18 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// A test workspace for e2e tests
 #[allow(unused)]
 pub struct TestWorkspace {
+    /// Temporary directory root for the test workspace
     tempdir: TempDir,
+
     /// Custom MoonUp home directory in the tempdir path
     moonup_home: PathBuf,
+
     /// Custom MoonBit home directory in the tempdir path
     moon_home: PathBuf,
+
     /// Test project path
     project_path: PathBuf,
 }
@@ -34,6 +39,7 @@ impl TestWorkspace {
         }
     }
 
+    /// Run the given command with the test workspace environment
     pub fn cmd<S>(&self, cmd: S) -> Command
     where
         S: AsRef<OsStr>,
@@ -51,9 +57,14 @@ impl TestWorkspace {
         // index for testing, so that we can ensure the same version is used in tests.
         static TEST_DIST_SERVER: &str = "https://moonup.csu.moe/testing/v2";
 
-        let mut cmd = self.cmd(insta_cmd::get_cargo_bin("moonup").as_os_str());
+        let mut cmd = self.cmd(self.moonup().as_os_str());
         cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, TEST_DIST_SERVER);
         cmd
+    }
+
+    /// Get the MoonUp binary path in this test workspace
+    pub fn moonup(&self) -> PathBuf {
+        insta_cmd::get_cargo_bin("moonup")
     }
 
     /// Get the MoonBit home path
@@ -90,6 +101,8 @@ macro_rules! apply_common_filters {
 
         // Remove emojis
         settings.add_filter(r"✔ ", "");
+        // Remove escape sequences
+        settings.add_filter(r"\x1b(?:\[[0-9;?]*[A-Za-z]|\][^\x07]*\x07)", "");
 
         // moonup home
         settings.add_filter(r"(\b[A-Z]:)?[\\/].*?[\\/].moonup", "[MOONUP_HOME]");

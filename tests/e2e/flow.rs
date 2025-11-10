@@ -78,7 +78,7 @@ mod liveinstall {
         let test_install_version = "0.1.20241231+ba15a9a4e";
         let moon_exe_name = std::ffi::OsStr::new("moon");
 
-        let build_moonup_path = insta_cmd::get_cargo_bin("moonup");
+        let build_moonup_path = ws.moonup();
         let build_output_path = build_moonup_path.parent().expect("should have parent");
 
         // Test self update (should be no update)
@@ -93,16 +93,17 @@ mod liveinstall {
         // List installed toolchains, installed toolchain should be listed
         assert_cmd_snapshot!("moonup_list_1", ws.cli().arg("list"));
 
-        // Pin toolchain
+        // Set up project directory
         let project_path = ws.project_path();
-        let pin_file = project_path.join(constant::TOOLCHAIN_FILE);
-
         fs::create_dir_all(project_path).expect("should create project directory");
         env::set_current_dir(project_path).expect("should set current directory");
 
+        // Pin toolchain
+        let pin_file = project_path.join(constant::TOOLCHAIN_FILE);
         assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg(test_install_version));
         assert!(pin_file.exists());
 
+        // Test command runner (runx)
         assert_cmd_snapshot!("moonup_which", ws.cli().arg("which").arg(moon_exe_name));
         assert_cmd_snapshot!(
             "moonup_run",
@@ -130,6 +131,7 @@ mod liveinstall {
         };
         // println!("Updated PATH: {}", updated_path);
 
+        // Test using pinned toolchain version
         temp_env::with_var("PATH", Some(updated_path.clone()), || {
             let mut cmd_moon = ws.cmd(moon_exe_name);
             assert_cmd_snapshot!(
@@ -142,9 +144,10 @@ mod liveinstall {
             assert_cmd_snapshot!("moon_upgrade_intercept", cmd_moon.arg("upgrade"));
         });
 
-        // Remove the pinned toolchain
+        // Remove the pinned toolchain file
         std::fs::remove_file(pin_file).expect("should remove pinned toolchain file");
 
+        // Test using specified toolchain version from argument (+ syntax)
         temp_env::with_var("PATH", Some(updated_path.clone()), || {
             println!("PATH: {:?}", std::env::var("PATH"));
 
@@ -157,7 +160,7 @@ mod liveinstall {
             );
         });
 
-        // Uninstall the installed toolchain
+        // Uninstall the installed toolchain, keep cache
         assert_cmd_snapshot!(
             "moonup_uninstall_keep_cache",
             ws.cli()
@@ -166,6 +169,7 @@ mod liveinstall {
                 .arg("--keep-cache")
         );
 
+        // Cache should still exist
         let cache_path = ws
             .moonup_home()
             .join("downloads")
@@ -173,10 +177,7 @@ mod liveinstall {
             .join(test_install_version);
         assert!(cache_path.exists());
 
-        // Install the same version again, without specifying the version argument
-        // assert_cmd_snapshot!("install_2", ws.cli().arg("install"));
-
-        // Set default toolchain
+        // Set default toolchain to a specific version
         assert_cmd_snapshot!(
             "moonup_default",
             ws.cli().arg("default").arg(test_install_version)
@@ -212,7 +213,7 @@ mod liveinstall {
         // List installed toolchains, no toolchain should be listed
         assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
 
-        // Test more installations
+        // Test more toolchain specs
         assert_cmd_snapshot!(
             "moonup_install_neverexists",
             ws.cli().arg("install").arg("neverexists")
@@ -236,6 +237,79 @@ mod liveinstall {
         temp_env::with_var("MOONUP_TEST_FORCE_SELFUPDATE", Some("1"), || {
             assert_cmd_snapshot!("moonup_selfupdate_forced", ws.cli().arg("self-update"));
         });
+
+        env::set_current_dir(ws.tempdir()).expect("should restore current directory");
+    }
+
+    #[cfg(feature = "test-interactive")]
+    #[cfg(not(windows))]
+    #[test]
+    fn test_flow_interactive() {
+        use expectrl::{ControlCode, Eof, Expect, Session};
+        use insta::assert_snapshot;
+
+        util::apply_common_filters!();
+
+        let ws = TestWorkspace::new();
+        let test_install_version = "0.1.20241231+ba15a9a4e";
+
+        // Set up project directory
+        let project_path = ws.project_path();
+        fs::create_dir_all(project_path).expect("should create project directory");
+        env::set_current_dir(project_path).expect("should set current directory");
+
+        // Install test version first
+        assert_cmd_snapshot!(
+            "moonup_install_2",
+            ws.cli().arg("install").arg(test_install_version)
+        );
+
+        // Pin toolchain interactively
+        let mut cmd = ws.cli();
+        cmd.arg("pin");
+
+        let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+        p.expect("Pick a installed version")
+            .expect("should prompt for selecting installed version");
+        p.send_line("").expect("should send new line"); // select first version
+
+        let output =
+            String::from_utf8_lossy(p.expect(Eof).expect("should finish pinning").as_bytes())
+                .to_string();
+        assert_snapshot!("moonup_pin_interactive", output);
+
+        // Set default toolchain interactively
+        let mut cmd = ws.cli();
+        cmd.arg("default");
+
+        let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+        p.expect("Pick a installed version")
+            .expect("should prompt for selecting installed version");
+        p.send_line("").expect("should send new line"); // select first version
+
+        let output =
+            String::from_utf8_lossy(p.expect(Eof).expect("should finish defaulting").as_bytes())
+                .to_string();
+        assert_snapshot!("moonup_default_interactive", output);
+
+        // Uninstall the installed toolchain interactively
+        let mut cmd = ws.cli();
+        cmd.arg("uninstall");
+
+        let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+        p.expect("Select toolchains to uninstall")
+            .expect("should prompt for selecting installed version");
+        p.send_line(ControlCode::Space) // select first version
+            .expect("should send space");
+        p.send_line("").expect("should send new line"); // confirm selection
+
+        let output = String::from_utf8_lossy(
+            p.expect(Eof)
+                .expect("should finish uninstalling")
+                .as_bytes(),
+        )
+        .to_string();
+        assert_snapshot!("moonup_uninstall_interactive", output);
 
         env::set_current_dir(ws.tempdir()).expect("should restore current directory");
     }
