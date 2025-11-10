@@ -182,12 +182,21 @@ mod liveinstall {
             ws.cli().arg("default").arg(test_install_version)
         );
 
+        // Install the specific `default` version of the toolchain
         temp_env::with_var("PATH", Some(updated_path), || {
             let mut cmd_moon = ws.cmd(moon_exe_name);
             assert_cmd_snapshot!("moon_use_default_version", cmd_moon.arg("version"));
         });
 
-        // Uninstall the installed toolchain again, remove cache as well
+        // Remove cached files
+        assert_cmd_snapshot!(
+            "moonup_uninstall_clear",
+            ws.cli().arg("uninstall").arg("--clear")
+        );
+
+        assert!(!cache_path.exists());
+
+        // Uninstall the installed toolchain again, cache removed as well
         assert_cmd_snapshot!(
             "moonup_uninstall",
             ws.cli().arg("uninstall").arg(test_install_version)
@@ -198,9 +207,7 @@ mod liveinstall {
             .moonup_home()
             .join("toolchains")
             .join(test_install_version);
-
         assert!(!install_path.exists());
-        assert!(!cache_path.exists());
 
         // List installed toolchains, no toolchain should be listed
         assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));

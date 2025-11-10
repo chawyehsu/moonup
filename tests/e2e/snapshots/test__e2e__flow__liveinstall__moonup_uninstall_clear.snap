@@ -3,11 +3,12 @@ source: tests/e2e/flow.rs
 info:
   program: moonup
   args:
-    - self-update
+    - uninstall
+    - "--clear"
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Updating moonup: [MOONUP_VERSION] -> [MOONUP_VERSION]
+ Cleared all cached downloads
 
 ----- stderr -----
