@@ -3,7 +3,7 @@ source: tests/e2e/flow.rs
 expression: output
 ---
  ›
-⬚ 0.1.20241231+ba15a9a4e
-✔ 0.1.20241231+ba15a9a4e
-✔ Select toolchains to uninstall · 0.1.20241231+ba15a9a4e
-✔  Uninstalled toolchain 0.1.20241231+ba15a9a4e
+⬚ 0.1.20250514+8798a70d6
+✔ 0.1.20250514+8798a70d6
+✔ Select toolchains to uninstall · 0.1.20250514+8798a70d6
+✔  Uninstalled toolchain 0.1.20250514+8798a70d6

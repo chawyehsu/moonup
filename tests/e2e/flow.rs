@@ -231,6 +231,9 @@ mod liveinstall {
             ws.cli().arg("install").arg("nightly-2025-05-21")
         );
 
+        // Test update toolchains
+        assert_cmd_snapshot!("moonup_update", ws.cli().arg("update"));
+
         // Test self update with forced update (for coverage)
         // This test is placed at the end because it will replace the currently running
         // executable.
@@ -250,19 +253,31 @@ mod liveinstall {
 
         util::apply_common_filters!();
 
-        let ws = TestWorkspace::new();
-        let test_install_version = "0.1.20241231+ba15a9a4e";
-
         // Set up project directory
+        let ws = TestWorkspace::new();
         let project_path = ws.project_path();
         fs::create_dir_all(project_path).expect("should create project directory");
         env::set_current_dir(project_path).expect("should set current directory");
 
-        // Install test version first
-        assert_cmd_snapshot!(
-            "moonup_install_2",
-            ws.cli().arg("install").arg(test_install_version)
-        );
+        // Install toolchain interactively
+        let mut cmd = ws.cli();
+        cmd.arg("install").arg("latest").arg("--list-available");
+
+        let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+        let duration = std::time::Duration::from_secs(60);
+        p.set_expect_timeout(Some(duration));
+        p.expect("Pick a version from latest channel")
+            .expect("should prompt for selecting version");
+        p.send_line("").expect("should send new line"); // select first version
+
+        let output =
+            String::from_utf8_lossy(p.expect(Eof).expect("should finish installing").as_bytes())
+                .to_string();
+        // Sanitize output to avoid snapshot mismatches
+        let re = regex::Regex::new(r"(?s)Installing toolchain.*?Installed").unwrap();
+        let output = re.replace_all(&output, "Installing toolchain...\n...\nInstalled");
+
+        assert_snapshot!("moonup_install_interactive", output);
 
         // Pin toolchain interactively
         let mut cmd = ws.cli();

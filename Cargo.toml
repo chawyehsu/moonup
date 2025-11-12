@@ -65,6 +65,7 @@ temp-env = "0.3.6"
 # see: https://github.com/zhiburt/expectrl/issues/52
 [target.'cfg(not(windows))'.dev-dependencies]
 expectrl = "0.8.0"
+regex = "1.12.2"
 
 [features]
 default = ["self_update"]

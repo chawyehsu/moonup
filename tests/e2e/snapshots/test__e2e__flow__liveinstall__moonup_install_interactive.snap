@@ -1,0 +1,16 @@
+---
+source: tests/e2e/flow.rs
+expression: output
+---
+ › [Page 1/16] 
+❯ 0.1.20250514+8798a70d6
+  0.1.20250508+ae9fa770e
+  0.1.20250429+d96028625
+  0.1.20250423+2af95d42c
+  0.1.20250416+7b5076c8f
+  0.1.20250410+15d580434
+✔ Pick a version from latest channel · 0.1.20250514+8798a70d6
+Installing toolchain...
+...
+Installed toolchain version '0.1.20250514+8798a70d6'
+Make sure '[MOON_HOME]/bin' is added to your PATH

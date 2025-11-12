@@ -3,6 +3,6 @@ source: tests/e2e/flow.rs
 expression: output
 ---
  ›
-❯ 0.1.20241231+ba15a9a4e
-✔ Pick a installed version · 0.1.20241231+ba15a9a4e
-✔ Default toolchain set to version '0.1.20241231+ba15a9a4e'
+❯ 0.1.20250514+8798a70d6
+✔ Pick a installed version · 0.1.20250514+8798a70d6
+✔ Default toolchain set to version '0.1.20250514+8798a70d6'
