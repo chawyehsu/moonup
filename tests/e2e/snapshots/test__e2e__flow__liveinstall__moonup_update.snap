@@ -1,0 +1,15 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - update
+---
+success: true
+exit_code: 0
+----- stdout -----
+The latest toolchain is up to date
+The nightly toolchain is up to date
+bleeding toolchain is not installed, run 'moonup install bleeding' to install
+
+----- stderr -----
