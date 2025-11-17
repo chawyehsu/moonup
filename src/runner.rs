@@ -23,7 +23,12 @@ pub fn build_command<S: AsRef<OsStr>>(
         exe_name.to_string_lossy()
     );
 
-    let exe_resolved = resolve::resolve_exe(exe_name, &bin_dir).ok_or(err_msg)?;
+    let internal_bin_dir = bin_dir.join("internal");
+
+    let paths = env::join_paths([&bin_dir, &internal_bin_dir])
+        .map_err(|e| anyhow::anyhow!("Failed to build PATH environment variable: {}", e))?;
+
+    let exe_resolved = resolve::resolve_exe(exe_name, paths).ok_or(err_msg)?;
 
     let mut cmd = Command::new(&exe_resolved);
     cmd.args(&command[1..]);

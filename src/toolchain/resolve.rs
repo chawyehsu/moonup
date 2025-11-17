@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::{constant::TOOLCHAIN_FILE, utils::trimmed_or_none};
 
@@ -78,7 +78,11 @@ pub fn detect_active_toolchainspec() -> String {
 /// # Returns
 ///
 /// The path to the executable binary if found, otherwise `None`.
-pub fn resolve_exe<S: AsRef<OsStr>>(binary_name: S, paths: &Path) -> Option<PathBuf> {
+pub fn resolve_exe<T, U>(binary_name: T, paths: U) -> Option<PathBuf>
+where
+    T: AsRef<OsStr>,
+    U: AsRef<OsStr>,
+{
     which::which_in_global(binary_name, Some(paths))
         .and_then(|mut i| i.next().ok_or(which::Error::CannotFindBinaryPath))
         .ok()
