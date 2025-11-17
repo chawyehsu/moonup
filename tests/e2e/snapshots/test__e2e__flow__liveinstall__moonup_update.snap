@@ -10,6 +10,5 @@ exit_code: 0
 ----- stdout -----
 The latest toolchain is up to date
 The nightly toolchain is up to date
-bleeding toolchain is not installed, run 'moonup install bleeding' to install
 
 ----- stderr -----

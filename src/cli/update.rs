@@ -16,7 +16,6 @@ pub async fn execute(_: Args) -> miette::Result<()> {
 
     update_toolchain(&mut path, &ToolchainSpec::Latest).await?;
     update_toolchain(&mut path, &ToolchainSpec::Nightly).await?;
-    update_toolchain(&mut path, &ToolchainSpec::Bleeding).await?;
 
     Ok(())
 }
