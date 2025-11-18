@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/chawyehsu/moonup/compare/v0.4.0...v0.4.1) (2025-11-17)
+
+
+### Bug Fixes
+
+* resolve executables in internal bin directory as well ([8b641b0](https://github.com/chawyehsu/moonup/commit/8b641b042224c3e6e8d6061b0b7f7805bab0d42b))
+
 ## [0.4.0](https://github.com/chawyehsu/moonup/compare/v0.3.2...v0.4.0) (2025-10-22)
 
 
