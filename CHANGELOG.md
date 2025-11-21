@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/chawyehsu/moonup/compare/v0.4.1...v0.4.2) (2025-11-21)
+
+
+### Bug Fixes
+
+* filter host unsupported releases for all channels ([9973ba6](https://github.com/chawyehsu/moonup/commit/9973ba69611ce7bfc85507a3d380a5b7f827649a))
+
 ## [0.4.1](https://github.com/chawyehsu/moonup/compare/v0.4.0...v0.4.1) (2025-11-17)
 
 
