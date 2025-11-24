@@ -40,7 +40,7 @@ tar = "0.4.43"
 tokio = { version = "1.43.3", features = ["macros", "rt-multi-thread"] }
 tokio-util = { version = "0.7.13", features = ["io-util"] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 url = "2.5.7"
 which = "8.0.0"
 zip = "2.3.0"
