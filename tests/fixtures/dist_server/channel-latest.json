@@ -1,13 +1,36 @@
 {
-  "version": 2,
+  "version": 3,
   "lastModified": "20250103T1228001932Z",
   "releases": [
     {
       "version": "0.1.20240704+647946c28",
-      "layoutVersion1": true
+      "layoutVersion1": true,
+      "bundleSourceDir": true,
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux",
+        "x86_64-pc-windows"
+      ]
     },
     {
-      "version": "0.1.20241231+ba15a9a4e"
+      "version": "0.1.20240807+41236f720",
+      "layoutVersion1": true,
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux",
+        "x86_64-pc-windows"
+      ]
+    },
+    {
+      "version": "0.1.20241231+ba15a9a4e",
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux",
+        "x86_64-pc-windows"
+      ]
     }
   ]
 }

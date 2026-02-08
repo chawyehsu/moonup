@@ -200,10 +200,17 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     });
 
     let mut cmd = Command::new(actual_moon_exe);
+
+    let bundle_dir_arg = if recipe.release.bundle_source_dir.unwrap_or(false) {
+        "--source-dir"
+    } else {
+        "-C"
+    };
+    cmd.arg(bundle_dir_arg);
+    cmd.arg(&corelib_dir);
+
     cmd.arg("bundle");
     cmd.arg("--all");
-    cmd.arg("--source-dir");
-    cmd.arg(&corelib_dir);
     cmd.env("PATH", bin_dir.display().to_string());
     tracing::debug!("running command: {:?}", cmd);
     cmd.status().into_diagnostic()?;

@@ -243,6 +243,9 @@ pub struct Release {
     /// Flag to indicate if the distribution layout of the release is version 1
     pub layout_version1: Option<bool>,
 
+    /// Flag to indicate if `--source-dir` should be used for running `moon bundle`
+    pub bundle_source_dir: Option<bool>,
+
     /// The (nightly build) date of the release
     pub date: Option<String>,
 
