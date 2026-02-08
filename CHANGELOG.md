@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/chawyehsu/moonup/compare/v0.4.2...v0.4.3) (2026-02-08)
+
+
+### Bug Fixes
+
+* update bundle argument reflecting moon breaking change ([bf400e3](https://github.com/chawyehsu/moonup/commit/bf400e33ae73e60fc023e36bf7d71cff61608254))
+
 ## [0.4.2](https://github.com/chawyehsu/moonup/compare/v0.4.1...v0.4.2) (2025-11-21)
 
 
