@@ -1403,9 +1403,9 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.43.1"
+version = "1.46.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "154934ea70c58054b556dd430b99a98c2a7ff5309ac9891597e339b5c28f4371"
+checksum = "e82db8c87c7f1ccecb34ce0c24399b8a73081427f3c7c50a5d597925356115e4"
 dependencies = [
  "console 0.15.11",
  "globset",
@@ -1415,6 +1415,7 @@ dependencies = [
  "regex",
  "serde",
  "similar",
+ "tempfile",
  "walkdir",
 ]
 
