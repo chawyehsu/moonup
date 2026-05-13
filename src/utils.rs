@@ -61,7 +61,7 @@ pub async fn url_to_reader(
     url: Url,
     client: &ClientWithMiddleware,
     reporter: Option<Arc<dyn Reporter>>,
-) -> miette::Result<impl AsyncRead> {
+) -> miette::Result<impl AsyncRead + use<>> {
     tracing::debug!("streaming: {}", url);
     let request = client.get(url);
     let response = request.send().await.into_diagnostic()?;
@@ -101,7 +101,7 @@ pub async fn url_to_reader(
     Ok(StreamReader::new(byte_stream))
 }
 
-pub async fn path_to_reader(path: &Path) -> miette::Result<impl AsyncRead> {
+pub async fn path_to_reader(path: &Path) -> miette::Result<impl AsyncRead + use<>> {
     let file = tokio::fs::File::open(path).await.into_diagnostic()?;
     Ok(BufReader::new(file))
 }
