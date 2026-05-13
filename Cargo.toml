@@ -9,7 +9,7 @@ categories = ["development-tools"]
 version = "0.4.3"
 authors = ["Chawye Hsu <su+cratesio@chawyehsu.com>"]
 license = "Apache-2.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 anyhow = "1.0.101"
