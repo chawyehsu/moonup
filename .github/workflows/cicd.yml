@@ -106,15 +106,15 @@ jobs:
       - name: Prepare Dev Artifacts [Windows]
         if: matrix.os == 'windows-latest'
         run: |
-          cp target/${{ matrix.target }}/release/moonup.exe .
-          cp target/${{ matrix.target }}/release/moonup-shim.exe .
+          cp target/${{ matrix.target }}/debug/moonup.exe .
+          cp target/${{ matrix.target }}/debug/moonup-shim.exe .
           7z a ${{ matrix.zip }} moonup.exe moonup-shim.exe LICENSE README.md
 
       - name: Prepare Dev Artifacts [Unix]
         if: matrix.os != 'windows-latest'
         run: |
-          cp target/${{ matrix.target }}/release/moonup .
-          cp target/${{ matrix.target }}/release/moonup-shim .
+          cp target/${{ matrix.target }}/debug/moonup .
+          cp target/${{ matrix.target }}/debug/moonup-shim .
           tar czvf ${{ matrix.zip }} moonup moonup-shim LICENSE README.md
 
       - name: Upload Dev Artifacts
