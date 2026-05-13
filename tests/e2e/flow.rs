@@ -203,6 +203,15 @@ mod liveinstall {
             ws.cli().arg("uninstall").arg(test_install_version)
         );
 
+        // Create a custom bin file to test that it won't be removed by toolchain
+        // update or reinstall
+        let custom_bin = ws.moon_home().join("bin").join(if cfg!(windows) {
+            "moonup-e2e-user-bin.cmd"
+        } else {
+            "moonup-e2e-user-bin"
+        });
+        fs::write(&custom_bin, "@echo off\n").expect("should create custom bin");
+
         // Toolchain should be uninstalled, cache should be removed
         let install_path = ws
             .moonup_home()
@@ -233,6 +242,9 @@ mod liveinstall {
 
         // Test update toolchains
         assert_cmd_snapshot!("moonup_update", ws.cli().arg("update"));
+
+        // Custom bin should still exist after install/update
+        assert!(custom_bin.exists());
 
         // Test self update with forced update (for coverage)
         // This test is placed at the end because it will replace the currently running
