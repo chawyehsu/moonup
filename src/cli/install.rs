@@ -159,7 +159,6 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let moon_home_bin = crate::moon_home().join("bin");
 
     std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
-    let _ = crate::fs::empty_dir(&moon_home_bin);
 
     // bins
     let bin_dir = toolchain_dir.join("bin");
@@ -176,7 +175,6 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     if internal_bin_dir.exists() {
         let moon_home_bin_internal = moon_home_bin.join("internal");
         std::fs::create_dir_all(&moon_home_bin_internal).into_diagnostic()?;
-        let _ = crate::fs::empty_dir(&moon_home_bin_internal);
 
         let internal_bins = find_bins(&internal_bin_dir)?;
         for bin in internal_bins {
