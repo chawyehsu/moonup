@@ -32,7 +32,7 @@ jobs:
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@v0.0.9
         with:
-            version: "v0.12.0"
+          version: "v0.12.0"
 
       - name: Format Check
         run: cargo fmt -- --check
@@ -90,7 +90,7 @@ jobs:
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@v0.0.9
         with:
-            version: "v0.12.0"
+          version: "v0.12.0"
 
       - name: Tests Check
         if: matrix.os != 'ubuntu-latest' || matrix.os != 'macos-15-intel'
@@ -115,7 +115,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: rust
-          release-as: 0.4.3
+          release-as: 0.5.0
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -172,7 +172,7 @@ jobs:
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@v0.0.9
         with:
-            version: "v0.12.0"
+          version: "v0.12.0"
 
       - name: Production Build
         run: cargo build --release --locked --target ${{ matrix.target }}
