@@ -24,10 +24,7 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Rust Setup
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.95.0
-          components: clippy, rustfmt
+        run: rustup component add clippy rustfmt
 
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
@@ -80,12 +77,6 @@ jobs:
     steps:
       - name: Checkout Source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-
-      - name: Rust Setup
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.95.0
-          target: ${{ matrix.target }}
 
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
@@ -182,12 +173,6 @@ jobs:
     steps:
       - name: Checkout Source
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-
-      - name: Rust Setup
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.95.0
-          target: ${{ matrix.target }}
 
       - name: Cache Setup
         uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
