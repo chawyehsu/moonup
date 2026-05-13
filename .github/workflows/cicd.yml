@@ -119,6 +119,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'chawyehsu/moonup' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
+      # Required for creating tags and github releases
+      contents: write
       # Required for creating/updating release PR
       pull-requests: write
     steps:
@@ -224,7 +226,7 @@ jobs:
     needs: [cd_release_please, cd_release_build]
     runs-on: ubuntu-latest
     permissions:
-      # Required for publishing release and attaching artifacts
+      # Required for attaching artifacts to github releases
       contents: write
     steps:
       - name: Download Artifacts
