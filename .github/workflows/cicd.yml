@@ -55,10 +55,16 @@ jobs:
               zip: moonup-x86_64-pc-windows-msvc.zip,
             }
           - {
-              name: "Linux",
+              name: "Linux x86_64",
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
               zip: moonup-x86_64-unknown-linux-gnu.tar.gz,
+            }
+          - {
+              name: "Linux Aarch64",
+              target: aarch64-unknown-linux-gnu,
+              os: ubuntu-24.04-arm,
+              zip: moonup-aarch64-unknown-linux-gnu.tar.gz,
             }
           - {
               name: "macOS ARM",
@@ -136,10 +142,16 @@ jobs:
               zip: moonup-x86_64-pc-windows-msvc.zip,
             }
           - {
-              name: "Linux",
+              name: "Linux x86_64",
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
               zip: moonup-x86_64-unknown-linux-gnu.tar.gz,
+            }
+          - {
+              name: "Linux Aarch64",
+              target: aarch64-unknown-linux-gnu,
+              os: ubuntu-24.04-arm,
+              zip: moonup-aarch64-unknown-linux-gnu.tar.gz,
             }
           - {
               name: "macOS ARM",
