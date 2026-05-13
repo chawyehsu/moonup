@@ -100,28 +100,28 @@ jobs:
       #   if: matrix.os == 'ubuntu-latest'
       #   run: cargo test --features 'test-liveinstall'
 
-      - name: Dev Build
-        run: cargo build --locked --target ${{ matrix.target }}
+      # - name: Dev Build
+      #   run: cargo build --locked --target ${{ matrix.target }}
 
-      - name: Prepare Dev Artifacts [Windows]
-        if: matrix.os == 'windows-latest'
-        run: |
-          cp target/${{ matrix.target }}/debug/moonup.exe .
-          cp target/${{ matrix.target }}/debug/moonup-shim.exe .
-          7z a ${{ matrix.zip }} moonup.exe moonup-shim.exe LICENSE README.md
+      # - name: Prepare Dev Artifacts [Windows]
+      #   if: matrix.os == 'windows-latest'
+      #   run: |
+      #     cp target/${{ matrix.target }}/debug/moonup.exe .
+      #     cp target/${{ matrix.target }}/debug/moonup-shim.exe .
+      #     7z a ${{ matrix.zip }} moonup.exe moonup-shim.exe LICENSE README.md
 
-      - name: Prepare Dev Artifacts [Unix]
-        if: matrix.os != 'windows-latest'
-        run: |
-          cp target/${{ matrix.target }}/debug/moonup .
-          cp target/${{ matrix.target }}/debug/moonup-shim .
-          tar czvf ${{ matrix.zip }} moonup moonup-shim LICENSE README.md
+      # - name: Prepare Dev Artifacts [Unix]
+      #   if: matrix.os != 'windows-latest'
+      #   run: |
+      #     cp target/${{ matrix.target }}/debug/moonup .
+      #     cp target/${{ matrix.target }}/debug/moonup-shim .
+      #     tar czvf ${{ matrix.zip }} moonup moonup-shim LICENSE README.md
 
-      - name: Upload Dev Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dev-${{ matrix.zip }}
-          path: ${{ matrix.zip }}
+      # - name: Upload Dev Artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: dev-${{ matrix.zip }}
+      #     path: ${{ matrix.zip }}
 
   # Create/Update release PR
   cd_release_please:
