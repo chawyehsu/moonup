@@ -4,7 +4,7 @@ use miette::{Context, IntoDiagnostic};
 use std::ffi::OsString;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, process::Command};
 
 #[cfg(target_os = "windows")]
@@ -12,7 +12,7 @@ use crate::constant::ALLOWED_EXTENSIONS;
 use crate::dist_server::schema::ChannelName;
 use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_toolchain;
-use crate::toolchain::{index, ToolchainSpec};
+use crate::toolchain::{ToolchainSpec, index};
 use crate::toolchain::{index::build_installrecipe, package::populate_install};
 
 use super::ToolchainSpecValueParser;
@@ -163,7 +163,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     // bins
     let bin_dir = toolchain_dir.join("bin");
 
-    let bins = find_bins(&bin_dir).wrap_err("failed to find bins")?;
+    let bins = find_bins(bin_dir.as_path()).wrap_err("failed to find bins")?;
     for bin in bins {
         tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());
         let dest = moon_home_bin.join(&bin);
@@ -176,7 +176,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
         let moon_home_bin_internal = moon_home_bin.join("internal");
         std::fs::create_dir_all(&moon_home_bin_internal).into_diagnostic()?;
 
-        let internal_bins = find_bins(&internal_bin_dir)?;
+        let internal_bins = find_bins(internal_bin_dir.as_path())?;
         for bin in internal_bins {
             tracing::debug!("pouring internal shim for '{}'", bin.to_string_lossy());
             let dest = moon_home_bin_internal.join(&bin);
@@ -216,7 +216,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     Ok(())
 }
 
-fn find_bins(dir: &PathBuf) -> miette::Result<Vec<OsString>> {
+fn find_bins(dir: &Path) -> miette::Result<Vec<OsString>> {
     let bins = dir
         .read_dir()
         .into_diagnostic()
