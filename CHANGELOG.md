@@ -1,26 +1,5 @@
 # Changelog
 
-## [0.5.0](https://github.com/chawyehsu/moonup/compare/v0.4.3...v0.5.0) (2026-05-13)
-
-
-### ⚠ BREAKING CHANGES
-
-* **ci:** drop darwin-x86_64 variant
-
-### Features
-
-* enable linux-aarch64 support ([736800f](https://github.com/chawyehsu/moonup/commit/736800f243014c7e2ab533cf6f03a3cdc52d0e76))
-
-
-### Bug Fixes
-
-* **install:** avoid purging bin folder when installing toolchains ([2e45472](https://github.com/chawyehsu/moonup/commit/2e45472e8ba6fdafbdbc3006f1d4bb62f1186949)), closes [#150](https://github.com/chawyehsu/moonup/issues/150)
-
-
-### Miscellaneous Chores
-
-* **ci:** drop darwin-x86_64 variant ([71fee33](https://github.com/chawyehsu/moonup/commit/71fee33cfe14b00d9db26faaa9af6bce1e4e2184))
-
 ## [0.4.3](https://github.com/chawyehsu/moonup/compare/v0.4.2...v0.4.3) (2026-02-08)
 
 
