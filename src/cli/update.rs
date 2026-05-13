@@ -2,9 +2,9 @@ use clap::Parser;
 use std::path::PathBuf;
 
 use crate::cli::install::post_install;
+use crate::toolchain::ToolchainSpec;
 use crate::toolchain::index::build_installrecipe;
 use crate::toolchain::package::populate_install;
-use crate::toolchain::ToolchainSpec;
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]

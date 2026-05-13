@@ -5,7 +5,7 @@ use std::env;
 
 use crate::{
     constant,
-    toolchain::{resolve::resolve_toolchain_file, ToolchainSpec},
+    toolchain::{ToolchainSpec, resolve::resolve_toolchain_file},
 };
 
 use super::ToolchainSpecValueParser;

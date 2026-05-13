@@ -1,11 +1,11 @@
 use clap::{CommandFactory, Parser};
-use dialoguer::{theme, MultiSelect};
+use dialoguer::{MultiSelect, theme};
 use miette::{Context, IntoDiagnostic};
 use tracing::instrument;
 
 use crate::{
     constant,
-    toolchain::{installed_toolchains, ToolchainSpec},
+    toolchain::{ToolchainSpec, installed_toolchains},
 };
 
 /// Uninstall a MoonBit toolchain.
@@ -62,10 +62,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             .interact()
             .into_diagnostic()?;
 
-        selected
-            .iter()
-            .map(|&i| selections[i].clone())
-            .collect()
+        selected.iter().map(|&i| selections[i].clone()).collect()
     } else {
         args.toolchain
     };

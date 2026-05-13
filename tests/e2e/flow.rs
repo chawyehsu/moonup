@@ -59,10 +59,11 @@ fn test_flow_with_network_mock() {
     });
 
     // Override the dist server URL with the mock server URL
-    assert_cmd_snapshot!(cli
-        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
-        .arg("install")
-        .arg("--list-available"));
+    assert_cmd_snapshot!(
+        cli.env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg("--list-available")
+    );
 }
 
 /// Test flow with production networking

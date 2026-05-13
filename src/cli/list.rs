@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::toolchain::{installed_toolchains, resolve, InstalledToolchain, ToolchainSpec};
+use crate::toolchain::{InstalledToolchain, ToolchainSpec, installed_toolchains, resolve};
 
 /// List installed and active toolchains
 #[derive(Parser, Debug)]

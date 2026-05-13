@@ -4,7 +4,7 @@ use miette::Context;
 use miette::IntoDiagnostic;
 use reqwest::Client;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 use std::env;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
@@ -67,13 +67,11 @@ pub async fn url_to_reader(
     let response = request.send().await.into_diagnostic()?;
 
     if !response.status().is_success() {
-        return Err(std::io::Error::other(
-            format!(
-                "failed to download {} (code: {})",
-                response.url(),
-                response.status()
-            ),
-        ))
+        return Err(std::io::Error::other(format!(
+            "failed to download {} (code: {})",
+            response.url(),
+            response.status()
+        )))
         .into_diagnostic();
     }
 
@@ -96,7 +94,7 @@ pub async fn url_to_reader(
                 reporter.on_progress(current);
             }
         })
-        .map_err(|err| std::io::Error::other(err));
+        .map_err(std::io::Error::other);
 
     Ok(StreamReader::new(byte_stream))
 }
@@ -146,7 +144,7 @@ pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
                         "failed to rename {} to {}",
                         old.display(),
                         &older.display()
-                    ))
+                    ));
                 }
             },
         }

@@ -2,7 +2,7 @@ use std::env;
 use std::ffi::OsStr;
 use std::process::Command;
 
-use crate::toolchain::{resolve, ToolchainSpec};
+use crate::toolchain::{ToolchainSpec, resolve};
 
 pub fn build_command<S: AsRef<OsStr>>(
     toolchain: ToolchainSpec,

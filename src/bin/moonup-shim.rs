@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
 use moonup::constant::RECURSION_LIMIT;
-use moonup::toolchain::resolve::detect_active_toolchainspec;
 use moonup::toolchain::ToolchainSpec;
+use moonup::toolchain::resolve::detect_active_toolchainspec;
 use moonup::{moonup_home, runner};
 
 pub fn main() {

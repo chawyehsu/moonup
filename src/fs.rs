@@ -1,7 +1,7 @@
 use miette::IntoDiagnostic;
 use rattler_digest::{HashingReader, Sha256, Sha256Hash};
 use std::fs::File;
-use std::io::{self, copy, BufReader, Read};
+use std::io::{self, BufReader, Read, copy};
 use std::path::Path;
 use tokio::io::AsyncRead;
 use tokio_util::io::SyncIoBridge;

@@ -1,8 +1,8 @@
-use clap::{builder::TypedValueParser, Parser};
+use clap::{Parser, builder::TypedValueParser};
 use clap_verbosity_flag::Verbosity;
 use miette::IntoDiagnostic;
 use tracing_subscriber::{
-    filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+    EnvFilter, filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt,
 };
 
 use crate::toolchain::ToolchainSpec;

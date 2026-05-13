@@ -1,4 +1,4 @@
-use serde::{de::Error, Deserialize};
+use serde::{Deserialize, de::Error};
 
 mod legacy;
 mod v2;
