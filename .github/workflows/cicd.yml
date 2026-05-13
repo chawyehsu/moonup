@@ -120,7 +120,7 @@ jobs:
       - name: Upload Dev Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.zip }}
+          name: dev-${{ matrix.zip }}
           path: ${{ matrix.zip }}
 
   # Create/Update release PR
@@ -240,6 +240,8 @@ jobs:
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v5
+        with:
+          name: "!dev-*"
 
       - name: Prepare Checksums
         run: for file in moonup-*/moonup-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
