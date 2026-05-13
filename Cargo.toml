@@ -62,7 +62,7 @@ temp-env = "0.3.6"
 # expectrl has some issues on Windows
 # see: https://github.com/zhiburt/expectrl/issues/52
 [target.'cfg(not(windows))'.dev-dependencies]
-expectrl = "0.8.0"
+expectrl = "0.9.0"
 regex = "1.12.2"
 
 [features]
