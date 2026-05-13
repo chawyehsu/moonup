@@ -21,7 +21,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Rust Setup
         uses: dtolnay/rust-toolchain@stable
@@ -30,7 +30,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache Setup
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
         with:
           version: "v0.12.0"
 
@@ -79,7 +79,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Rust Setup
         uses: dtolnay/rust-toolchain@stable
@@ -88,7 +88,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Cache Setup
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
         with:
           version: "v0.12.0"
 
@@ -130,7 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'chawyehsu/moonup' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - uses: google-github-actions/release-please-action@v3
+      - uses: google-github-actions/release-please-action@db8f2c60ee802b3748b512940dde88eabd7b7e01 # v3.7.13
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -181,7 +181,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Rust Setup
         uses: dtolnay/rust-toolchain@stable
@@ -190,7 +190,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Cache Setup
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
         with:
           version: "v0.12.0"
 
@@ -227,7 +227,7 @@ jobs:
           tar czvf ${{ matrix.zip }} moonup moonup-shim LICENSE README.md
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ matrix.zip }}
           path: ${{ matrix.zip }}
@@ -239,7 +239,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: "!dev-*"
 
@@ -252,7 +252,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attach Artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: moonup-*/moonup-*
           tag_name: ${{ needs.cd_release_please.outputs.tag_name }}
@@ -266,11 +266,11 @@ jobs:
       id-token: write
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Setup crates.io Auth
         id: auth
-        uses: rust-lang/crates-io-auth-action@v1
+        uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # v1.0.3
 
       - name: Cargo Publish
         run: cargo publish --registry crates-io
