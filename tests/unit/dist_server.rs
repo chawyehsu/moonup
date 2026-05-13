@@ -32,7 +32,7 @@ fn test_schema_v2_handle_future_target() {
             "x86_64-apple-darwin",
             "x86_64-unknown-linux",
             "x86_64-pc-windows",
-            "aarch64-unknown-linux"
+            "riscv64-unknown-linux"
         ]
     }"#;
 
@@ -47,7 +47,7 @@ fn test_schema_v2_handle_future_target() {
 
     assert_eq!(
         index.targets.last(),
-        Some(&Target::Unknown("aarch64-unknown-linux".to_string()))
+        Some(&Target::Unknown("riscv64-unknown-linux".to_string()))
     );
 }
 

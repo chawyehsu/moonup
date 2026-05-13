@@ -288,6 +288,10 @@ pub enum Target {
     #[serde(rename = "x86_64-apple-darwin")]
     Amd64MacOS,
 
+    /// Linux on ARM64
+    #[serde(rename = "aarch64-unknown-linux")]
+    Aarch64Linux,
+
     /// Linux on AMD64
     #[serde(rename = "x86_64-unknown-linux")]
     Amd64Linux,
@@ -309,7 +313,11 @@ impl Target {
                 "x86_64" => Ok(Target::Amd64MacOS),
                 _ => Err(miette::miette!("unsupported architecture")),
             },
-            "linux" => Ok(Target::Amd64Linux),
+            "linux" => match std::env::consts::ARCH {
+                "aarch64" => Ok(Target::Aarch64Linux),
+                "x86_64" => Ok(Target::Amd64Linux),
+                _ => Err(miette::miette!("unsupported architecture")),
+            },
             "windows" => Ok(Target::Amd64Windows),
             _ => Err(miette::miette!("unsupported platform")),
         }
@@ -322,6 +330,7 @@ impl std::fmt::Display for Target {
             Target::Aarch64MacOS => write!(f, "aarch64-apple-darwin"),
             Target::Amd64MacOS => write!(f, "x86_64-apple-darwin"),
             Target::Amd64Linux => write!(f, "x86_64-unknown-linux"),
+            Target::Aarch64Linux => write!(f, "aarch64-unknown-linux"),
             Target::Amd64Windows => write!(f, "x86_64-pc-windows"),
             Target::Unknown(t) => write!(f, "{t}"),
         }
