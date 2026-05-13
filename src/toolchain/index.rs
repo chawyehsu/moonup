@@ -131,7 +131,7 @@ pub async fn read_component_index(
         ChannelName::Nightly => {
             component_index_local.push("nightly");
             component_index_local.push(
-                &release
+                release
                     .date
                     .as_deref()
                     .expect("nightly release should have build date"),
@@ -273,7 +273,7 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
 
     let release = match spec {
         ToolchainSpec::Bleeding | ToolchainSpec::Latest | ToolchainSpec::Nightly => {
-            releases.last().cloned().or(None)
+            releases.next_back().cloned().or(None)
         }
         ToolchainSpec::Version(s) => {
             let is_nightly = s.starts_with("nightly");

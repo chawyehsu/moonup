@@ -43,7 +43,7 @@ fn run() -> Result<ExitStatus> {
     }
 
     let args_1 = args.get(1).and_then(|arg| arg.to_str());
-    let args_1_is_toolchain = args_1.map_or(false, |arg| arg.starts_with('+'));
+    let args_1_is_toolchain = args_1.is_some_and(|arg| arg.starts_with('+'));
 
     // Find the active toolchain:
     // - If the first argument is a toolchain spec, use it.

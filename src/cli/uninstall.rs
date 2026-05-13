@@ -32,7 +32,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     if args.clear {
         let download_dir = crate::moonup_home().join("downloads");
         tracing::info!("removing all cached downloads {}", download_dir.display());
-        let _ = crate::fs::empty_dir(&download_dir)
+        crate::fs::empty_dir(&download_dir)
             .into_diagnostic()
             .wrap_err("failed to clear cached downloads")?;
         println!(
@@ -64,7 +64,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
         selected
             .iter()
-            .map(|&i| ToolchainSpec::from(selections[i].clone()))
+            .map(|&i| selections[i].clone())
             .collect()
     } else {
         args.toolchain

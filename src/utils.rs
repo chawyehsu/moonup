@@ -67,8 +67,7 @@ pub async fn url_to_reader(
     let response = request.send().await.into_diagnostic()?;
 
     if !response.status().is_success() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        return Err(std::io::Error::other(
             format!(
                 "failed to download {} (code: {})",
                 response.url(),
@@ -97,7 +96,7 @@ pub async fn url_to_reader(
                 reporter.on_progress(current);
             }
         })
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err));
+        .map_err(|err| std::io::Error::other(err));
 
     Ok(StreamReader::new(byte_stream))
 }
