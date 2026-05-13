@@ -7,8 +7,6 @@ info:
     - zsh
   env:
     MOONUP_DIST_SERVER: "https://moonup.csu.moe/testing/v2"
-    MOONUP_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpsDfUi1\\.moonup"
-    MOON_HOME: "C:\\Users\\hanabi\\AppData\\Local\\Temp\\.tmpsDfUi1\\.moon"
 ---
 success: true
 exit_code: 0
@@ -206,7 +204,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (help)
 _arguments "${_arguments_options[@]}" : \
-":: :_moonup__help_commands" \
+":: :_moonup__subcmd__help_commands" \
 "*::: :->help" \
 && ret=0
 
@@ -290,18 +288,18 @@ _moonup_commands() {
     )
     _describe -t commands 'moonup commands' commands "$@"
 }
-(( $+functions[_moonup__completions_commands] )) ||
-_moonup__completions_commands() {
+(( $+functions[_moonup__subcmd__completions_commands] )) ||
+_moonup__subcmd__completions_commands() {
     local commands; commands=()
     _describe -t commands 'moonup completions commands' commands "$@"
 }
-(( $+functions[_moonup__default_commands] )) ||
-_moonup__default_commands() {
+(( $+functions[_moonup__subcmd__default_commands] )) ||
+_moonup__subcmd__default_commands() {
     local commands; commands=()
     _describe -t commands 'moonup default commands' commands "$@"
 }
-(( $+functions[_moonup__help_commands] )) ||
-_moonup__help_commands() {
+(( $+functions[_moonup__subcmd__help_commands] )) ||
+_moonup__subcmd__help_commands() {
     local commands; commands=(
 'completions:Generate shell completions' \
 'default:Set the default toolchain' \
@@ -317,98 +315,98 @@ _moonup__help_commands() {
     )
     _describe -t commands 'moonup help commands' commands "$@"
 }
-(( $+functions[_moonup__help__completions_commands] )) ||
-_moonup__help__completions_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__completions_commands] )) ||
+_moonup__subcmd__help__subcmd__completions_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help completions commands' commands "$@"
 }
-(( $+functions[_moonup__help__default_commands] )) ||
-_moonup__help__default_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__default_commands] )) ||
+_moonup__subcmd__help__subcmd__default_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help default commands' commands "$@"
 }
-(( $+functions[_moonup__help__help_commands] )) ||
-_moonup__help__help_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__help_commands] )) ||
+_moonup__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help help commands' commands "$@"
 }
-(( $+functions[_moonup__help__install_commands] )) ||
-_moonup__help__install_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__install_commands] )) ||
+_moonup__subcmd__help__subcmd__install_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help install commands' commands "$@"
 }
-(( $+functions[_moonup__help__list_commands] )) ||
-_moonup__help__list_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__list_commands] )) ||
+_moonup__subcmd__help__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help list commands' commands "$@"
 }
-(( $+functions[_moonup__help__pin_commands] )) ||
-_moonup__help__pin_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__pin_commands] )) ||
+_moonup__subcmd__help__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help pin commands' commands "$@"
 }
-(( $+functions[_moonup__help__run_commands] )) ||
-_moonup__help__run_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__run_commands] )) ||
+_moonup__subcmd__help__subcmd__run_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help run commands' commands "$@"
 }
-(( $+functions[_moonup__help__self-update_commands] )) ||
-_moonup__help__self-update_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__self-update_commands] )) ||
+_moonup__subcmd__help__subcmd__self-update_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help self-update commands' commands "$@"
 }
-(( $+functions[_moonup__help__uninstall_commands] )) ||
-_moonup__help__uninstall_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__uninstall_commands] )) ||
+_moonup__subcmd__help__subcmd__uninstall_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help uninstall commands' commands "$@"
 }
-(( $+functions[_moonup__help__update_commands] )) ||
-_moonup__help__update_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__update_commands] )) ||
+_moonup__subcmd__help__subcmd__update_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help update commands' commands "$@"
 }
-(( $+functions[_moonup__help__which_commands] )) ||
-_moonup__help__which_commands() {
+(( $+functions[_moonup__subcmd__help__subcmd__which_commands] )) ||
+_moonup__subcmd__help__subcmd__which_commands() {
     local commands; commands=()
     _describe -t commands 'moonup help which commands' commands "$@"
 }
-(( $+functions[_moonup__install_commands] )) ||
-_moonup__install_commands() {
+(( $+functions[_moonup__subcmd__install_commands] )) ||
+_moonup__subcmd__install_commands() {
     local commands; commands=()
     _describe -t commands 'moonup install commands' commands "$@"
 }
-(( $+functions[_moonup__list_commands] )) ||
-_moonup__list_commands() {
+(( $+functions[_moonup__subcmd__list_commands] )) ||
+_moonup__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'moonup list commands' commands "$@"
 }
-(( $+functions[_moonup__pin_commands] )) ||
-_moonup__pin_commands() {
+(( $+functions[_moonup__subcmd__pin_commands] )) ||
+_moonup__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'moonup pin commands' commands "$@"
 }
-(( $+functions[_moonup__run_commands] )) ||
-_moonup__run_commands() {
+(( $+functions[_moonup__subcmd__run_commands] )) ||
+_moonup__subcmd__run_commands() {
     local commands; commands=()
     _describe -t commands 'moonup run commands' commands "$@"
 }
-(( $+functions[_moonup__self-update_commands] )) ||
-_moonup__self-update_commands() {
+(( $+functions[_moonup__subcmd__self-update_commands] )) ||
+_moonup__subcmd__self-update_commands() {
     local commands; commands=()
     _describe -t commands 'moonup self-update commands' commands "$@"
 }
-(( $+functions[_moonup__uninstall_commands] )) ||
-_moonup__uninstall_commands() {
+(( $+functions[_moonup__subcmd__uninstall_commands] )) ||
+_moonup__subcmd__uninstall_commands() {
     local commands; commands=()
     _describe -t commands 'moonup uninstall commands' commands "$@"
 }
-(( $+functions[_moonup__update_commands] )) ||
-_moonup__update_commands() {
+(( $+functions[_moonup__subcmd__update_commands] )) ||
+_moonup__subcmd__update_commands() {
     local commands; commands=()
     _describe -t commands 'moonup update commands' commands "$@"
 }
-(( $+functions[_moonup__which_commands] )) ||
-_moonup__which_commands() {
+(( $+functions[_moonup__subcmd__which_commands] )) ||
+_moonup__subcmd__which_commands() {
     local commands; commands=()
     _describe -t commands 'moonup which commands' commands "$@"
 }
