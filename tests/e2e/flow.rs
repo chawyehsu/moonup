@@ -20,6 +20,10 @@ fn test_basic_flow() {
     // Set default toolchain
     assert_cmd_snapshot!("moonup_default", ws.cli().arg("default").arg("latest"));
 
+    // Set default toolchain interactively, but no toolchain installed,
+    // should show subcommand help
+    assert_cmd_snapshot!("moonup_default_2", ws.cli().arg("default"));
+
     // Pin toolchain
     let project_path = ws.project_path();
     fs::create_dir_all(project_path).expect("should create project directory");
