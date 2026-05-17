@@ -34,12 +34,19 @@ pub fn build_command<S: AsRef<OsStr>>(
         let host_paths = std::env::var_os("PATH")
             .ok_or(anyhow::anyhow!("Failed to get PATH environment variable"))?;
 
-        // `moonbit-lsp` is a JS executable, so invoke it with a JS runtime.
-        let lsp_exe = resolve::resolve_exe("moonbit-lsp", &paths).ok_or(err_msg)?;
+        // `moonbit-lsp` and `lsp-server.js` are JS executables, so invoke
+        // them with a JS runtime.
+        // NOTE(chawyehsu): availability listed below,
+        // - `moon-lsp`, version 0.9.2+bbe2b338f onwards
+        // - `moonbit-lsp`, 0.6.23+906028000 ~ 0.9.1+cd5b07232
+        // - `lsp-server.js`, version 0.6.22 and earlier
+        let lsp_exe = resolve::resolve_exe("moonbit-lsp", &paths)
+            .or_else(|| resolve::resolve_exe("lsp-server.js", &paths))
+            .ok_or(err_msg)?;
         let runtime = resolve::resolve_exe("bun", &host_paths)
             .or_else(|| resolve::resolve_exe("node", &host_paths))
             .ok_or(anyhow::anyhow!(
-                "Neither 'bun' nor 'node' runtime found for command 'moonbit-lsp' in toolchain '{toolchain}'"
+                "No JavaScript runtime ('bun' or 'node') found for running LSP server"
             ))?;
 
         let mut cmd = Command::new(runtime);
