@@ -65,7 +65,7 @@ impl TestWorkspace {
     pub fn cli(&self) -> Command {
         // Use a test distribution server that serves a fixed version of release
         // index for testing, so that we can ensure the same version is used in tests.
-        static TEST_DIST_SERVER: &str = "https://moonup.csu.moe/testing/v2";
+        static TEST_DIST_SERVER: &str = "https://moonup.csu.moe/testing/v3";
 
         let mut cmd = self.cmd(self.moonup().as_os_str());
         cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, TEST_DIST_SERVER);

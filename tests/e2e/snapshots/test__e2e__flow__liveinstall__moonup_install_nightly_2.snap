@@ -4,17 +4,18 @@ info:
   program: moonup
   args:
     - install
-    - nightly-2025-05-21
+    - nightly-2026-01-31
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Installing toolchain 'nightly-2025-05-21'
-✔ Installed toolchain version 'nightly-2025-05-21'
+Installing toolchain 'nightly-2026-01-31'
+✔ Installed toolchain version 'nightly-2026-01-31'
 Make sure '[MOON_HOME]/bin' is added to your PATH
 
 ----- stderr -----
-Finished. moon: ran 57 tasks, now up to date
-Finished. moon: ran 57 tasks, now up to date
-Finished. moon: ran 57 tasks, now up to date
-Finished. moon: ran 57 tasks, now up to date
+Finished. moon: ran 66 tasks, now up to date
+Finished. moon: ran 66 tasks, now up to date
+Finished. moon: ran 66 tasks, now up to date
+Finished. moon: ran 66 tasks, now up to date
+Finished. moon: no work to do

@@ -150,8 +150,7 @@ mod liveinstall {
 
         // Test using specified toolchain version from argument (+ syntax)
         temp_env::with_var("PATH", Some(updated_path.clone()), || {
-            println!("PATH: {:?}", std::env::var("PATH"));
-
+            // println!("PATH: {:?}", std::env::var("PATH"));
             let mut cmd_moon = ws.cmd(moon_exe_name);
             assert_cmd_snapshot!(
                 "moon_use_version_from_arg",
@@ -236,9 +235,10 @@ mod liveinstall {
             "moonup_install_nightly",
             ws.cli().arg("install").arg("nightly")
         );
+        let test_nightly_version = "nightly-2026-01-31";
         assert_cmd_snapshot!(
             "moonup_install_nightly_2",
-            ws.cli().arg("install").arg("nightly-2025-05-21")
+            ws.cli().arg("install").arg(test_nightly_version)
         );
 
         // Test update toolchains
