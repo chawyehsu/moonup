@@ -1,5 +1,6 @@
 use moonup::dist_server::schema::{
-    Channel, ChannelIndex, ChannelName, Index, Target, VersionedChannelIndex, VersionedIndex,
+    Channel, ChannelIndex, ChannelName, Index, Release, Target, VersionedChannelIndex,
+    VersionedIndex,
 };
 
 #[test]
@@ -190,4 +191,50 @@ fn test_schema_unsupported_channel_index_parse() {
     };
 
     assert_eq!(inner.is_some(), true);
+}
+
+#[test]
+fn test_release_target_from_platform() {
+    let cases = [
+        ["macos", "aarch64", "aarch64-apple-darwin"],
+        ["macos", "x86_64", "x86_64-apple-darwin"],
+        ["linux", "x86_64", "x86_64-unknown-linux"],
+        ["windows", "x86_64", "x86_64-pc-windows"],
+        ["linux", "aarch64", "aarch64-unknown-linux"],
+    ];
+
+    for case in cases {
+        let target = Target::from(case[0], case[1]).expect("should parse target");
+        assert_eq!(target.to_string(), case[2]);
+    }
+
+    assert_eq!(Target::from("macos", "powerpc64").ok(), None);
+    assert_eq!(Target::from("linux", "arm").ok(), None);
+    assert_eq!(Target::from("riscv64", "x86_64").ok(), None);
+}
+
+#[test]
+fn test_release_unsupported_target() {
+    let json = r#"
+    {
+        "version": "0.1.20241231+ba15a9a4e",
+        "targets": [
+            "aarch64-apple-darwin",
+            "x86_64-unknown-linux",
+            "x86_64-pc-windows",
+            "riscv64-unknown-linux"
+        ]
+    }"#;
+    let release = serde_json::from_str::<Release>(json).expect("should parse json successfully");
+    let host = Target::from("linux", "aarch64").expect("should parse target");
+    assert_eq!(release.is_target_supported(&host), false);
+
+    let json = r#"
+    {
+        "version": "0.1.20241231+ba15a9a4e"
+    }"#;
+    let release = serde_json::from_str::<Release>(json).expect("should parse json successfully");
+    let host = Target::from("linux", "x86_64").expect("should parse target");
+    // NOTE(chaweyhsu): assume supported if no target info provided in the release
+    assert_eq!(release.is_target_supported(&host), true);
 }

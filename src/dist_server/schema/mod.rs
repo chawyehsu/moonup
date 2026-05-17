@@ -256,23 +256,20 @@ pub struct Release {
 impl Release {
     /// Check if the current host is supported by this release
     pub fn is_host_supported(&self) -> bool {
-        let host = match Target::from_host() {
-            Ok(h) => h,
-            Err(_) => {
-                // If cannot determine host, assume unsupported
-                return false;
-            }
-        };
+        match Target::from_host() {
+            Ok(host) => self.is_target_supported(&host),
+            // If cannot determine host, assume unsupported
+            Err(_) => false,
+        }
+    }
 
-        let targets = match &self.targets {
-            Some(t) => t,
-            None => {
-                // If no targets are specified in the release, assume supported
-                return true;
-            }
-        };
-
-        targets.contains(&host)
+    /// Check if a specific target host is supported by this release
+    pub fn is_target_supported(&self, host: &Target) -> bool {
+        match &self.targets {
+            Some(targets) => targets.contains(host),
+            // If no targets are specified in the release, assume supported
+            None => true,
+        }
     }
 }
 
@@ -306,14 +303,14 @@ pub enum Target {
 }
 
 impl Target {
-    pub fn from_host() -> miette::Result<Self> {
-        match std::env::consts::OS {
-            "macos" => match std::env::consts::ARCH {
+    pub fn from(os: &str, arch: &str) -> miette::Result<Self> {
+        match os {
+            "macos" => match arch {
                 "aarch64" => Ok(Target::Aarch64MacOS),
                 "x86_64" => Ok(Target::Amd64MacOS),
                 _ => Err(miette::miette!("unsupported architecture")),
             },
-            "linux" => match std::env::consts::ARCH {
+            "linux" => match arch {
                 "aarch64" => Ok(Target::Aarch64Linux),
                 "x86_64" => Ok(Target::Amd64Linux),
                 _ => Err(miette::miette!("unsupported architecture")),
@@ -321,6 +318,11 @@ impl Target {
             "windows" => Ok(Target::Amd64Windows),
             _ => Err(miette::miette!("unsupported platform")),
         }
+    }
+
+    #[inline]
+    pub fn from_host() -> miette::Result<Self> {
+        Target::from(std::env::consts::OS, std::env::consts::ARCH)
     }
 }
 
