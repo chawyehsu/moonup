@@ -205,6 +205,9 @@ mod liveinstall {
             assert_cmd_snapshot!("moon_use_default_version", cmd_moon.arg("version"));
         });
 
+        // List installed toolchains, no toolchain should be listed
+        assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+
         // Remove cached files
         assert_cmd_snapshot!(
             "moonup_uninstall_clear",
@@ -236,7 +239,7 @@ mod liveinstall {
         assert!(!install_path.exists());
 
         // List installed toolchains, no toolchain should be listed
-        assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+        assert_cmd_snapshot!("moonup_list_3", ws.cli().arg("list"));
 
         // Test more toolchain specs
         assert_cmd_snapshot!(
