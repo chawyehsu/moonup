@@ -28,6 +28,12 @@ fn test_basic_flow() {
     assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg("nightly"));
     assert!(project_path.join(constant::TOOLCHAIN_FILE).exists());
 
+    // Run command
+    assert_cmd_snapshot!(
+        "moonup_run_not_installed",
+        ws.cli().arg("run").arg("nightly").arg("moon").arg("--help")
+    );
+
     env::set_current_dir(ws.tempdir()).expect("should restore current directory");
 }
 
