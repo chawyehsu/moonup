@@ -1,0 +1,17 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moon-lsp
+  args:
+    - +nightly-2026-01-31
+    - "--help"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Options:
+      --help     Show help                                             [boolean]
+      --version  Show version number                                   [boolean]
+  -v             Get the version of the lsp server                     [boolean]
+
+----- stderr -----

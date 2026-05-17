@@ -185,7 +185,7 @@ mod liveinstall {
         );
 
         // Install the specific `default` version of the toolchain
-        temp_env::with_var("PATH", Some(updated_path), || {
+        temp_env::with_var("PATH", Some(updated_path.clone()), || {
             let mut cmd_moon = ws.cmd(moon_exe_name);
             assert_cmd_snapshot!("moon_use_default_version", cmd_moon.arg("version"));
         });
@@ -241,6 +241,19 @@ mod liveinstall {
             "moonup_install_nightly_2",
             ws.cli().arg("install").arg(test_nightly_version)
         );
+
+        // LSP delegation tests
+        // NOTE(chawyehsu): `moon-lsp` shim should be available after installing
+        // the `latest` toolchain
+        temp_env::with_var("PATH", Some(updated_path.clone()), || {
+            let mut cmd_moonlsp = ws.cmd("moon-lsp");
+            assert_cmd_snapshot!(
+                "moon_lsp_nodebased_lsp_help",
+                cmd_moonlsp
+                    .arg(format!("+{}", test_nightly_version))
+                    .arg("--help")
+            );
+        });
 
         // Test update toolchains
         assert_cmd_snapshot!("moonup_update", ws.cli().arg("update"));
