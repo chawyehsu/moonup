@@ -1,6 +1,9 @@
 use clap::Parser;
 
-use crate::toolchain::resolve::{detect_active_toolchain, resolve_exe};
+use crate::{
+    runner,
+    toolchain::{ToolchainSpec, resolve::detect_active_toolchainspec},
+};
 
 /// Show the actual binary that will be run for a given command
 #[derive(Parser, Debug)]
@@ -10,14 +13,21 @@ pub struct Args {
     command: String,
 }
 
-pub async fn execute(args: Args) -> miette::Result<()> {
-    let mut active_toolchain = detect_active_toolchain();
-    active_toolchain.push("bin");
+fn format_command(cmd: &std::process::Command) -> String {
+    let mut parts = vec![cmd.get_program().to_string_lossy().into_owned()];
+    parts.extend(cmd.get_args().map(|arg| arg.to_string_lossy().into_owned()));
+    parts.join(" ")
+}
 
-    let exe_resolved = resolve_exe(args.command.as_str(), &active_toolchain);
-    match exe_resolved {
-        None => eprintln!("No command found for '{}'", args.command),
-        Some(exe) => println!("{}", exe.display()),
+pub async fn execute(args: Args) -> miette::Result<()> {
+    let active_toolchain = ToolchainSpec::from(detect_active_toolchainspec());
+
+    match runner::build_command(active_toolchain, vec![args.command.as_str()]) {
+        Ok(cmd) => println!("{}", format_command(&cmd)),
+        Err(err) if err.to_string().starts_with("Command '") => {
+            eprintln!("No command found for '{}'", args.command)
+        }
+        Err(err) => return Err(miette::miette!(err.to_string())),
     }
 
     Ok(())
