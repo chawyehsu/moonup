@@ -1,0 +1,19 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - install
+    - "--list-available"
+    - "-vvv"
+---
+success: true
+exit_code: 0
+----- stdout -----
+DEBUG moonup::toolchain::index: index [MOONUP_HOME]/downloads/index.json cache valid 'true'
+Available channel(s):
+  latest (0.1.20241231+ba15a9a4e)
+  nightly (0.1.20250105+c6fc2f8ed, 2025-01-05)
+  bleeding (0.1.20250525+30d3f4e0d)
+
+----- stderr -----
