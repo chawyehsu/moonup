@@ -1,6 +1,6 @@
 use moonup::dist_server::schema::{
-    Channel, ChannelIndex, ChannelName, Index, Release, Target, VersionedChannelIndex,
-    VersionedIndex,
+    Channel, ChannelIndex, ChannelName, ComponentIndex, Index, Release, Target,
+    VersionedChannelIndex, VersionedIndex,
 };
 
 #[test]
@@ -158,6 +158,31 @@ fn test_schema_bad_channel_index_parse() {
 
     let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
     assert_eq!(index.releases().len(), 0);
+}
+
+#[test]
+fn test_schema_component_index_empty_parse() {
+    let json = r#"
+    {
+        "version": 2,
+        "components": []
+    }"#;
+
+    let index =
+        serde_json::from_str::<ComponentIndex>(json).expect("should parse json successfully");
+    assert_eq!(index.components().len(), 0);
+}
+
+#[test]
+fn test_schema_bad_component_index_parse() {
+    let json = r#"
+    {
+        "malformedField": []
+    }"#;
+
+    let index =
+        serde_json::from_str::<ComponentIndex>(json).expect("should parse json successfully");
+    assert_eq!(index.components().len(), 0);
 }
 
 #[test]
