@@ -121,13 +121,7 @@ fn test_schema_v2_channel_index_parse() {
     }"#;
 
     let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
-
-    let inner = match index {
-        ChannelIndex::Versioned(VersionedChannelIndex::V2(i)) => Some(i),
-        _ => None,
-    };
-
-    assert_eq!(inner.is_some(), true);
+    assert_eq!(index.releases().len(), 1);
 }
 
 #[test]
@@ -151,13 +145,19 @@ fn test_schema_v3_channel_index_parse() {
     }"#;
 
     let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
+    assert_eq!(index.releases().len(), 1);
+}
 
-    let inner = match index {
-        ChannelIndex::Versioned(VersionedChannelIndex::V3(i)) => Some(i),
-        _ => None,
-    };
+#[test]
+fn test_schema_bad_channel_index_parse() {
+    let json = r#"
+    {
+        "lastModified": "20251020T1405571173Z",
+        "malformedField": []
+    }"#;
 
-    assert_eq!(inner.is_some(), true);
+    let index = serde_json::from_str::<ChannelIndex>(json).expect("should parse json successfully");
+    assert_eq!(index.releases().len(), 0);
 }
 
 #[test]
