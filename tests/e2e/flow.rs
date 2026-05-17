@@ -67,10 +67,11 @@ fn test_flow_with_network_mock() {
 }
 
 /// Test flow with production networking
-#[cfg(feature = "test-liveinstall")]
+#[cfg(feature = "test-extra")]
 mod liveinstall {
     use super::*;
 
+    #[cfg(feature = "test-liveinstall")]
     #[test]
     fn test_flow_with_network() {
         util::apply_common_filters!();

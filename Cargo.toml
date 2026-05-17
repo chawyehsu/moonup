@@ -69,10 +69,12 @@ regex = "1.12.2"
 default = ["self_update"]
 # Display the self-update subcommand in the --help output
 self_update = []
+# Extra tests that require network access, which may be flaky and slow
+test-extra = []
 # Test with real MOONUP_DIST_SERVER APIs, default is off
-test-liveinstall = []
+test-liveinstall = ["test-extra"]
 # Test interactive commands that require TTY
-test-interactive = []
+test-interactive = ["test-extra"]
 
 # https://insta.rs/docs/quickstart/#optional-faster-runs
 [profile.dev.package]
