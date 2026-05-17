@@ -46,7 +46,8 @@ pub fn build_command<S: AsRef<OsStr>>(
         // - `moonbit-lsp`, 0.6.23+906028000 ~ 0.9.1+cd5b07232
         // - `lsp-server.js`, version 0.6.22 and earlier
         let lsp_exe = resolve::resolve_exe("moonbit-lsp", &paths)
-            .or_else(|| resolve::resolve_exe("lsp-server.js", &paths))
+            .or_else(|| resolve::resolve_file("moonbit-lsp", &paths))
+            .or_else(|| resolve::resolve_file("lsp-server.js", &paths))
             .ok_or(err_msg)?;
         tracing::debug!("Resolved LSP server executable: {}", lsp_exe.display());
         let runtime = resolve::resolve_exe("bun", &host_paths)
