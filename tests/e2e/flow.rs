@@ -28,6 +28,9 @@ fn test_basic_flow() {
     assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg("nightly"));
     assert!(project_path.join(constant::TOOLCHAIN_FILE).exists());
 
+    // Pin, but no toolchain installed, should show subcommand help
+    assert_cmd_snapshot!("moonup_pin_2", ws.cli().arg("pin"));
+
     // Run command
     assert_cmd_snapshot!(
         "moonup_run_not_installed",
