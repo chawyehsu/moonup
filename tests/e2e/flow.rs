@@ -248,6 +248,17 @@ mod liveinstall {
         temp_env::with_var("PATH", Some(updated_path.clone()), || {
             let mut cmd_moonlsp = ws.cmd("moon-lsp");
             assert_cmd_snapshot!(
+                "moon_lsp_nodebased_lsp_version",
+                cmd_moonlsp
+                    .arg(format!("+{}", test_nightly_version))
+                    .arg("-v")
+            );
+        });
+        // no javascript runtime
+        let path = ws.moon_home().join("bin").display().to_string();
+        temp_env::with_var("PATH", Some(path), || {
+            let mut cmd_moonlsp = ws.cmd("moon-lsp");
+            assert_cmd_snapshot!(
                 "moon_lsp_nodebased_lsp_help",
                 cmd_moonlsp
                     .arg(format!("+{}", test_nightly_version))

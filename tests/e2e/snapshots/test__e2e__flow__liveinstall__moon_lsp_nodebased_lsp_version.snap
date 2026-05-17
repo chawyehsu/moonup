@@ -4,11 +4,11 @@ info:
   program: moon-lsp
   args:
     - +nightly-2026-01-31
-    - "--help"
+    - "-v"
 ---
-success: false
-exit_code: 1
+success: true
+exit_code: 0
 ----- stdout -----
+v0.7.2+df8fc926e-nightly
 
 ----- stderr -----
-Error: No JavaScript runtime ('bun' or 'node') found for running LSP server
