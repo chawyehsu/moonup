@@ -27,10 +27,15 @@ pub fn build_command<S: AsRef<OsStr>>(
     let paths = env::join_paths([&bin_dir, &internal_bin_dir])
         .map_err(|e| anyhow::anyhow!("Failed to build PATH environment variable: {}", e))?;
 
-    // LSP delegation special case
     let mut cmd = if let Some(exe_resolved) = resolve::resolve_exe(exe_name, &paths) {
+        tracing::debug!(
+            "Resolved executable for '{}': {}",
+            exe_name.to_string_lossy(),
+            exe_resolved.display()
+        );
         Command::new(exe_resolved)
     } else if exe_name == "moon-lsp" {
+        // LSP delegation special case
         let host_paths = std::env::var_os("PATH")
             .ok_or(anyhow::anyhow!("Failed to get PATH environment variable"))?;
 
@@ -43,11 +48,16 @@ pub fn build_command<S: AsRef<OsStr>>(
         let lsp_exe = resolve::resolve_exe("moonbit-lsp", &paths)
             .or_else(|| resolve::resolve_exe("lsp-server.js", &paths))
             .ok_or(err_msg)?;
+        tracing::debug!("Resolved LSP server executable: {}", lsp_exe.display());
         let runtime = resolve::resolve_exe("bun", &host_paths)
             .or_else(|| resolve::resolve_exe("node", &host_paths))
             .ok_or(anyhow::anyhow!(
                 "No JavaScript runtime ('bun' or 'node') found for running LSP server"
             ))?;
+        tracing::debug!(
+            "Resolved JavaScript runtime for LSP server: {}",
+            runtime.display()
+        );
 
         let mut cmd = Command::new(runtime);
         cmd.arg(lsp_exe);
