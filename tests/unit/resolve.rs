@@ -31,3 +31,18 @@ fn test_resolve_toolchain() {
         Some("latest".to_string())
     );
 }
+
+#[test]
+fn test_resolve_file() {
+    util::apply_common_filters!();
+
+    let temp = assert_fs::TempDir::new().unwrap();
+    env::set_current_dir(temp.path()).unwrap();
+
+    let file = temp.child("notexecutable");
+    file.touch().unwrap();
+
+    let paths = env::join_paths([temp.path()]).unwrap();
+    let resolved = resolve::resolve_file("notexecutable", &paths);
+    assert_eq!(resolved.as_deref(), Some(file.path()));
+}

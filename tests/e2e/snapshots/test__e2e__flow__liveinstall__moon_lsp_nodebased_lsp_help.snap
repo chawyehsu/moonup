@@ -1,0 +1,14 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moon-lsp
+  args:
+    - +nightly-2026-01-31
+    - "--help"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+Error: No JavaScript runtime ('bun' or 'node') found for running LSP server

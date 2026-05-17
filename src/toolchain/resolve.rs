@@ -87,3 +87,20 @@ where
         .and_then(|mut i| i.next().ok_or(which::Error::CannotFindBinaryPath))
         .ok()
 }
+
+/// Resolves a file in the given paths without requiring executable bits.
+///
+/// # Returns
+///
+/// The path to the file if found, otherwise `None`.
+pub fn resolve_file<T, U>(file_name: T, paths: U) -> Option<PathBuf>
+where
+    T: AsRef<OsStr>,
+    U: AsRef<OsStr>,
+{
+    let file_name = file_name.as_ref();
+
+    std::env::split_paths(paths.as_ref())
+        .map(|path| path.join(file_name))
+        .find(|path| path.is_file())
+}

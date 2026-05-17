@@ -9,7 +9,6 @@ pub fn build_command<S: AsRef<OsStr>>(
     command: Vec<S>,
 ) -> anyhow::Result<Command> {
     let exe_name = command[0].as_ref();
-    let is_exe_moon = exe_name == "moon";
 
     let mut bin_dir = toolchain.install_path();
     bin_dir.push("bin");
@@ -28,9 +27,56 @@ pub fn build_command<S: AsRef<OsStr>>(
     let paths = env::join_paths([&bin_dir, &internal_bin_dir])
         .map_err(|e| anyhow::anyhow!("Failed to build PATH environment variable: {}", e))?;
 
-    let exe_resolved = resolve::resolve_exe(exe_name, paths).ok_or(err_msg)?;
+    let mut cmd = if let Some(exe_resolved) = resolve::resolve_exe(exe_name, &paths) {
+        tracing::debug!(
+            "Resolved executable for '{}': {}",
+            exe_name.to_string_lossy(),
+            exe_resolved.display()
+        );
+        Command::new(exe_resolved)
+    } else if exe_name == "moon-lsp" {
+        // LSP delegation special case
+        let host_paths = std::env::var_os("PATH")
+            .ok_or(anyhow::anyhow!("Failed to get PATH environment variable"))?;
 
-    let mut cmd = Command::new(&exe_resolved);
+        // `moonbit-lsp` and `lsp-server.js` are JS executables, so invoke
+        // them with a JS runtime.
+        // NOTE(chawyehsu): availability listed below,
+        // - `moon-lsp`, version 0.9.2+bbe2b338f onwards
+        // - `moonbit-lsp`, 0.6.23+906028000 ~ 0.9.1+cd5b07232
+        // - `lsp-server.js`, version 0.6.22 and earlier
+        let lsp_exe = resolve::resolve_exe("moonbit-lsp", &paths)
+            .or_else(|| resolve::resolve_file("moonbit-lsp", &paths))
+            .or_else(|| resolve::resolve_file("lsp-server.js", &paths))
+            .ok_or(err_msg)?;
+        tracing::debug!("Resolved LSP server executable: {}", lsp_exe.display());
+        let runtime = resolve::resolve_exe("bun", &host_paths)
+            .or_else(|| resolve::resolve_exe("node", &host_paths))
+            .ok_or(anyhow::anyhow!(
+                "No JavaScript runtime ('bun' or 'node') found for running LSP server"
+            ))?;
+        tracing::debug!(
+            "Resolved JavaScript runtime for LSP server: {}",
+            runtime.display()
+        );
+
+        let mut cmd = Command::new(runtime);
+        cmd.arg(lsp_exe);
+
+        // Set `MOON_HOME` to the root of the active toolchain for `moonbit-lsp`
+        // NOTE(chawyehsu): see
+        //  https://github.com/chawyehsu/moonup/issues/7#issuecomment-3571190037
+        // Hope `moonbit-lsp` doesn't call other bins, otherwise it'll cause chaos
+        // because of this ...
+        let mut toolchain_root = bin_dir.clone();
+        toolchain_root.pop();
+        cmd.env("MOON_HOME", toolchain_root.into_os_string());
+
+        cmd
+    } else {
+        return Err(err_msg);
+    };
+
     cmd.args(&command[1..]);
 
     // NOTE(chawyehsu): It is not ideal and hacky to store the toolchain spec
@@ -44,7 +90,7 @@ pub fn build_command<S: AsRef<OsStr>>(
         env::var_os("MOONUP_TOOLCHAIN_SPEC").unwrap_or(spec.into()),
     );
 
-    if is_exe_moon {
+    if exe_name == "moon" {
         let mut libcore = bin_dir.clone();
         libcore.pop();
         libcore.push("lib");
