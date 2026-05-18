@@ -140,18 +140,14 @@ fn setup_logger(level_filter: LevelFilter) -> miette::Result<()> {
         .from_env()
         .into_diagnostic()?;
 
-    layer_env_filter = layer_env_filter
-        // add low-level filter for hyper_util/reqwest
-        .add_directive(
-            format!("hyper_util={}", low_level_filter)
-                .parse()
-                .into_diagnostic()?,
-        )
-        .add_directive(
-            format!("reqwest={}", low_level_filter)
+    // add low-level filter for network-related dependencies
+    for target in ["hyper_util", "h2", "reqwest"] {
+        layer_env_filter = layer_env_filter.add_directive(
+            format!("{target}={low_level_filter}")
                 .parse()
                 .into_diagnostic()?,
         );
+    }
 
     let layer_fmt = tracing_subscriber::fmt::layer().without_time();
 
