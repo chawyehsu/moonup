@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.1](https://github.com/chawyehsu/moonup/compare/v0.5.0...v0.5.1) (2026-05-18)
+
+
+### Features
+
+* **runner:** support moon-lsp delegation to moonbit-lsp ([#171](https://github.com/chawyehsu/moonup/issues/171)) ([b3e64fd](https://github.com/chawyehsu/moonup/commit/b3e64fd78ae608d36e92a34be51e3c0e49c9611b))
+
+
+### Bug Fixes
+
+* **cli:** update which command to use runner ([ac0dd91](https://github.com/chawyehsu/moonup/commit/ac0dd9147205f81686cc81510c6f819158cf1733))
+* **toolchain/package:** add cache verification and invalidation ([#175](https://github.com/chawyehsu/moonup/issues/175)) ([206d5a7](https://github.com/chawyehsu/moonup/commit/206d5a720e252eeaf88d159a7a258c34b79b2994)), closes [#174](https://github.com/chawyehsu/moonup/issues/174)
+
 ## [0.5.0](https://github.com/chawyehsu/moonup/compare/v0.4.3...v0.5.0) (2026-05-13)
 
 
