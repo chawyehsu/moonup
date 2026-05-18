@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     archive::{extract_tar_gz, extract_zip},
-    fs::save_file,
+    fs::{compute_file_sha256, save_file},
     reporter::{ProgressReporter, Reporter},
     toolchain::ToolchainSpec,
     utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
@@ -83,7 +83,40 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
         let local_file = download_dir.join(file);
 
-        if is_bleeding || !local_file.exists() {
+        let mut use_cache = false;
+        if !is_bleeding && local_file.exists() {
+            match compute_file_sha256(&local_file).await {
+                Ok(sha256) => {
+                    let sha256_actual = format!("{:x}", sha256);
+                    if sha256_actual == sha256_expected {
+                        tracing::debug!("cache hit for {} at {}", name, local_file.display());
+                        use_cache = true;
+                    } else {
+                        tracing::debug!(
+                            "cache checksum mismatch for {} at {}, redownloading",
+                            name,
+                            local_file.display()
+                        );
+                        let _ = std::fs::remove_file(&local_file).inspect_err(|e| {
+                            tracing::debug!("failed to remove invalid cache file: {}", e);
+                        });
+                    }
+                }
+                Err(e) => {
+                    tracing::debug!(
+                        "failed to verify cache for {} at {}: {}, redownloading",
+                        name,
+                        local_file.display(),
+                        e
+                    );
+                    let _ = std::fs::remove_file(&local_file).inspect_err(|e| {
+                        tracing::debug!("failed to remove unreadable cache file: {}", e);
+                    });
+                }
+            }
+        }
+
+        if is_bleeding || !use_cache {
             tracing::debug!("downloading {} to {}", name, local_file.display());
 
             let client = build_http_client_with_retry();

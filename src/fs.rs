@@ -53,6 +53,16 @@ fn save_file_sync(stream: impl Read, destination: &Path) -> miette::Result<Sha25
     Ok(sha256)
 }
 
+fn compute_file_sha256_sync(path: &Path) -> miette::Result<Sha256Hash> {
+    let file = File::open(path).into_diagnostic()?;
+    let mut sha256_reader = HashingReader::<_, Sha256>::new(BufReader::new(file));
+
+    copy(&mut sha256_reader, &mut io::sink()).into_diagnostic()?;
+
+    let (_, sha256) = sha256_reader.finalize();
+    Ok(sha256)
+}
+
 pub async fn save_file(
     reader: impl AsyncRead + Send + 'static,
     destination: &Path,
@@ -62,6 +72,15 @@ pub async fn save_file(
 
     let destination = destination.to_owned();
     match tokio::task::spawn_blocking(move || save_file_sync(reader, &destination)).await {
+        Ok(result) => result,
+        Err(err) => Err(err).into_diagnostic(),
+    }
+}
+
+/// Compute the SHA256 hash of the file at the given `path`.
+pub async fn compute_file_sha256(path: &Path) -> miette::Result<Sha256Hash> {
+    let path = path.to_owned();
+    match tokio::task::spawn_blocking(move || compute_file_sha256_sync(&path)).await {
         Ok(result) => result,
         Err(err) => Err(err).into_diagnostic(),
     }
