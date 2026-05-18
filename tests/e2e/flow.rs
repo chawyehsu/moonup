@@ -20,6 +20,10 @@ fn test_basic_flow() {
     // Set default toolchain
     assert_cmd_snapshot!("moonup_default", ws.cli().arg("default").arg("latest"));
 
+    // Set default toolchain interactively, but no toolchain installed,
+    // should show subcommand help
+    assert_cmd_snapshot!("moonup_default_2", ws.cli().arg("default"));
+
     // Pin toolchain
     let project_path = ws.project_path();
     fs::create_dir_all(project_path).expect("should create project directory");
@@ -27,6 +31,15 @@ fn test_basic_flow() {
 
     assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg("nightly"));
     assert!(project_path.join(constant::TOOLCHAIN_FILE).exists());
+
+    // Pin, but no toolchain installed, should show subcommand help
+    assert_cmd_snapshot!("moonup_pin_2", ws.cli().arg("pin"));
+
+    // Run command
+    assert_cmd_snapshot!(
+        "moonup_run_not_installed",
+        ws.cli().arg("run").arg("nightly").arg("moon").arg("--help")
+    );
 
     env::set_current_dir(ws.tempdir()).expect("should restore current directory");
 }
@@ -36,8 +49,6 @@ fn test_flow_with_network_mock() {
     util::apply_common_filters!();
 
     let ws = TestWorkspace::new();
-    let mut cli = ws.cli();
-
     let mut s = Server::new();
 
     // setup mock server for dist_server
@@ -60,9 +71,20 @@ fn test_flow_with_network_mock() {
 
     // Override the dist server URL with the mock server URL
     assert_cmd_snapshot!(
-        cli.env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        "moonup_install_list_available_mock",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
             .arg("install")
             .arg("--list-available")
+    );
+    // Should hit the cache and return the same result
+    assert_cmd_snapshot!(
+        "moonup_install_list_available_mock_2",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg("--list-available")
+            .arg("-vvv")
     );
 }
 
@@ -190,6 +212,9 @@ mod liveinstall {
             assert_cmd_snapshot!("moon_use_default_version", cmd_moon.arg("version"));
         });
 
+        // List installed toolchains, no toolchain should be listed
+        assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+
         // Remove cached files
         assert_cmd_snapshot!(
             "moonup_uninstall_clear",
@@ -221,7 +246,7 @@ mod liveinstall {
         assert!(!install_path.exists());
 
         // List installed toolchains, no toolchain should be listed
-        assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+        assert_cmd_snapshot!("moonup_list_3", ws.cli().arg("list"));
 
         // Test more toolchain specs
         assert_cmd_snapshot!(

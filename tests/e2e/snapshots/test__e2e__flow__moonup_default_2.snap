@@ -1,0 +1,13 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - default
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+Please provide a toolchain version to set as default

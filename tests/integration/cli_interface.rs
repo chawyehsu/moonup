@@ -27,3 +27,13 @@ fn test_cmd_alias() {
     assert_cmd_snapshot!("show_alias", cli().arg("ls").arg("--help"));
     assert_cmd_snapshot!("update_alias", cli().arg("u").arg("--help"));
 }
+
+#[test]
+fn test_cli_logging_verbosity() {
+    assert!(cli().arg("default").arg("-q").output().is_ok());
+    assert!(cli().arg("default").arg("-qq").output().is_ok());
+    assert!(cli().arg("default").arg("-v").output().is_ok());
+    assert!(cli().arg("default").arg("-vv").output().is_ok());
+    assert!(cli().arg("default").arg("-vvv").output().is_ok());
+    assert!(cli().arg("default").arg("-vvvv").output().is_ok());
+}

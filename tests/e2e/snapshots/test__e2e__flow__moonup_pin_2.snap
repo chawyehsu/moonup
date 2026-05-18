@@ -1,0 +1,21 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - pin
+---
+success: false
+exit_code: 2
+----- stdout -----
+Pin the MoonBit toolchain to a specific version
+
+Usage: moonup [TOOLCHAIN]
+
+Arguments:
+  [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
+
+Options:
+  -h, --help  Print help
+
+----- stderr -----

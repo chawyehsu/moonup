@@ -1,0 +1,16 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - run
+    - nightly
+    - moon
+    - "--help"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × Failed to build command: Toolchain 'nightly' is not installed
