@@ -1,0 +1,16 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Release PR
+        uses: chawyehsu/actions/release-pr@32ef5b304a150e4251de26cea984db91d9dfcab1 # v1.1.0
+        with:
+          private-key: ${{ secrets.RELEASE_MAID_PRIVATE_KEY }}

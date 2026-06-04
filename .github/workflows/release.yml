@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Draft Release
+        uses: chawyehsu/actions/create-release@32ef5b304a150e4251de26cea984db91d9dfcab1 # v1.1.0
+        with:
+          checksums: true
+
+  # Publish to Crates.io
+  cargo_publish:
+    name: Publish Cargo Package
+    runs-on: ubuntu-latest
+    needs: [release]
+    permissions:
+      # Required for OIDC trusted publish to crates.io
+      id-token: write
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Setup crates.io Auth
+        id: auth
+        uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # v1.0.4
+
+      - name: Cargo Publish
+        run: cargo publish --registry crates-io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

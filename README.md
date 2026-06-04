@@ -237,8 +237,8 @@ pixi shell
 > [Blog](https://chawyehsu.com) · GitHub [@chawyehsu](https://github.com/chawyehsu) · Twitter [@chawyehsu](https://twitter.com/chawyehsu)
 
 [MoonBit]: https://www.moonbitlang.com/
-[cicd-badge]: https://img.shields.io/github/actions/workflow/status/chawyehsu/moonup/cicd.yml?style=flat&logo=github&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
-[cicd]: https://github.com/chawyehsu/moonup/actions/workflows/cicd.yml
+[cicd-badge]: https://img.shields.io/github/actions/workflow/status/chawyehsu/moonup/ci.yml?style=flat&logo=github&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
+[cicd]: https://github.com/chawyehsu/moonup/actions/workflows/ci.yml
 [release-badge]: https://img.shields.io/github/v/release/chawyehsu/moonup?style=flat&logo=semanticrelease&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084
 [releases]: https://github.com/chawyehsu/moonup/releases/latest
 [crates-svg]: https://img.shields.io/crates/v/moonup.svg?style=flat&logo=rust&logoColor=FFFFFF&colorA=0B031E&colorB=9E1084

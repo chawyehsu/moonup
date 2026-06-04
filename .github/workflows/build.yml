@@ -1,0 +1,86 @@
+name: Build
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - {
+              name: "Windows",
+              target: x86_64-pc-windows-msvc,
+              os: windows-latest,
+              zip: moonup-x86_64-pc-windows-msvc.zip,
+            }
+          - {
+              name: "Linux x86_64",
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              zip: moonup-x86_64-unknown-linux-gnu.tar.gz,
+            }
+          - {
+              name: "Linux Aarch64",
+              target: aarch64-unknown-linux-gnu,
+              os: ubuntu-24.04-arm,
+              zip: moonup-aarch64-unknown-linux-gnu.tar.gz,
+            }
+          - {
+              name: "macOS ARM",
+              target: aarch64-apple-darwin,
+              os: macos-latest,
+              zip: moonup-aarch64-apple-darwin.tar.gz,
+            }
+    name: Build - ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    env:
+      SCCACHE_GHA_ENABLED: true
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Cache Setup
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+        with:
+          version: "v0.12.0"
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Strip Artifacts [Linux]
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          case ${{ matrix.target }} in
+            aarch64-unknown-linux-gnu) sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
+          esac
+
+          STRIP="strip"
+          case ${{ matrix.target }} in
+            aarch64-unknown-linux-gnu) STRIP="aarch64-linux-gnu-strip" ;;
+          esac;
+          "${STRIP}" target/${{ matrix.target }}/release/moonup
+          "${STRIP}" target/${{ matrix.target }}/release/moonup-shim
+
+      - name: Prepare Artifacts [Unix]
+        if: matrix.os != 'windows-latest'
+        run: |
+          cp target/${{ matrix.target }}/release/moonup .
+          cp target/${{ matrix.target }}/release/moonup-shim .
+          tar czvf ${{ matrix.zip }} moonup moonup-shim LICENSE README.md
+
+      - name: Prepare Artifacts [Windows]
+        if: matrix.os == 'windows-latest'
+        run: |
+          cp target/${{ matrix.target }}/release/moonup.exe .
+          cp target/${{ matrix.target }}/release/moonup-shim.exe .
+          7z a ${{ matrix.zip }} moonup.exe moonup-shim.exe LICENSE README.md
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}
