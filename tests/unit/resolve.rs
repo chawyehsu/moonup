@@ -1,10 +1,12 @@
 use assert_fs::prelude::*;
 use moonup::{constant, toolchain::resolve};
+use serial_test::serial;
 use std::{env, fs};
 
 use crate::util;
 
 #[test]
+#[serial]
 fn test_resolve_toolchain() {
     util::apply_common_filters!();
 
@@ -33,6 +35,7 @@ fn test_resolve_toolchain() {
 }
 
 #[test]
+#[serial]
 fn test_resolve_file() {
     util::apply_common_filters!();
 

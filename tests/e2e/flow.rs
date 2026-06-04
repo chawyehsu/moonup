@@ -2,11 +2,13 @@ use insta::glob;
 use insta_cmd::assert_cmd_snapshot;
 use mockito::Server;
 use moonup::constant;
+use serial_test::serial;
 use std::{env, fs};
 
 use crate::util::{self, TestWorkspace};
 
 #[test]
+#[serial]
 fn test_basic_flow() {
     util::apply_common_filters!();
 
@@ -92,9 +94,11 @@ fn test_flow_with_network_mock() {
 #[cfg(feature = "test-extra")]
 mod liveinstall {
     use super::*;
+    use serial_test::serial;
 
     #[cfg(feature = "test-liveinstall")]
     #[test]
+    #[serial]
     fn test_flow_with_network() {
         util::apply_common_filters!();
 
@@ -310,6 +314,7 @@ mod liveinstall {
     #[cfg(feature = "test-interactive")]
     #[cfg(not(windows))]
     #[test]
+    #[serial]
     fn test_flow_interactive() {
         use expectrl::{ControlCode, Eof, Expect, Session};
         use insta::assert_snapshot;
