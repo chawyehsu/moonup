@@ -34,3 +34,7 @@ pub const MAX_SELECT_ITEMS: usize = 6;
 /// The allowed file extensions to be detected as executables on Windows
 #[cfg(target_os = "windows")]
 pub const ALLOWED_EXTENSIONS: [&str; 3] = ["exe", "bat", "cmd"];
+
+/// The default value of the `PATHEXT` environment variable on Windows (Vista+)
+#[cfg(target_os = "windows")]
+pub(crate) const DEFAULT_PATHEXT: &str = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";

@@ -83,6 +83,20 @@ where
     T: AsRef<OsStr>,
     U: AsRef<OsStr>,
 {
+    // Ensure PATHEXT is set on Windows for `which-rs` crate to work correctly
+    // NOTE(chawyehsu): This is a workaround for [1], also relevant to [2]
+    //
+    // [1]: https://github.com/moonbitlang/moonbit-docs/issues/1236
+    // [2]: https://github.com/harryfei/which-rs/issues/123
+    #[cfg(target_os = "windows")]
+    if std::env::var("PATHEXT").is_err() {
+        // SAFETY: `set_var` is always safe to call on Windows,
+        // whether single-threaded or multi-threaded
+        unsafe {
+            std::env::set_var("PATHEXT", crate::constant::DEFAULT_PATHEXT);
+        };
+    }
+
     which::which_in_global(binary_name, Some(paths))
         .and_then(|mut i| i.next().ok_or(which::Error::CannotFindBinaryPath))
         .ok()
