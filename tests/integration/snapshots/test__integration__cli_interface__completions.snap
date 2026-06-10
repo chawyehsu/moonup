@@ -1,0 +1,24 @@
+---
+source: tests/integration/cli_interface.rs
+info:
+  program: moonup
+  args:
+    - completions
+    - "--help"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Generate shell completions
+
+Usage: moonup completions [OPTIONS] <SHELL>
+
+Arguments:
+  <SHELL>  The shell type [possible values: bash, elvish, fish, powershell, zsh]
+
+Options:
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+
+----- stderr -----

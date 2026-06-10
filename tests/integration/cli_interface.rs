@@ -18,6 +18,7 @@ fn test_help() {
     assert_cmd_snapshot!("show", cli().arg("show").arg("--help"));
     assert_cmd_snapshot!("update", cli().arg("update").arg("--help"));
     assert_cmd_snapshot!("which", cli().arg("which").arg("--help"));
+    assert_cmd_snapshot!("completions", cli().arg("completions").arg("--help"));
 }
 
 #[test]
