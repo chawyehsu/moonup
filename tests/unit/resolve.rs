@@ -49,3 +49,23 @@ fn test_resolve_file() {
     let resolved = resolve::resolve_file("notexecutable", &paths);
     assert_eq!(resolved.as_deref(), Some(file.path()));
 }
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_resolve_exe_without_pathext() {
+    util::apply_common_filters!();
+
+    // Remove PATHEXT to simulate it being unset
+    unsafe {
+        env::remove_var("PATHEXT");
+    }
+
+    // `cmd` should still be resolvable via the DEFAULT_PATHEXT fallback
+    let sysroot = env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_string());
+    let paths = env::join_paths([format!(r"{sysroot}\System32")]).unwrap();
+    let resolved = resolve::resolve_exe("cmd", &paths);
+    assert!(
+        resolved.is_some(),
+        "resolve_exe should find cmd.exe even without PATHEXT"
+    );
+}
