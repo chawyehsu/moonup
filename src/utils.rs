@@ -149,7 +149,7 @@ pub fn replace_exe(new: &Path, old: &Path) -> miette::Result<()> {
             },
         }
 
-        std::fs::copy(&new, &old)
+        std::fs::copy(new, &old)
             .into_diagnostic()
             .wrap_err(format!(
                 "failed to copy {} to {}",
