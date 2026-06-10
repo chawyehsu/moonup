@@ -68,7 +68,7 @@ If you are an AI agent (Claude, Copilot, Cursor, etc.), you can learn how to
 install and use moonup via the skill:
 
 ```sh
-npx skills add chawyehsu/moonup@moonup
+npx skills add chawyehsu/moonup
 ```
 
 ### Usage
