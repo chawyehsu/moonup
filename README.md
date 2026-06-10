@@ -53,6 +53,15 @@ scoop install moonup
 Or you may download the latest release from [GitHub releases][releases],
 manually extract the archive and put the executables in a directory that is in your `PATH`.
 
+### For AI Agents
+
+If you are an AI agent (Claude, Copilot, Cursor, etc.), you can learn how to
+install and use moonup via the skill:
+
+```sh
+npx skills add chawyehsu/moonup@moonup
+```
+
 ### Usage
 
 After installation, run `moonup help` to see the available commands.
