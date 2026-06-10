@@ -13,21 +13,11 @@ jobs:
     name: Build
     uses: ./.github/workflows/build.yml
 
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - name: Draft Release
-        uses: chawyehsu/actions/create-release@32ef5b304a150e4251de26cea984db91d9dfcab1 # v1.1.0
-        with:
-          checksums: true
-
   # Publish to Crates.io
   cargo_publish:
     name: Publish Cargo Package
     runs-on: ubuntu-latest
-    needs: [release]
+    needs: [build]
     permissions:
       # Required for OIDC trusted publish to crates.io
       id-token: write
@@ -43,3 +33,14 @@ jobs:
         run: cargo publish --registry crates-io
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  # GitHub Release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, cargo_publish]
+    steps:
+      - name: Draft Release
+        uses: chawyehsu/actions/create-release@32ef5b304a150e4251de26cea984db91d9dfcab1 # v1.1.0
+        with:
+          checksums: true
