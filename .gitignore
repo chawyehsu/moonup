@@ -5,3 +5,8 @@ moonbit-version
 # pixi environments
 .pixi
 *.egg-info
+
+# docs
+node_modules
+docs/**/dist
+docs/**/cache
