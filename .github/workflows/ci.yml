@@ -6,6 +6,7 @@ on:
       - "docs/**"
       - ".vscode"
       - "*.md"
+      - ".github/workflows/docs.yml"
   push:
     branches:
       - main
@@ -13,6 +14,7 @@ on:
       - "docs/**"
       - ".vscode"
       - "*.md"
+      - ".github/workflows/docs.yml"
 permissions: {}
 jobs:
   # format and lint check
