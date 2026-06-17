@@ -3,11 +3,16 @@ on:
   workflow_dispatch:
   pull_request:
     paths-ignore:
+      - "docs/**"
       - ".vscode"
       - "*.md"
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - ".vscode"
+      - "*.md"
 permissions: {}
 jobs:
   # format and lint check

@@ -3,11 +3,16 @@ name: Coverage
 on:
   pull_request:
     paths-ignore:
+      - "docs/**"
       - ".vscode"
       - "*.md"
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - ".vscode"
+      - "*.md"
 
 permissions: {}
 
