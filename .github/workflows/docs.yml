@@ -15,7 +15,7 @@ jobs:
 
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@3ff02a14504f77cd88a6f6b4a23a54e201707148 # v2.0.6
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: "Iv23lifYx9gjogZQFf6X"
           private-key: ${{ secrets.RELEASE_MAID_PRIVATE_KEY }}
@@ -32,11 +32,11 @@ jobs:
         working-directory: docs
         run: npm install
 
-      - name: Build with VitePress
+      - name: Build
         working-directory: docs
         run: npm run build
 
-      - name: Deploy to moonbit-binaries gh-pages
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@1ef5a1b1df4c63fe21a2242edbee6cac921ece01 # v4.1.0
         with:
           personal_token: ${{ steps.app-token.outputs.token }}
