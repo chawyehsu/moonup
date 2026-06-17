@@ -1,3 +1,5 @@
+<img src="docs/public/logo.svg" alt="Logo" height="75" align="right" />
+
 # moonup
 
 > Manage multiple [MoonBit] installations
