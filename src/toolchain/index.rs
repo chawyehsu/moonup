@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Duration, Local};
-use miette::{Context, IntoDiagnostic};
+use miette::{Context, IntoDiagnostic, MietteDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::constant;
@@ -402,22 +402,24 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Install
                         };
                         let prev = if i == 0 { None } else { versions.get(i - 1) };
                         let next = versions.get(i);
-                        let hint = match (prev, next) {
-                            (None, None) => "".to_string(),
-                            (None, Some(next)) => {
-                                format!("\n\nHint: {} is available.", next.original)
-                            }
-                            (Some(prev), None) => {
-                                format!("\n\nHint: {} is available.", prev.original)
-                            }
-                            (Some(prev), Some(next)) => format!(
-                                "\n\nHint: {} and {} are available.",
+                        let help = match (prev, next) {
+                            (None, None) => None,
+                            (None, Some(next)) => Some(format!("{} is available.", next.original)),
+                            (Some(prev), None) => Some(format!("{} is available.", prev.original)),
+                            (Some(prev), Some(next)) => Some(format!(
+                                "{} and {} are available.",
                                 prev.original, next.original
-                            ),
+                            )),
                         };
-                        return Err(miette::miette!(
-                            "No release available for requested spec: {s}.{hint}"
+                        let diag = MietteDiagnostic::new(format!(
+                            "No release available for requested spec: {s}."
                         ));
+                        let diag = if let Some(help) = help {
+                            diag.with_help(help)
+                        } else {
+                            diag
+                        };
+                        return Err(diag.into());
                     }
                 }
             }
