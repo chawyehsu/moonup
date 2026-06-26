@@ -6,14 +6,15 @@ info:
     - install
     - "0.1"
   env:
-    MOONUP_DIST_SERVER: "http://127.0.0.1:36523"
-    MOONUP_HOME: /tmp/.tmpCYzMof/.moonup
-    MOON_HOME: /tmp/.tmpCYzMof/.moon
+    MOONUP_DIST_SERVER: "http://127.0.0.1:37743"
+    MOONUP_HOME: /tmp/.tmpG3urbY/.moonup
+    MOON_HOME: /tmp/.tmpG3urbY/.moon
 ---
 success: false
 exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-  × no release available for requested spec: 0.1. hint: e.g.
-  │ 0.1.20240704+647946c28 is available.
+  × No release available for requested spec: 0.1.
+  │ 
+  │ Hint: 0.1.20240704+647946c28 is available.

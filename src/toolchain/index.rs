@@ -277,7 +277,7 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Install
                 Some(x) => x,
                 None => {
                     return Err(miette::miette!(
-                        "no release available for requested spec: {}",
+                        "No release available for requested spec: {}",
                         spec
                     ));
                 }
@@ -311,7 +311,7 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Install
                 None => {
                     if is_nightly {
                         return Err(miette::miette!(
-                            "no release available for requested spec: {}",
+                            "No release available for requested spec: {}",
                             spec
                         ));
                     } else {
@@ -405,18 +405,18 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Install
                         let hint = match (prev, next) {
                             (None, None) => "".to_string(),
                             (None, Some(next)) => {
-                                format!(" hint: e.g. {} is available.", next.original)
+                                format!("\n\nHint: {} is available.", next.original)
                             }
                             (Some(prev), None) => {
-                                format!(" hint: e.g. {} is available.", prev.original)
+                                format!("\n\nHint: {} is available.", prev.original)
                             }
                             (Some(prev), Some(next)) => format!(
-                                " hint: e.g. {} and {} are available.",
+                                "\n\nHint: {} and {} are available.",
                                 prev.original, next.original
                             ),
                         };
                         return Err(miette::miette!(
-                            "no release available for requested spec: {s}.{hint}"
+                            "No release available for requested spec: {s}.{hint}"
                         ));
                     }
                 }
