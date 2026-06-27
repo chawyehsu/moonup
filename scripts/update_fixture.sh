@@ -32,7 +32,7 @@ function download_and_process() {
         channel-latest.json \
         channel-nightly.json \
         ; do \
-        curl $URL/$path > $WORKDIR/$path
+        curl -fL $URL/$path -o $WORKDIR/$path
     done
 
     # index.json
