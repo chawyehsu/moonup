@@ -54,7 +54,7 @@ insta = { version = "1.46.3", features = [
     "redactions",
     "yaml",
 ] }
-insta-cmd = "0.6.0"
+insta-cmd = "0.7.0"
 mockito = "1.7.0"
 predicates = "3.1.3"
 serial_test = "3.5.0"
