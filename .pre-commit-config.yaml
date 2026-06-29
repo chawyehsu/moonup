@@ -37,3 +37,9 @@ repos:
         types: [file, rust]
         pass_filenames: false
         stages: [pre-commit, manual]
+      - id: no-snap-new
+        name: Block .snap.new files
+        language: fail
+        entry: ".snap.new files must not be committed. Run `cargo insta review` to accept/reject snapshots."
+        files: '\.snap\.new$'
+        stages: [pre-commit, manual]
