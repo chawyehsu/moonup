@@ -7,8 +7,8 @@ platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
 [tasks]
 build = "cargo build"
 build-release = "cargo build --release"
-test = "cargo insta test --review"
-test-all = "cargo insta test --review --all-features"
+test = { cmd = "cargo insta test --review", env = { CARGO_TARGET_DIR = "target/insta" } }
+test-all = { cmd = "cargo insta test --review --all-features", env = { CARGO_TARGET_DIR = "target/insta" } }
 
 [dependencies]
 actionlint = ">=1.7.8,<2"
