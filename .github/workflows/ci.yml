@@ -29,6 +29,13 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
+      - name: Check for .snap.new files
+        run: |
+          if find . -name '*.snap.new' | grep -q .; then
+            echo "::error::'.snap.new' files found. Run 'cargo insta review' to accept/reject snapshots."
+            exit 1
+          fi
+
       - name: Rust Setup
         run: rustup component add clippy rustfmt
 
