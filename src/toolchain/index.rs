@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Duration, Local};
-use miette::{Context, IntoDiagnostic};
+use miette::{Context, IntoDiagnostic, MietteDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::constant;
@@ -266,14 +266,22 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
     }
 }
 
-pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
+pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<InstallRecipe> {
     let channel = ChannelName::from(spec);
     let index = read_channel_index(&channel).await?;
     let mut releases = index.releases().iter().filter(|r| r.is_host_supported());
 
     let release = match spec {
         ToolchainSpec::Bleeding | ToolchainSpec::Latest | ToolchainSpec::Nightly => {
-            releases.next_back().cloned().or(None)
+            match releases.next_back().cloned() {
+                Some(x) => x,
+                None => {
+                    return Err(miette::miette!(
+                        "No release available for requested spec: {}",
+                        spec
+                    ));
+                }
+            }
         }
         ToolchainSpec::Version(s) => {
             let is_nightly = s.starts_with("nightly");
@@ -284,28 +292,137 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
                 s
             };
 
-            releases
-                .find(|&release| {
-                    if is_nightly {
-                        release
-                            .date
-                            .as_deref()
-                            .map(|d| d == req_version)
-                            .unwrap_or(false)
-                    } else {
-                        release.version.as_str() == req_version
-                    }
-                })
-                .cloned()
-                .or(None)
-        }
-    };
+            let releases = releases.collect::<Vec<_>>();
 
-    let release = match release {
-        Some(r) => r,
-        None => {
-            tracing::debug!("no release available for requested spec: {}", spec);
-            return Ok(None);
+            let x = releases.iter().find(|release| {
+                if is_nightly {
+                    release
+                        .date
+                        .as_deref()
+                        .map(|d| d == req_version)
+                        .unwrap_or(false)
+                } else {
+                    release.version.as_str() == req_version
+                }
+            });
+
+            match x {
+                Some(&x) => x.clone(),
+                None => {
+                    if is_nightly {
+                        return Err(miette::miette!(
+                            "No release available for requested spec: {}",
+                            spec
+                        ));
+                    } else {
+                        // Return an error with hint.
+
+                        use regex::Regex;
+                        use std::sync::LazyLock;
+
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        struct ParsedVersion {
+                            original: String,
+                            major: Option<usize>,
+                            minor: Option<usize>,
+                            patch: Option<usize>,
+                            hash: Option<String>,
+                        }
+
+                        impl ParsedVersion {
+                            fn parse(version: &str) -> Self {
+                                static RE: LazyLock<Regex> = LazyLock::new(|| {
+                                    Regex::new(
+                                        r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:\+(?P<hash>[A-Za-z0-9]+))?$",
+                                    )
+                                        .unwrap()
+                                });
+
+                                let mut parsed = Self {
+                                    original: version.to_string(),
+                                    major: None,
+                                    minor: None,
+                                    patch: None,
+                                    hash: None,
+                                };
+
+                                if let Some(caps) = RE.captures(version) {
+                                    parsed.major =
+                                        caps.name("major").and_then(|m| m.as_str().parse().ok());
+
+                                    parsed.minor =
+                                        caps.name("minor").and_then(|m| m.as_str().parse().ok());
+
+                                    parsed.patch =
+                                        caps.name("patch").and_then(|m| m.as_str().parse().ok());
+
+                                    parsed.hash = caps.name("hash").map(|m| m.as_str().to_string());
+                                }
+
+                                parsed
+                            }
+                        }
+
+                        impl PartialOrd for ParsedVersion {
+                            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                                Some(self.cmp(other))
+                            }
+                        }
+
+                        impl Ord for ParsedVersion {
+                            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                                fn f(x: &Option<usize>) -> isize {
+                                    x.map(|x| x.try_into().unwrap(/* assume version is not so huge */)).unwrap_or(-1)
+                                }
+
+                                f(&self.major)
+                                    .cmp(&f(&other.major))
+                                    .then(f(&self.minor).cmp(&f(&other.minor)))
+                                    .then(f(&self.minor).cmp(&f(&other.minor)))
+                                    .then(f(&self.patch).cmp(&f(&other.patch)))
+                                    .then(
+                                        self.hash
+                                            .as_deref()
+                                            .unwrap_or("")
+                                            .cmp(other.hash.as_deref().unwrap_or("")),
+                                    )
+                                    .then(self.original.cmp(&other.original))
+                            }
+                        }
+
+                        let mut versions = releases
+                            .into_iter()
+                            .map(|release| ParsedVersion::parse(&release.version))
+                            .collect::<Vec<_>>();
+                        versions.sort();
+                        let version = ParsedVersion::parse(s);
+                        let Err(i) = versions.binary_search(&version) else {
+                            // Checked avobe.
+                            unreachable!();
+                        };
+                        let prev = if i == 0 { None } else { versions.get(i - 1) };
+                        let next = versions.get(i);
+                        let help = match (prev, next) {
+                            (None, None) => None,
+                            (None, Some(next)) => Some(format!("{} is available.", next.original)),
+                            (Some(prev), None) => Some(format!("{} is available.", prev.original)),
+                            (Some(prev), Some(next)) => Some(format!(
+                                "{} and {} are available.",
+                                prev.original, next.original
+                            )),
+                        };
+                        let diag = MietteDiagnostic::new(format!(
+                            "No release available for requested spec: {s}."
+                        ));
+                        let diag = if let Some(help) = help {
+                            diag.with_help(help)
+                        } else {
+                            diag
+                        };
+                        return Err(diag.into());
+                    }
+                }
+            }
         }
     };
 
@@ -319,5 +436,5 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
         components,
     };
 
-    Ok(Some(recipe))
+    Ok(recipe)
 }

@@ -32,9 +32,7 @@ async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::R
         }
         Err(e) => Err(miette::miette!(e).wrap_err("failed to read version file")),
         Ok(local_ver) => {
-            let recipe = build_installrecipe(spec)
-                .await?
-                .expect("should have recipe");
+            let recipe = build_installrecipe(spec).await?;
 
             let should_update = match (spec, local_ver.trim()) {
                 (ToolchainSpec::Bleeding, _) => true,

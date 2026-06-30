@@ -88,6 +88,13 @@ fn test_flow_with_network_mock() {
             .arg("--list-available")
             .arg("-vvv")
     );
+    assert_cmd_snapshot!(
+        "moonup_install_specific_version_unavailable_mock",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg("0.1")
+    );
 }
 
 /// Test flow with production networking

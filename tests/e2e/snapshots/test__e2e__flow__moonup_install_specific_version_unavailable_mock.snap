@@ -1,0 +1,19 @@
+---
+source: tests/e2e/flow.rs
+info:
+  program: moonup
+  args:
+    - install
+    - "0.1"
+  env:
+    MOONUP_DIST_SERVER: "http://127.0.0.1:38481"
+    MOONUP_HOME: /tmp/.tmpXPj4yo/.moonup
+    MOON_HOME: /tmp/.tmpXPj4yo/.moon
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × No release available for requested spec: 0.1.
+  help: 0.1.20240704+647946c28 is available.
