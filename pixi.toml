@@ -2,7 +2,7 @@
 name = "moonup"
 authors = ["Chawye Hsu <su+git@chawyehsu.com>"]
 channels = ["conda-forge"]
-platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
+platforms = ["linux-64", "linux-aarch64", "win-64", "osx-64", "osx-arm64"]
 
 [tasks]
 build = "cargo build"

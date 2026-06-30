@@ -5,13 +5,17 @@ info:
   args:
     - install
     - "--list-available"
+  env:
+    MOONUP_DIST_SERVER: "http://127.0.0.1:41087"
+    MOONUP_HOME: /tmp/.tmp0CnOcW/.moonup
+    MOON_HOME: /tmp/.tmp0CnOcW/.moon
 ---
 success: true
 exit_code: 0
 ----- stdout -----
 Available channel(s):
-  latest (0.1.20241231+ba15a9a4e)
-  nightly (0.1.20250105+c6fc2f8ed, 2025-01-05)
+  latest (0.10.1+a46be2066)
+  nightly (0.10.2+f06d4fbd5, 2026-06-26)
   bleeding (0.1.20250525+30d3f4e0d)
 
 ----- stderr -----
