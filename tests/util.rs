@@ -20,6 +20,12 @@ pub struct TestWorkspace {
     project_path: PathBuf,
 }
 
+impl Default for TestWorkspace {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestWorkspace {
     /// Create a new test workspace
     pub fn new() -> Self {

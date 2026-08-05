@@ -73,7 +73,7 @@ fn test_schema_v3_index_parse() {
         _ => None,
     };
 
-    assert_eq!(inner.is_some(), true);
+    assert!(inner.is_some());
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_schema_unsupported_index_parse() {
         _ => None,
     };
 
-    assert_eq!(inner.is_some(), true);
+    assert!(inner.is_some());
 
     let json = r#"
     {
@@ -103,7 +103,7 @@ fn test_schema_unsupported_index_parse() {
         _ => None,
     };
 
-    assert_eq!(inner.is_some(), true);
+    assert!(inner.is_some());
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn test_schema_unsupported_channel_index_parse() {
         _ => None,
     };
 
-    assert_eq!(inner.is_some(), true);
+    assert!(inner.is_some());
 
     let json = r#"
     {
@@ -215,7 +215,7 @@ fn test_schema_unsupported_channel_index_parse() {
         _ => None,
     };
 
-    assert_eq!(inner.is_some(), true);
+    assert!(inner.is_some());
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn test_release_unsupported_target() {
     }"#;
     let release = serde_json::from_str::<Release>(json).expect("should parse json successfully");
     let host = Target::from("linux", "aarch64").expect("should parse target");
-    assert_eq!(release.is_target_supported(&host), false);
+    assert!(!release.is_target_supported(&host));
 
     let json = r#"
     {
@@ -261,5 +261,5 @@ fn test_release_unsupported_target() {
     let release = serde_json::from_str::<Release>(json).expect("should parse json successfully");
     let host = Target::from("linux", "x86_64").expect("should parse target");
     // NOTE(chaweyhsu): assume supported if no target info provided in the release
-    assert_eq!(release.is_target_supported(&host), true);
+    assert!(release.is_target_supported(&host));
 }
