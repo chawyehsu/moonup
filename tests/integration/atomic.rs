@@ -5,7 +5,9 @@ use moonup::{
 };
 
 fn staged_marker(spec: &ToolchainSpec, json: &str) {
-    std::fs::write(atomic::completeness_marker_for(spec), json).expect("should write marker");
+    let marker = atomic::completeness_marker_for(spec);
+    std::fs::create_dir_all(marker.parent().unwrap()).expect("should create .staging dir");
+    std::fs::write(marker, json).expect("should write marker");
 }
 
 #[test]
@@ -41,6 +43,16 @@ fn test_recover_promotes_complete_staging() {
                 !staging_dir.exists(),
                 "staging dir should be consumed by the swap"
             );
+            assert!(
+                atomic::completeness_marker_for(&spec).exists(),
+                "the marker should be retained as a pending-finalization record"
+            );
+
+            atomic::acknowledge(&spec);
+            assert!(
+                !atomic::completeness_marker_for(&spec).exists(),
+                "acknowledgment should remove the pending-finalization record"
+            );
         },
     );
 }
@@ -71,6 +83,38 @@ fn test_recover_does_not_promote_incomplete_staging() {
 }
 
 #[test]
+fn test_recover_retries_pending_finalization() {
+    let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+    let moonup_home = tempdir.path().join(".moonup");
+
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(moonup_home.as_os_str()),
+        || {
+            let spec = ToolchainSpec::Latest;
+            let live_dir = spec.install_path();
+
+            // the live toolchain is already promoted but its finalization
+            // never completed: the pending marker is still present and no
+            // staging is being assembled
+            std::fs::create_dir_all(live_dir.join("bin")).expect("should create live dir");
+            std::fs::write(live_dir.join("bin").join("moon"), b"moon")
+                .expect("should write live content");
+            staged_marker(&spec, r#"{"version":"0.1.0"}"#);
+
+            let staged = atomic::recover(&spec).expect("recovery should not fail");
+            assert!(staged.is_some(), "pending finalization should be retried");
+            assert_eq!(staged.unwrap().version, "0.1.0");
+
+            assert!(
+                live_dir.join("bin").join("moon").exists(),
+                "live toolchain should be left untouched"
+            );
+        },
+    );
+}
+
+#[test]
 fn test_swap_promotes_and_retires() {
     let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
     let moonup_home = tempdir.path().join(".moonup");
@@ -93,6 +137,7 @@ fn test_swap_promotes_and_retires() {
             std::fs::create_dir_all(staging_dir.join("bin")).expect("should create staging dir");
             std::fs::write(staging_dir.join("bin").join("moon"), b"new")
                 .expect("should write staging content");
+            staged_marker(&spec, r#"{"version":"0.1.0"}"#);
 
             atomic::swap(&live_dir, &staging_dir).expect("swap should succeed");
 
@@ -103,6 +148,16 @@ fn test_swap_promotes_and_retires() {
             );
             assert!(!staging_dir.exists(), "staging should be consumed");
             assert!(!retired_dir.exists(), "retired dir should be removed");
+            assert!(
+                atomic::completeness_marker_for(&spec).exists(),
+                "the marker should survive the swap as a pending-finalization record"
+            );
+
+            atomic::acknowledge(&spec);
+            assert!(
+                !atomic::completeness_marker_for(&spec).exists(),
+                "acknowledgment should remove the pending-finalization record"
+            );
         },
     );
 }

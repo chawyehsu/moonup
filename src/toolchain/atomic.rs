@@ -102,7 +102,9 @@ pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> bool {
 ///
 /// The retired directory is only removed once the new toolchain is in place;
 /// if the promotion itself fails, the retired toolchain is restored to the
-/// live name so the currently installed toolchain is never lost.
+/// live name so the currently installed toolchain is never lost. The
+/// completeness marker is retained as a pending-finalization record and is
+/// removed by [`acknowledge`] once the caller has finalized the promotion.
 pub fn swap(live: &Path, staging: &Path) -> miette::Result<()> {
     let retired = sibling_with_suffix(staging, STAGING_SUFFIX, RETIRED_SUFFIX);
 
@@ -137,28 +139,50 @@ pub fn swap(live: &Path, staging: &Path) -> miette::Result<()> {
     }
 
     let _ = crate::fs::remove_dir_all(&retired);
-    let _ = std::fs::remove_file(sibling_with_suffix(
-        staging,
-        STAGING_SUFFIX,
-        COMPLETE_SUFFIX,
-    ));
     Ok(())
 }
 
-/// Promote a complete staging directory left behind by an interrupted
-/// operation when the live toolchain is missing, silently self-healing the
-/// crash state (for example a shim-triggered auto-install).
+/// Ensure a live toolchain exists for the spec, and return the release
+/// metadata needed to finalize it when finalization is still outstanding.
 ///
-/// Returns the staged release metadata when a staging directory was promoted,
-/// so the caller can finalize the installation (shims, core library, links).
+/// - If the live toolchain is missing but a complete staging directory exists
+///   (an interrupted swap), it is promoted, silently self-healing the crash
+///   state (for example a shim-triggered auto-install). A corrupt completeness
+///   marker cannot drive finalization reliably, so such a staging is not
+///   promoted.
+/// - If the live toolchain is already in place but its finalization never
+///   completed, the pending marker is returned so the caller can retry the
+///   post-install steps.
+///
+/// Returns `Ok(Some(..))` in both cases, `Ok(None)` otherwise.
 pub fn recover(spec: &ToolchainSpec) -> miette::Result<Option<StagedRelease>> {
     let live = spec.install_path();
+    let staging = staging_dir_for(spec);
+    let marker = completeness_marker_for(spec);
+
     if !live.exists() && is_complete(spec) {
-        let staged = read_staged_release(spec).unwrap_or_default();
-        swap(&live, &staging_dir_for(spec))?;
+        let Some(staged) = read_staged_release(spec) else {
+            return Ok(None);
+        };
+        swap(&live, &staging)?;
         return Ok(Some(staged));
     }
+
+    if live.exists()
+        && !staging.exists()
+        && marker.is_file()
+        && let Some(staged) = read_staged_release(spec)
+    {
+        return Ok(Some(staged));
+    }
+
     Ok(None)
+}
+
+/// Acknowledge successful finalization of a promoted toolchain by removing its
+/// pending-finalization marker.
+pub fn acknowledge(spec: &ToolchainSpec) {
+    let _ = std::fs::remove_file(completeness_marker_for(spec));
 }
 
 /// Best-effort sweep of any staging leftovers for a toolchain.

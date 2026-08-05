@@ -69,13 +69,16 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // Assemble the new toolchain in a staging directory and swap it into the
     // live location only once it is fully assembled. A failed run leaves a
-    // discarded staging directory, never a damaged live toolchain.
+    // discarded staging directory, never a damaged live toolchain. A stale
+    // completeness marker is cleaned too, so a partial extraction is never
+    // misread as complete.
     crate::fs::remove_dir_all(&staging_dir)
         .into_diagnostic()
         .wrap_err(format!(
             "failed to clean the staging directory {}",
             staging_dir.display()
         ))?;
+    let _ = std::fs::remove_file(atomic::completeness_marker_for(&recipe.spec));
 
     let is_bleeding = recipe.spec.is_bleeding();
 
