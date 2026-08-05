@@ -20,6 +20,12 @@ pub fn staging_dir_for(spec: &ToolchainSpec) -> PathBuf {
         .join(format!("{}{}", spec.as_str(), STAGING_SUFFIX))
 }
 
+/// The directory where the previous live toolchain is parked during a swap
+/// before being retired best-effort.
+pub fn retired_dir_for(spec: &ToolchainSpec) -> PathBuf {
+    sibling_with_suffix(&staging_dir_for(spec), STAGING_SUFFIX, RETIRED_SUFFIX)
+}
+
 /// The marker written only after a staging directory is fully assembled and
 /// verified, distinguishing a complete staging from one cut short by a crash.
 ///
@@ -194,10 +200,6 @@ pub fn sweep_staging(spec: &ToolchainSpec) {
 
 fn toolchains_root() -> PathBuf {
     crate::moonup_home().join("toolchains")
-}
-
-fn retired_dir_for(spec: &ToolchainSpec) -> PathBuf {
-    sibling_with_suffix(&staging_dir_for(spec), STAGING_SUFFIX, RETIRED_SUFFIX)
 }
 
 fn read_staged_release(spec: &ToolchainSpec) -> Option<StagedRelease> {

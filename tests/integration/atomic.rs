@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use moonup::{
     constant,
     dist_server::schema::Release,
@@ -8,6 +10,14 @@ fn staged_marker(spec: &ToolchainSpec, json: &str) {
     let marker = atomic::completeness_marker_for(spec);
     std::fs::create_dir_all(marker.parent().unwrap()).expect("should create .staging dir");
     std::fs::write(marker, json).expect("should write marker");
+}
+
+fn swap_paths(spec: &ToolchainSpec) -> (PathBuf, PathBuf, PathBuf) {
+    (
+        spec.install_path(),
+        atomic::staging_dir_for(spec),
+        atomic::retired_dir_for(spec),
+    )
 }
 
 #[test]
@@ -124,12 +134,7 @@ fn test_swap_promotes_and_retires() {
         Some(moonup_home.as_os_str()),
         || {
             let spec = ToolchainSpec::Latest;
-            let live_dir = spec.install_path();
-            let staging_dir = atomic::staging_dir_for(&spec);
-            let retired_dir = moonup_home
-                .join("toolchains")
-                .join(".staging")
-                .join("latest.old");
+            let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
 
             std::fs::create_dir_all(live_dir.join("bin")).expect("should create live dir");
             std::fs::write(live_dir.join("bin").join("moon"), b"old")
@@ -172,12 +177,7 @@ fn test_swap_restores_retired_on_promotion_failure() {
         Some(moonup_home.as_os_str()),
         || {
             let spec = ToolchainSpec::Latest;
-            let live_dir = spec.install_path();
-            let staging_dir = atomic::staging_dir_for(&spec);
-            let retired_dir = moonup_home
-                .join("toolchains")
-                .join(".staging")
-                .join("latest.old");
+            let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
 
             // crash state: the previous live toolchain was moved to `.old`,
             // the promotion never happened, and the staging is gone

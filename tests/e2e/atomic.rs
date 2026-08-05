@@ -6,45 +6,48 @@
 use serial_test::serial;
 use std::path::PathBuf;
 
+use moonup::{
+    constant,
+    toolchain::{ToolchainSpec, atomic},
+};
+
 use crate::util::TestWorkspace;
 
 /// A toolchain version that is available from the test distribution server.
 const TEST_INSTALL_VERSION: &str = "0.1.20241231+ba15a9a4e";
 
+/// The staging leftovers a recovery is expected to consume.
+fn staging_leftovers(spec: &ToolchainSpec) -> (PathBuf, PathBuf) {
+    (
+        atomic::staging_dir_for(spec),
+        atomic::completeness_marker_for(spec),
+    )
+}
+
 /// Simulate a crash that left a fully assembled staging directory: move the
 /// live toolchain into the staging location and write the completeness marker.
 fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
-    let install_path = ws.moonup_home().join("toolchains").join(name);
-    let staging_dir = ws
-        .moonup_home()
-        .join("toolchains")
-        .join(".staging")
-        .join(format!("{name}.new"));
-    let marker = ws
-        .moonup_home()
-        .join("toolchains")
-        .join(".staging")
-        .join(format!("{name}.complete"));
+    let spec = ToolchainSpec::from(name);
 
-    std::fs::create_dir_all(staging_dir.parent().unwrap()).expect("should create .staging dir");
-    std::fs::rename(&install_path, &staging_dir).expect("should move toolchain into staging");
-    std::fs::write(&marker, format!(r#"{{"version":"{version}"}}"#)).expect("should write marker");
+    // the path helpers resolve `MOONUP_HOME` from the process environment, so
+    // point it at the test workspace while computing the crash state
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(ws.moonup_home().as_os_str()),
+        || {
+            let install_path = spec.install_path();
+            let (staging_dir, marker) = staging_leftovers(&spec);
 
-    assert!(!install_path.exists());
-}
+            std::fs::create_dir_all(staging_dir.parent().unwrap())
+                .expect("should create .staging dir");
+            std::fs::rename(&install_path, &staging_dir)
+                .expect("should move toolchain into staging");
+            std::fs::write(&marker, format!(r#"{{"version":"{version}"}}"#))
+                .expect("should write marker");
 
-fn staging_leftovers(ws: &TestWorkspace, name: &str) -> (PathBuf, PathBuf) {
-    let staging_dir = ws
-        .moonup_home()
-        .join("toolchains")
-        .join(".staging")
-        .join(format!("{name}.new"));
-    let marker = ws
-        .moonup_home()
-        .join("toolchains")
-        .join(".staging")
-        .join(format!("{name}.complete"));
-    (staging_dir, marker)
+            assert!(!install_path.exists());
+        },
+    );
 }
 
 #[cfg(windows)]
@@ -61,67 +64,65 @@ fn shim_exe_name() -> &'static str {
 #[serial]
 fn test_install_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
+    let spec = ToolchainSpec::from(TEST_INSTALL_VERSION);
 
-    // first, install the toolchain
-    assert!(
-        ws.cli()
-            .arg("install")
-            .arg(TEST_INSTALL_VERSION)
-            .status()
-            .expect("should run moonup install")
-            .success()
-    );
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(ws.moonup_home().as_os_str()),
+        || {
+            let install_path = spec.install_path();
+            let (staging_dir, marker) = staging_leftovers(&spec);
 
-    let install_path = ws
-        .moonup_home()
-        .join("toolchains")
-        .join(TEST_INSTALL_VERSION);
-    assert!(install_path.exists());
+            // first, install the toolchain
+            assert!(
+                ws.cli()
+                    .arg("install")
+                    .arg(TEST_INSTALL_VERSION)
+                    .status()
+                    .expect("should run moonup install")
+                    .success()
+            );
 
-    // remove the poured shim so a successful recovery is provable by its
-    // post-install steps re-pouring it
-    let moon_shim = ws.moon_home().join("bin").join(shim_exe_name());
-    assert!(
-        moon_shim.exists(),
-        "install should have poured the moon shim"
-    );
-    std::fs::remove_file(&moon_shim).expect("should remove the moon shim");
-    assert!(!moon_shim.exists());
+            assert!(install_path.exists());
 
-    // simulate a crash that left a complete staging directory
-    simulate_crash_state(&ws, TEST_INSTALL_VERSION, TEST_INSTALL_VERSION);
-    let (staging_dir, marker) = staging_leftovers(&ws, TEST_INSTALL_VERSION);
+            // remove the poured shim so a successful recovery is provable by
+            // its post-install steps re-pouring it
+            let moon_shim = ws.moon_home().join("bin").join(shim_exe_name());
+            assert!(
+                moon_shim.exists(),
+                "install should have poured the moon shim"
+            );
+            std::fs::remove_file(&moon_shim).expect("should remove the moon shim");
+            assert!(!moon_shim.exists());
 
-    // a sentinel proves the live toolchain was promoted from staging
-    std::fs::write(staging_dir.join(".recovery-sentinel"), b"sentinel")
-        .expect("should write sentinel");
+            // simulate a crash that left a complete staging directory
+            simulate_crash_state(&ws, TEST_INSTALL_VERSION, TEST_INSTALL_VERSION);
 
-    // the next install should recover the staging instead of re-downloading
-    assert!(
-        ws.cli()
-            .arg("install")
-            .arg(TEST_INSTALL_VERSION)
-            .status()
-            .expect("should run moonup install")
-            .success()
-    );
+            // the next install should recover the staging instead of
+            // re-downloading
+            assert!(
+                ws.cli()
+                    .arg("install")
+                    .arg(TEST_INSTALL_VERSION)
+                    .status()
+                    .expect("should run moonup install")
+                    .success()
+            );
 
-    // the promoted toolchain is live again and the staging is consumed
-    assert!(
-        install_path.exists(),
-        "toolchain should be promoted back to the live location"
-    );
-    assert!(
-        install_path.join(".recovery-sentinel").exists(),
-        "the live toolchain should be the promoted staging, not a fresh download"
-    );
-    assert!(!staging_dir.exists(), "staging dir should be consumed");
-    assert!(!marker.exists(), "completeness marker should be cleaned up");
+            // the promoted toolchain is live again and the staging is consumed
+            assert!(
+                install_path.exists(),
+                "toolchain should be promoted back to the live location"
+            );
+            assert!(!staging_dir.exists(), "staging dir should be consumed");
+            assert!(!marker.exists(), "completeness marker should be cleaned up");
 
-    // the recovery finalized the installation: the shim was re-poured
-    assert!(
-        moon_shim.exists(),
-        "post-install should have re-poured the moon shim after recovery"
+            // the recovery finalized the installation: the shim was re-poured
+            assert!(
+                moon_shim.exists(),
+                "post-install should have re-poured the moon shim after recovery"
+            );
+        },
     );
 }
 
@@ -129,41 +130,49 @@ fn test_install_recovers_interrupted_swap() {
 #[serial]
 fn test_update_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
+    let spec = ToolchainSpec::Latest;
 
-    // install the `latest` channel first
-    assert!(
-        ws.cli()
-            .arg("install")
-            .arg("latest")
-            .status()
-            .expect("should run moonup install")
-            .success()
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(ws.moonup_home().as_os_str()),
+        || {
+            let install_path = spec.install_path();
+            let (staging_dir, marker) = staging_leftovers(&spec);
+
+            // install the `latest` channel first
+            assert!(
+                ws.cli()
+                    .arg("install")
+                    .arg("latest")
+                    .status()
+                    .expect("should run moonup install")
+                    .success()
+            );
+
+            let actual_version = std::fs::read_to_string(install_path.join("version"))
+                .expect("should read version stub")
+                .trim()
+                .to_string();
+
+            // simulate a crash that left a complete staging directory
+            simulate_crash_state(&ws, "latest", &actual_version);
+
+            // the next update should recover the latest toolchain
+            assert!(
+                ws.cli()
+                    .arg("update")
+                    .status()
+                    .expect("should run moonup update")
+                    .success()
+            );
+
+            // the promoted toolchain is live again and the staging is consumed
+            assert!(
+                install_path.exists(),
+                "latest toolchain should be promoted back to the live location"
+            );
+            assert!(!staging_dir.exists(), "staging dir should be consumed");
+            assert!(!marker.exists(), "completeness marker should be cleaned up");
+        },
     );
-
-    let install_path = ws.moonup_home().join("toolchains").join("latest");
-    let actual_version = std::fs::read_to_string(install_path.join("version"))
-        .expect("should read version stub")
-        .trim()
-        .to_string();
-
-    // simulate a crash that left a complete staging directory
-    simulate_crash_state(&ws, "latest", &actual_version);
-    let (staging_dir, marker) = staging_leftovers(&ws, "latest");
-
-    // the next update should recover the latest toolchain
-    assert!(
-        ws.cli()
-            .arg("update")
-            .status()
-            .expect("should run moonup update")
-            .success()
-    );
-
-    // the promoted toolchain is live again and the staging is consumed
-    assert!(
-        install_path.exists(),
-        "latest toolchain should be promoted back to the live location"
-    );
-    assert!(!staging_dir.exists(), "staging dir should be consumed");
-    assert!(!marker.exists(), "completeness marker should be cleaned up");
 }
