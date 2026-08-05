@@ -92,6 +92,10 @@ fn test_install_recovers_interrupted_swap() {
     simulate_crash_state(&ws, TEST_INSTALL_VERSION, TEST_INSTALL_VERSION);
     let (staging_dir, marker) = staging_leftovers(&ws, TEST_INSTALL_VERSION);
 
+    // a sentinel proves the live toolchain was promoted from staging
+    std::fs::write(staging_dir.join(".recovery-sentinel"), b"sentinel")
+        .expect("should write sentinel");
+
     // the next install should recover the staging instead of re-downloading
     assert!(
         ws.cli()
@@ -106,6 +110,10 @@ fn test_install_recovers_interrupted_swap() {
     assert!(
         install_path.exists(),
         "toolchain should be promoted back to the live location"
+    );
+    assert!(
+        install_path.join(".recovery-sentinel").exists(),
+        "the live toolchain should be the promoted staging, not a fresh download"
     );
     assert!(!staging_dir.exists(), "staging dir should be consumed");
     assert!(!marker.exists(), "completeness marker should be cleaned up");
