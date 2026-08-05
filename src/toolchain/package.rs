@@ -60,8 +60,9 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // A previous run may have finished assembling the staging directory but
     // failed while swapping it into place; retry the swap rather than
-    // discarding the fully-assembled toolchain.
-    if atomic::is_complete(&recipe.spec) {
+    // discarding the fully-assembled toolchain, as long as it holds the same
+    // release the recipe resolves to.
+    if atomic::is_complete(&recipe.spec) && atomic::staged_matches(&recipe.spec, recipe) {
         atomic::swap(&live_dir, &staging_dir)?;
         return Ok(());
     }
@@ -224,10 +225,17 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             .into_diagnostic()?;
     }
 
-    // mark the staging directory as fully assembled so that recovery never
-    // promotes a partial extraction
+    // mark the staging directory as fully assembled, recording the release
+    // identity, so that recovery never promotes a partial extraction and can
+    // finalize the promoted toolchain from its own metadata
     let marker = atomic::completeness_marker_for(&recipe.spec);
-    tokio::fs::write(&marker, "").await.into_diagnostic()?;
+    let staged = atomic::StagedRelease::from_recipe(recipe);
+    let marker_json = serde_json::to_string(&staged)
+        .into_diagnostic()
+        .wrap_err("failed to serialize staged release metadata")?;
+    tokio::fs::write(&marker, marker_json)
+        .await
+        .into_diagnostic()?;
 
     atomic::swap(&live_dir, &staging_dir)?;
 

@@ -104,9 +104,12 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     };
 
     // Heal any toolchain left in a half-swapped state by an interrupted
-    // operation before doing any network work; a promoted staging directory is
-    // a complete installation.
-    if atomic::recover(&spec)? {
+    // operation before doing any network work. A promoted staging directory is
+    // a complete installation, finalized with its own persisted metadata.
+    if let Some(staged) = atomic::recover(&spec)? {
+        let recipe = staged.into_recipe(&spec);
+        post_install(&recipe)?;
+        link_dirs(&recipe)?;
         return Ok(());
     }
 

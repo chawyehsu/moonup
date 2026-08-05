@@ -24,7 +24,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
 async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::Result<()> {
     // Heal a crash state before its version is read, so a half-swapped
     // toolchain is not reported as "not installed" and skipped.
-    atomic::recover(spec)?;
+    let recovered = atomic::recover(spec)?;
 
     let name = spec.as_str();
     path.push(name);
@@ -53,6 +53,11 @@ async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::R
             if should_update {
                 println!("Updating the {} toolchain", name);
                 populate_install(&recipe).await?;
+                post_install(&recipe)?;
+            } else if let Some(staged) = recovered {
+                // A half-swapped toolchain was promoted; finalize it even
+                // though the version is already current.
+                let recipe = staged.into_recipe(spec);
                 post_install(&recipe)?;
             } else {
                 println!("The {} toolchain is up to date", name);
