@@ -9,21 +9,16 @@ use crate::{
     utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
 };
 
-use super::index::InstallRecipe;
+use super::{atomic, index::InstallRecipe};
 
 pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let mut download_dir = crate::moonup_home();
     download_dir.push("downloads");
 
-    let mut install_dir_root = crate::moonup_home();
-    install_dir_root.push("toolchains");
-
     // GitHub release tag
     let tag = match recipe.spec {
         ToolchainSpec::Bleeding => {
             download_dir.push("bleeding");
-
-            install_dir_root.push("bleeding");
 
             "bleeding".to_string()
         }
@@ -33,8 +28,6 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             download_dir.push("nightly");
             download_dir.push(date);
 
-            install_dir_root.push("nightly");
-
             format!("nightly-{date}")
         }
         ToolchainSpec::Latest => {
@@ -42,8 +35,6 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
             download_dir.push("latest");
             download_dir.push(version);
-
-            install_dir_root.push("latest");
 
             format!("v{}", version)
         }
@@ -54,24 +45,36 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
                 download_dir.push("nightly");
                 download_dir.push(date);
 
-                install_dir_root.push(v);
-
                 v.to_owned()
             } else {
                 download_dir.push("latest");
                 download_dir.push(v);
-
-                install_dir_root.push(v);
 
                 format!("v{}", v)
             }
         }
     };
 
-    crate::fs::empty_dir(&install_dir_root)
+    let live_dir = recipe.spec.install_path();
+    let staging_dir = atomic::staging_dir_for(&recipe.spec);
+
+    // A previous run may have finished assembling the staging directory but
+    // failed while swapping it into place; retry the swap rather than
+    // discarding the fully-assembled toolchain.
+    if atomic::is_complete(&recipe.spec) {
+        atomic::swap(&live_dir, &staging_dir)?;
+        return Ok(());
+    }
+
+    // Assemble the new toolchain in a staging directory and swap it into the
+    // live location only once it is fully assembled. A failed run leaves a
+    // discarded staging directory, never a damaged live toolchain.
+    crate::fs::remove_dir_all(&staging_dir)
         .into_diagnostic()
-        .wrap_err(format!("Failed to delete {}", install_dir_root.display()))
-        .wrap_err("Unable to clean up existing installation, files may be in use")?;
+        .wrap_err(format!(
+            "failed to clean the staging directory {}",
+            staging_dir.display()
+        ))?;
 
     let is_bleeding = recipe.spec.is_bleeding();
 
@@ -153,7 +156,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // do the actual installation in the second loop
     for component in recipe.components.iter() {
-        let mut component_install_dir = install_dir_root.clone();
+        let mut component_install_dir = staging_dir.clone();
         let name = component.name.as_str();
         let file = component.file.as_str();
         let sha256_expected = component.sha256.as_str();
@@ -196,9 +199,9 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             let _ = std::fs::remove_file(&local_file).inspect_err(|e| {
                 tracing::debug!("failed to remove invalid component download: {}", e);
             });
-            // clean up the invalid installation
-            let _ = crate::fs::remove_dir_all(&install_dir_root).inspect_err(|e| {
-                tracing::debug!("failed to clean up invalid installation: {}", e);
+            // discard the invalid staging directory
+            let _ = crate::fs::remove_dir_all(&staging_dir).inspect_err(|e| {
+                tracing::debug!("failed to clean up invalid staging directory: {}", e);
             });
 
             let err = std::io::Error::new(std::io::ErrorKind::InvalidData, msg);
@@ -209,17 +212,24 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     // create a stub to store the actual version when the spec is latest or nightly
     if recipe.spec.is_latest() || recipe.spec.is_bleeding() {
         let actual_version = recipe.release.version.as_str();
-        install_dir_root.push("version");
-        tokio::fs::write(&install_dir_root, format!("{}\n", actual_version))
+        let version_file = staging_dir.join("version");
+        tokio::fs::write(&version_file, format!("{}\n", actual_version))
             .await
             .into_diagnostic()?;
     } else if recipe.spec.is_nightly() {
         let actual_date = recipe.release.date.as_ref().expect("should have a date");
-        install_dir_root.push("version");
-        tokio::fs::write(&install_dir_root, format!("{}\n", actual_date))
+        let version_file = staging_dir.join("version");
+        tokio::fs::write(&version_file, format!("{}\n", actual_date))
             .await
             .into_diagnostic()?;
     }
+
+    // mark the staging directory as fully assembled so that recovery never
+    // promotes a partial extraction
+    let marker = atomic::completeness_marker_for(&recipe.spec);
+    tokio::fs::write(&marker, "").await.into_diagnostic()?;
+
+    atomic::swap(&live_dir, &staging_dir)?;
 
     Ok(())
 }

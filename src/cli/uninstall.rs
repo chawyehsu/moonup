@@ -5,7 +5,7 @@ use tracing::instrument;
 
 use crate::{
     constant,
-    toolchain::{ToolchainSpec, installed_toolchains},
+    toolchain::{ToolchainSpec, atomic, installed_toolchains},
 };
 
 /// Uninstall a MoonBit toolchain.
@@ -75,6 +75,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     for toolchain in toolchains {
         let toolchain_dir = toolchain.install_path();
         if !toolchain_dir.exists() {
+            atomic::sweep_staging(&toolchain);
             tracing::warn!("toolchain {} is not installed", toolchain);
             continue;
         }
@@ -122,6 +123,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
         tracing::debug!("removing toolchain from {}", toolchain_dir.display());
         crate::fs::remove_dir_all(toolchain_dir).into_diagnostic()?;
+        atomic::sweep_staging(&toolchain);
 
         println!(
             "{} Uninstalled toolchain {}",
