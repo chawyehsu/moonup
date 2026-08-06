@@ -108,17 +108,36 @@ pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> bool {
 ///
 /// The retired directory is only removed once the new toolchain is in place;
 /// if the promotion itself fails, the retired toolchain is restored to the
-/// live name so the currently installed toolchain is never lost. The
-/// completeness marker is retained as a pending-finalization record and is
-/// removed by [`acknowledge`] once the caller has finalized the promotion.
+/// live name so the currently installed toolchain is never lost. A stale
+/// retired directory that cannot be deleted yet (a process still holds an
+/// executable from the previous toolchain, which Windows lets us rename but
+/// not delete) is shunted aside under a unique tombstone name so it never
+/// blocks this swap; the next swap's best-effort sweep removes it once its
+/// processes have exited. The completeness marker is retained as a
+/// pending-finalization record and is removed by [`acknowledge`] once the
+/// caller has finalized the promotion.
 pub fn swap(live: &Path, staging: &Path) -> miette::Result<()> {
     let retired = sibling_with_suffix(staging, STAGING_SUFFIX, RETIRED_SUFFIX);
 
-    // A stale retired directory may linger after a previous swap whose
-    // best-effort cleanup failed; remove it only while the live toolchain is
-    // intact, never before a promotion that could itself fail.
-    if live.exists() && retired.exists() {
-        let _ = crate::fs::remove_dir_all(&retired);
+    if live.exists() {
+        // A stale retired directory may linger after a previous swap whose
+        // best-effort cleanup failed, typically because a process still holds
+        // an executable from the previous toolchain. Sweep it and any
+        // tombstones best-effort, then shunt anything still locked aside
+        // under a unique name so the deterministic `.old` slot is freed for
+        // this swap. This only happens while the live toolchain is intact:
+        // never before a promotion that could itself fail, where the retired
+        // directory may hold the last usable toolchain.
+        sweep_retired(&retired);
+        if retired.exists() {
+            let tombstone = unique_tombstone(&retired);
+            let _ = std::fs::rename(&retired, &tombstone);
+            if retired.exists() {
+                return Err(miette::miette!(
+                    "the previous toolchain is still in use, close programs using it and retry"
+                ));
+            }
+        }
     }
 
     if live.exists() {
@@ -144,7 +163,9 @@ pub fn swap(live: &Path, staging: &Path) -> miette::Result<()> {
         return Err(err).into_diagnostic();
     }
 
-    let _ = crate::fs::remove_dir_all(&retired);
+    // The new toolchain is in place; retire the previous one best-effort,
+    // including tombstones whose locking processes have exited.
+    sweep_retired(&retired);
     Ok(())
 }
 
@@ -194,8 +215,61 @@ pub fn acknowledge(spec: &ToolchainSpec) {
 /// Best-effort sweep of any staging leftovers for a toolchain.
 pub fn sweep_staging(spec: &ToolchainSpec) {
     let _ = crate::fs::remove_dir_all(staging_dir_for(spec));
-    let _ = crate::fs::remove_dir_all(retired_dir_for(spec));
+    sweep_retired(&retired_dir_for(spec));
     let _ = std::fs::remove_file(completeness_marker_for(spec));
+}
+
+/// Best-effort removal of a retired directory and its shunted tombstones,
+/// matching `<name>.old` and `<name>.old.<pid>.<counter>` siblings. The
+/// literal dot keeps a spec whose name prefixes another (e.g. `nightly` vs
+/// `nightly-2025-01-01`) from sweeping the other's artifacts.
+fn sweep_retired(retired: &Path) {
+    let Some(parent) = retired.parent() else {
+        return;
+    };
+    let Some(name) = retired.file_name().and_then(|n| n.to_str()) else {
+        return;
+    };
+
+    let Ok(read_dir) = std::fs::read_dir(parent) else {
+        return;
+    };
+    for entry in read_dir.flatten() {
+        let Some(entry_name) = entry.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        if (entry_name == name || entry_name.starts_with(&format!("{name}.")))
+            && entry.file_type().map(|t| t.is_dir()).unwrap_or(false)
+        {
+            let _ = crate::fs::remove_dir_all(entry.path());
+        }
+    }
+}
+
+/// A unique tombstone path derived from a retired directory that cannot be
+/// deleted yet, `<name>.old.<pid>.<counter>`, following the retirement naming
+/// convention of `replace_exe`. The process id disambiguates concurrent
+/// moonup processes, the counter disambiguates retries within one.
+fn unique_tombstone(retired: &Path) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    let parent = retired.parent().unwrap_or_else(|| Path::new(""));
+    let name = retired
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
+
+    let pid = std::process::id();
+    let mut counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    loop {
+        let candidate = parent.join(format!("{name}.{pid}.{counter}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+        counter += 1;
+    }
 }
 
 fn toolchains_root() -> PathBuf {
@@ -217,4 +291,68 @@ fn sibling_with_suffix(path: &Path, from: &str, to: &str) -> PathBuf {
     path.parent()
         .expect("staging path should have a parent")
         .join(format!("{base}{to}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unique_tombstone_name_follows_convention() {
+        let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+        let retired = tempdir.path().join("latest.old");
+
+        let tombstone = unique_tombstone(&retired);
+        let name = tombstone
+            .file_name()
+            .expect("should have a file name")
+            .to_string_lossy();
+
+        assert!(
+            name.starts_with("latest.old."),
+            "tombstone should follow the retirement naming convention, got {name}"
+        );
+        let suffix = name.strip_prefix("latest.old.").expect("prefix checked");
+        let (pid, counter) = suffix.split_once('.').expect("pid.counter suffix");
+        assert_eq!(pid, std::process::id().to_string());
+        assert!(counter.parse::<u64>().is_ok());
+    }
+
+    #[test]
+    fn unique_tombstone_skips_existing_names() {
+        let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+        let retired = tempdir.path().join("latest.old");
+
+        let first = unique_tombstone(&retired);
+        std::fs::create_dir_all(&first).expect("should create first tombstone");
+
+        let second = unique_tombstone(&retired);
+        assert_ne!(first, second, "a collision should bump the counter");
+        assert!(
+            !second.exists(),
+            "the next tombstone should not already exist"
+        );
+    }
+
+    #[test]
+    fn sweep_retired_distinguishes_prefixing_specs() {
+        let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+        let staging = tempdir.path();
+
+        // the `nightly` spec's own retired dir and tombstone
+        std::fs::create_dir_all(staging.join("nightly.old")).expect("should create stale old");
+        std::fs::create_dir_all(staging.join("nightly.old.1.1")).expect("should create tombstone");
+        // a versioned nightly spec whose name is prefixed by `nightly`
+        std::fs::create_dir_all(staging.join("nightly-2025-01-01.old"))
+            .expect("should create versioned old");
+
+        sweep_retired(&staging.join("nightly.old"));
+
+        assert!(!staging.join("nightly.old").exists());
+        assert!(!staging.join("nightly.old.1.1").exists());
+        assert!(
+            staging.join("nightly-2025-01-01.old").exists(),
+            "a spec whose name prefixes another must not sweep the other's artifacts"
+        );
+    }
 }

@@ -269,3 +269,233 @@ fn test_installed_toolchains_excludes_staging() {
         },
     );
 }
+
+#[test]
+fn test_swap_sweeps_deletable_stale_retired() {
+    let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+    let moonup_home = tempdir.path().join(".moonup");
+
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(moonup_home.as_os_str()),
+        || {
+            let spec = ToolchainSpec::Latest;
+            let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
+
+            // a stale retired dir from a previous swap, now deletable
+            std::fs::create_dir_all(retired_dir.join("bin")).expect("should create retired dir");
+            std::fs::write(retired_dir.join("bin").join("moon"), b"old")
+                .expect("should write retired content");
+
+            std::fs::create_dir_all(live_dir.join("bin")).expect("should create live dir");
+            std::fs::write(live_dir.join("bin").join("moon"), b"live")
+                .expect("should write live content");
+            std::fs::create_dir_all(staging_dir.join("bin")).expect("should create staging dir");
+            std::fs::write(staging_dir.join("bin").join("moon"), b"new")
+                .expect("should write staging content");
+
+            atomic::swap(&live_dir, &staging_dir).expect("swap should succeed");
+
+            assert_eq!(
+                std::fs::read_to_string(live_dir.join("bin").join("moon"))
+                    .expect("should read live moon"),
+                "new"
+            );
+            assert!(
+                !staging_dir.exists(),
+                "staging should be consumed by the swap"
+            );
+            assert!(
+                !retired_dir.exists(),
+                "deletable stale retired dir should be swept, not shunted"
+            );
+            assert!(
+                !has_retired_leftover(&spec),
+                "no retired dir or tombstone should remain after sweeping a deletable stale retired"
+            );
+        },
+    );
+}
+
+#[test]
+fn test_swap_sweeps_stale_tombstone() {
+    let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+    let moonup_home = tempdir.path().join(".moonup");
+
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(moonup_home.as_os_str()),
+        || {
+            let spec = ToolchainSpec::Latest;
+            let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
+
+            // a stale retired dir and an even older shunted tombstone from a
+            // previous swap, all now deletable
+            std::fs::create_dir_all(retired_dir.join("bin")).expect("should create retired dir");
+            std::fs::write(retired_dir.join("bin").join("moon"), b"old")
+                .expect("should write retired content");
+            let tombstone = retired_dir
+                .parent()
+                .expect("should have .staging parent")
+                .join(format!("latest.old.{}.0", std::process::id()));
+            std::fs::create_dir_all(tombstone.join("bin")).expect("should create tombstone dir");
+
+            std::fs::create_dir_all(live_dir.join("bin")).expect("should create live dir");
+            std::fs::write(live_dir.join("bin").join("moon"), b"live")
+                .expect("should write live content");
+            std::fs::create_dir_all(staging_dir.join("bin")).expect("should create staging dir");
+            std::fs::write(staging_dir.join("bin").join("moon"), b"new")
+                .expect("should write staging content");
+
+            atomic::swap(&live_dir, &staging_dir).expect("swap should succeed");
+
+            assert_eq!(
+                std::fs::read_to_string(live_dir.join("bin").join("moon"))
+                    .expect("should read live moon"),
+                "new"
+            );
+            assert!(
+                !staging_dir.exists(),
+                "staging should be consumed by the swap"
+            );
+            assert!(
+                !has_retired_leftover(&spec),
+                "stale retired dir and tombstone should both be swept"
+            );
+        },
+    );
+}
+
+#[test]
+fn test_sweep_staging_is_scoped_to_spec() {
+    let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+    let moonup_home = tempdir.path().join(".moonup");
+
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(moonup_home.as_os_str()),
+        || {
+            let spec = ToolchainSpec::Latest;
+            let staging_dir = atomic::staging_dir_for(&spec);
+            std::fs::create_dir_all(&staging_dir).expect("should create staging dir");
+
+            let latest_old = atomic::retired_dir_for(&spec);
+            std::fs::create_dir_all(&latest_old).expect("should create latest.old");
+            std::fs::create_dir_all(
+                latest_old
+                    .parent()
+                    .expect("should have .staging parent")
+                    .join(format!("latest.old.{}.0", std::process::id())),
+            )
+            .expect("should create latest tombstone");
+
+            // a versioned nightly spec the `latest` sweep must not touch
+            let nightly_old = latest_old
+                .parent()
+                .expect("should have .staging parent")
+                .join("nightly-2025-01-01.old");
+            std::fs::create_dir_all(&nightly_old).expect("should create nightly-versioned old");
+
+            atomic::sweep_staging(&spec);
+
+            assert!(!latest_old.exists(), "latest.old should be swept");
+            assert!(
+                !staging_dir.exists(),
+                "latest.new staging dir should be swept"
+            );
+            assert!(
+                !has_retired_leftover(&spec),
+                "latest tombstones should be swept"
+            );
+            assert!(
+                nightly_old.exists(),
+                "another spec's retired dir must not be swept"
+            );
+        },
+    );
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn test_swap_shunts_locked_retired() {
+    use std::process::Command;
+    use std::time::Duration;
+
+    // Child mode: keep a real running image mapped inside the stale retired
+    // dir so the parent exercises Windows' rename-ok / delete-denied
+    // semantics. The parent selects this mode with `MOONUP_TEST_HOLD`.
+    if std::env::var_os("MOONUP_TEST_HOLD").is_some() {
+        std::thread::sleep(Duration::from_secs(60));
+        return;
+    }
+
+    let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+    let moonup_home = tempdir.path().join(".moonup");
+
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(moonup_home.as_os_str()),
+        || {
+            let spec = ToolchainSpec::Latest;
+            let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
+
+            let exe = std::env::current_exe().expect("should resolve current exe");
+
+            // the stale retired dir holds a real running image: it can be
+            // renamed but not deleted
+            std::fs::create_dir_all(retired_dir.join("bin")).expect("should create retired dir");
+            std::fs::copy(&exe, retired_dir.join("bin").join("holder.exe"))
+                .expect("should copy current exe");
+            let mut child = Command::new(retired_dir.join("bin").join("holder.exe"))
+                .arg("test_swap_shunts_locked_retired")
+                .env("MOONUP_TEST_HOLD", "1")
+                .spawn()
+                .expect("should spawn holder child");
+            std::thread::sleep(Duration::from_millis(500));
+
+            std::fs::create_dir_all(live_dir.join("bin")).expect("should create live dir");
+            std::fs::write(live_dir.join("bin").join("moon"), b"live")
+                .expect("should write live content");
+            std::fs::create_dir_all(staging_dir.join("bin")).expect("should create staging dir");
+            std::fs::write(staging_dir.join("bin").join("moon"), b"new")
+                .expect("should write staging content");
+
+            atomic::swap(&live_dir, &staging_dir)
+                .expect("swap should tolerate a locked retired dir");
+
+            assert_eq!(
+                std::fs::read_to_string(live_dir.join("bin").join("moon"))
+                    .expect("should read live moon"),
+                "new"
+            );
+            assert!(
+                !retired_dir.exists(),
+                "locked retired dir should be shunted aside, freeing the .old slot"
+            );
+            assert!(
+                has_retired_leftover(&spec),
+                "the shunted tombstone should still hold the locked image"
+            );
+
+            child.kill().expect("should kill holder child");
+            child.wait().expect("should reap holder child");
+        },
+    );
+}
+
+fn has_retired_leftover(spec: &ToolchainSpec) -> bool {
+    let staging_dir = atomic::staging_dir_for(spec);
+    let prefix = format!("{}.old", spec.as_str());
+    let Ok(read_dir) = staging_dir
+        .parent()
+        .expect("staging dir should have a parent")
+        .read_dir()
+    else {
+        return false;
+    };
+    read_dir.flatten().any(|e| {
+        let file_name = e.file_name();
+        let name = file_name.to_string_lossy();
+        name.starts_with(&prefix)
+    })
+}
