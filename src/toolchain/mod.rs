@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::dist_server::schema::ChannelName;
 
+pub mod atomic;
 pub mod index;
 pub mod package;
 pub mod resolve;
@@ -200,6 +201,8 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
         Ok(read_dir) => {
             let mut t = read_dir
                 .filter_map(std::io::Result::ok)
+                // skip internal directories such as `.staging`
+                .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
                 .filter_map(|e| InstalledToolchain::from_path(&e.path()).ok())
                 .collect::<Vec<_>>();
             t.sort_by_key(|t| t.name.clone());

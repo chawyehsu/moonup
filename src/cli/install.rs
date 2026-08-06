@@ -12,7 +12,7 @@ use crate::constant::ALLOWED_EXTENSIONS;
 use crate::dist_server::schema::ChannelName;
 use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_toolchain;
-use crate::toolchain::{ToolchainSpec, index};
+use crate::toolchain::{ToolchainSpec, atomic, index};
 use crate::toolchain::{index::build_installrecipe, package::populate_install};
 
 use super::ToolchainSpecValueParser;
@@ -103,6 +103,18 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         },
     };
 
+    // Heal any toolchain left in a half-swapped state by an interrupted
+    // operation before doing any network work. A promoted staging directory is
+    // a complete installation, finalized with its own persisted metadata and
+    // acknowledged once done.
+    if let Some(staged) = atomic::recover(&spec)? {
+        let recipe = staged.into_recipe(&spec);
+        post_install(&recipe)?;
+        link_dirs(&recipe)?;
+        atomic::acknowledge(&spec);
+        return Ok(());
+    }
+
     let recipe = build_installrecipe(&spec).await?.unwrap_or_else(|| {
         eprintln!("No toolchain available for requested spec '{}'", spec);
         std::process::exit(1);
@@ -112,6 +124,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     populate_install(&recipe).await?;
     post_install(&recipe)?;
     link_dirs(&recipe)?;
+    atomic::acknowledge(&spec);
 
     println!(
         "{}Installed toolchain version '{}'",
