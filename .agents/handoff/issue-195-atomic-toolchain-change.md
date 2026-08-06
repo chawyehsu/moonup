@@ -1,7 +1,7 @@
 # Handoff: Atomic toolchain change (issue #195)
 
 > **Status: FINISHED — DONE.** Do not re-handle. Implementation landed in
-> PR https://github.com/chawyehsu/moonup/pull/196 (closes #195); review
+> PR <https://github.com/chawyehsu/moonup/pull/196> (closes #195); review
 > feedback was addressed. See "Completion" below for where things landed.
 
 ## Summary
@@ -12,8 +12,8 @@ exe on Windows, Ctrl-C kill on Unix) corrupts the live toolchain. In this sessio
 grilled through the design and reached shared understanding; the next session
 implements it.
 
-**Next session's task:** implement the design below. Design decisions are final — do
-not re-litigate; implementation details flagged as "open" still need decisions.
+~~**Next session's task:** implement the design below. Design decisions are final — do
+not re-litigate; implementation details flagged as "open" still need decisions.~~
 
 ## Completion
 
@@ -44,9 +44,10 @@ Tests: `tests/integration/atomic.rs` and `tests/e2e/atomic.rs`
 
 Full rationale and rejected alternatives are in the ADR; glossary in CONTEXT.md.
 Read both before implementing:
+
 - ADR: `.agents/adr/0001-atomic-toolchain-change-via-staged-swap.md`
 - Glossary: `CONTEXT.md` (root) — terms: Toolchain, Toolchain spec, Atomic toolchain change, Staging directory, Populate
-- Issue: https://github.com/chawyehsu/moonup/issues/195
+- Issue: <https://github.com/chawyehsu/moonup/issues/195>
 
 1. **Strategy: stage + swap, cross-platform uniform.** Assemble new toolchain in
    `toolchains/.staging/<name>.new`, then two same-volume renames:
@@ -54,7 +55,7 @@ Read both before implementing:
    `toolchains/<name>`. Retire old dir best-effort. Never delete live dir in place.
    Old toolchain stays fully intact until the commit rename.
 2. **Swap failure contract:** fail cleanly, keep `.staging/<name>.new` for retry.
-   Error message: "toolchain is in use — close programs using it and retry".
+   Error message: "the previous toolchain is still in use, close programs using it and retry".
    No per-file/process probing — this was explicitly dropped (renaming a dir succeeds
    even when a child exe is in use; failure only occurs when the dir handle itself is
    held, rare and self-healing).
