@@ -22,3 +22,11 @@ Where a new toolchain is fully assembled and verified before it is swapped into 
 **Populate**:
 The act of assembling a toolchain into its install location: downloading components, extracting them, and making the toolchain live.
 _Avoid_: Install in place
+
+**Shim**:
+A wrapper executable in `MOON_HOME/bin/` (and `bin/internal/`) that forwards a toolchain command (e.g. `moon`) to the active toolchain's real binary via moonup. It is a copy of the `moonup-shim` binary named after the toolchain command.
+_Avoid_: Launcher, proxy
+
+**Retire**:
+Moving a replaced executable into the hidden `MOON_HOME/bin/.trash/` directory under a unique name so the live name is freed immediately, deleting it best-effort once any process holding it has exited. On Windows a running executable can be renamed but not deleted, which is why retirement precedes deletion.
+_Avoid_: Delete in place
