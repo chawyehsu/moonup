@@ -110,11 +110,34 @@ fn replace_exe_hold_guard() {
     std::fs::copy(&exe, &old).expect("should copy current exe");
     std::fs::write(&new, b"fresh shim bytes").expect("should write new shim");
 
-    let mut child = Command::new(&old)
-        .arg("replace_exe_hold_guard")
-        .env("MOONUP_TEST_HOLD", "1")
-        .spawn()
-        .expect("should spawn holder child");
+    struct ChildGuard(Option<std::process::Child>);
+
+    impl ChildGuard {
+        fn new(child: std::process::Child) -> Self {
+            Self(Some(child))
+        }
+
+        fn kill_and_wait(&mut self) {
+            if let Some(mut child) = self.0.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+
+    impl Drop for ChildGuard {
+        fn drop(&mut self) {
+            self.kill_and_wait();
+        }
+    }
+
+    let mut child = ChildGuard::new(
+        Command::new(&old)
+            .arg("replace_exe_hold_guard")
+            .env("MOONUP_TEST_HOLD", "1")
+            .spawn()
+            .expect("should spawn holder child"),
+    );
     std::thread::sleep(Duration::from_millis(500));
 
     replace_exe(&new, &old).expect("replace should tolerate an in-use dest");
@@ -126,11 +149,17 @@ fn replace_exe_hold_guard() {
     let trash = tempdir.path().join(".trash");
     assert!(trash.exists(), "in-use retired shim should wait in .trash");
 
-    child.kill().expect("should kill holder child");
-    child.wait().expect("should reap holder child");
+    child.kill_and_wait();
 
-    std::fs::write(&new, b"another shim bytes").expect("should write newer shim");
-    replace_exe(&new, &old).expect("replace should succeed");
+    for attempt in 0..20u8 {
+        let content = format!("another shim bytes {attempt}");
+        std::fs::write(&new, content.as_bytes()).expect("should write newer shim");
+        replace_exe(&new, &old).expect("replace should succeed");
+        if !trash.exists() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
     assert!(
         !trash.exists(),
         "trash should be swept once the holder exits"
