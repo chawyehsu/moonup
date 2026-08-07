@@ -1,6 +1,4 @@
-use insta::glob;
 use insta_cmd::assert_cmd_snapshot;
-use mockito::Server;
 use moonup::constant;
 use serial_test::serial;
 use std::{env, fs};
@@ -51,31 +49,18 @@ fn test_flow_with_network_mock() {
     util::apply_common_filters!();
 
     let ws = TestWorkspace::new();
-    let mut s = Server::new();
 
-    // setup mock server for dist_server
-    // NOTE(chawyehsu): insta glob! macro does not support using one single path
-    // (for example, `glob!("../fixtures/dist_server/**/*.json", |path: &Path| { ... })`)
-    // to match files outside the current directory, a base path is required.
-    glob!("../fixtures/dist_server", "**/*.json", |path: &Path| {
-        let path = path.display().to_string();
-        #[cfg(target_os = "windows")]
-        let path = path.replace("\\", "/");
-
-        let pathname = path.rsplit_once("dist_server").unwrap().1;
-        // println!("Mocking: {} (fullpath: {})", pathname, path);
-
-        s.mock("GET", pathname)
-            .with_body_from_file(path)
-            .with_header("content-type", "application/json")
-            .create();
-    });
+    // setup mock server for dist_server from committed fixtures
+    let (_s, dist_server_url) = util::mock_dist_server();
 
     // Override the dist server URL with the mock server URL
     assert_cmd_snapshot!(
         "moonup_install_list_available_mock",
         ws.cli()
-            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .env(
+                constant::ENVNAME_MOONUP_DIST_SERVER,
+                dist_server_url.as_str()
+            )
             .arg("install")
             .arg("--list-available")
     );
@@ -83,7 +68,10 @@ fn test_flow_with_network_mock() {
     assert_cmd_snapshot!(
         "moonup_install_list_available_mock_2",
         ws.cli()
-            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .env(
+                constant::ENVNAME_MOONUP_DIST_SERVER,
+                dist_server_url.as_str()
+            )
             .arg("install")
             .arg("--list-available")
             .arg("-vvv")

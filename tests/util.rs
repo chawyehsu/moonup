@@ -1,4 +1,5 @@
 use assert_fs::TempDir;
+use mockito::ServerGuard;
 use moonup::constant;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -115,6 +116,47 @@ impl TestWorkspace {
     pub fn project_path(&self) -> &Path {
         self.project_path.as_path()
     }
+}
+
+/// Create a mockito server that serves every committed dist-server fixture.
+///
+/// The JSON component/channel/index files and the `.tar.gz` toolchain stub
+/// archives under `tests/fixtures/dist_server` are served at their
+/// `/download/...` URL paths, so install/update e2e tests run with zero
+/// network. Returns the server guard (kept alive for the caller) and its base
+/// URL to point `MOONUP_DIST_SERVER` at.
+pub fn mock_dist_server() -> (ServerGuard, String) {
+    let mut s = mockito::Server::new();
+
+    // serve every committed JSON fixture (index, channel, component indexes)
+    insta::glob!("fixtures/dist_server", "**/*.json", |path: &Path| {
+        let path = path.display().to_string();
+        #[cfg(target_os = "windows")]
+        let path = path.replace("\\", "/");
+
+        let pathname = path.rsplit_once("dist_server").unwrap().1;
+        s.mock("GET", pathname)
+            .with_body_from_file(path)
+            .with_header("content-type", "application/json")
+            .create();
+    });
+
+    // serve the shrunken toolchain archives from disk
+    insta::glob!(
+        "fixtures/dist_server",
+        "download/**/*.{tar.gz,zip}",
+        |path: &Path| {
+            let path = path.display().to_string();
+            #[cfg(target_os = "windows")]
+            let path = path.replace("\\", "/");
+
+            let pathname = path.rsplit_once("dist_server").unwrap().1;
+            s.mock("GET", pathname).with_body_from_file(path).create();
+        }
+    );
+
+    let url = s.url();
+    (s, url)
 }
 
 #[allow(unused_macros)]

@@ -1,7 +1,8 @@
 //! End-to-end tests for atomic toolchain recovery.
 //!
-//! These tests require a real installation (real downloads), so they are
-//! guarded behind the `test-liveinstall` feature flag.
+//! These tests run in default CI with zero network: `MOONUP_DIST_SERVER` points
+//! at a local mockito server serving the committed dist-server fixtures,
+//! including tiny per-target toolchain stub archives.
 
 use serial_test::serial;
 use std::path::PathBuf;
@@ -11,10 +12,11 @@ use moonup::{
     toolchain::{ToolchainSpec, atomic},
 };
 
-use crate::util::TestWorkspace;
+use crate::util::{TestWorkspace, mock_dist_server};
 
-/// A toolchain version that is available from the test distribution server.
-const TEST_INSTALL_VERSION: &str = "0.1.20241231+ba15a9a4e";
+/// A toolchain version available from the committed dist-server fixtures
+/// (shrunk to a stub `moon` that only execs and exits 0).
+const TEST_INSTALL_VERSION: &str = "0.10.1+a46be2066";
 
 /// The staging leftovers a recovery is expected to consume.
 fn staging_leftovers(spec: &ToolchainSpec) -> (PathBuf, PathBuf) {
@@ -64,6 +66,7 @@ fn shim_exe_name() -> &'static str {
 #[serial]
 fn test_install_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
+    let (_server, dist_server_url) = mock_dist_server();
     let spec = ToolchainSpec::from(TEST_INSTALL_VERSION);
 
     temp_env::with_var(
@@ -76,6 +79,10 @@ fn test_install_recovers_interrupted_swap() {
             // first, install the toolchain
             assert!(
                 ws.cli()
+                    .env(
+                        constant::ENVNAME_MOONUP_DIST_SERVER,
+                        dist_server_url.as_str()
+                    )
                     .arg("install")
                     .arg(TEST_INSTALL_VERSION)
                     .status()
@@ -102,6 +109,10 @@ fn test_install_recovers_interrupted_swap() {
             // re-downloading
             assert!(
                 ws.cli()
+                    .env(
+                        constant::ENVNAME_MOONUP_DIST_SERVER,
+                        dist_server_url.as_str()
+                    )
                     .arg("install")
                     .arg(TEST_INSTALL_VERSION)
                     .status()
@@ -130,6 +141,7 @@ fn test_install_recovers_interrupted_swap() {
 #[serial]
 fn test_update_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
+    let (_server, dist_server_url) = mock_dist_server();
     let spec = ToolchainSpec::Latest;
 
     temp_env::with_var(
@@ -142,6 +154,10 @@ fn test_update_recovers_interrupted_swap() {
             // install the `latest` channel first
             assert!(
                 ws.cli()
+                    .env(
+                        constant::ENVNAME_MOONUP_DIST_SERVER,
+                        dist_server_url.as_str()
+                    )
                     .arg("install")
                     .arg("latest")
                     .status()
@@ -160,6 +176,10 @@ fn test_update_recovers_interrupted_swap() {
             // the next update should recover the latest toolchain
             assert!(
                 ws.cli()
+                    .env(
+                        constant::ENVNAME_MOONUP_DIST_SERVER,
+                        dist_server_url.as_str()
+                    )
                     .arg("update")
                     .status()
                     .expect("should run moonup update")
