@@ -63,6 +63,15 @@ impl TestWorkspace {
             cli.env("WT_SESSION", "1");
         }
 
+        // Force emoji support on non-macOS Unix during tests by setting LANG,
+        // as the `console` crate checks `LANG` to decide whether to use emoji.
+        // see:
+        //   https://github.com/console-rs/console/blob/0.16.3/src/unix_term.rs#L389-L396
+        #[cfg(all(unix, not(target_os = "macos")))]
+        {
+            cli.env("LANG", "en_US.UTF-8");
+        }
+
         cli.current_dir(self.project_path.as_path());
         cli
     }
