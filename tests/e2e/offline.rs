@@ -1,6 +1,6 @@
 //! End-to-end tests that exercise the mock dist server (committed fixtures).
 //!
-//! `flow.rs` holds tests that involve the production dist server; the tests
+//! `online.rs` holds tests that involve the production dist server; the tests
 //! here run against `mock_dist_server()` with zero network.
 
 use std::{env, fs};

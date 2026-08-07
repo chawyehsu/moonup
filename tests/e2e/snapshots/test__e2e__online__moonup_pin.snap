@@ -1,14 +1,15 @@
 ---
-source: tests/e2e/flow.rs
+source: tests/e2e/online.rs
 info:
   program: moonup
   args:
-    - default
+    - pin
     - 0.1.20241231+ba15a9a4e
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-✔ Default toolchain set to version '0.1.20241231+ba15a9a4e'
+✔ Pinned toolchain to version '0.1.20241231+ba15a9a4e'
+Toolchain file: [TEMP_FILE]
 
 ----- stderr -----

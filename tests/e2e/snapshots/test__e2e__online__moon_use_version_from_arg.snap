@@ -1,11 +1,9 @@
 ---
-source: tests/e2e/flow.rs
+source: tests/e2e/online.rs
 info:
-  program: moonup
+  program: moon
   args:
-    - run
-    - 0.1.20241231+ba15a9a4e
-    - moon
+    - +0.1.20241231+ba15a9a4e
     - version
 ---
 success: true

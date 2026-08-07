@@ -1,15 +1,13 @@
 ---
-source: tests/e2e/flow.rs
+source: tests/e2e/online.rs
 info:
   program: moonup
   args:
-    - list
+    - self-update
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Moonup home: [MOONUP_HOME]
-
-No toolchains installed
+Updating moonup: [MOONUP_VERSION] -> [MOONUP_VERSION]
 
 ----- stderr -----
