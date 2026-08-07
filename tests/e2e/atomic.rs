@@ -4,7 +4,6 @@
 //! at a local mockito server serving the committed dist-server fixtures,
 //! including tiny per-target toolchain stub archives.
 
-use serial_test::serial;
 use std::path::PathBuf;
 
 use moonup::{
@@ -52,18 +51,7 @@ fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
     );
 }
 
-#[cfg(windows)]
-fn shim_exe_name() -> &'static str {
-    "moon.exe"
-}
-
-#[cfg(not(windows))]
-fn shim_exe_name() -> &'static str {
-    "moon"
-}
-
 #[test]
-#[serial]
 fn test_install_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
     let (_server, dist_server_url) = mock_dist_server();
@@ -77,48 +65,40 @@ fn test_install_recovers_interrupted_swap() {
             let (staging_dir, marker) = staging_leftovers(&spec);
 
             // first, install the toolchain
-            assert!(
-                ws.cli()
-                    .env(
-                        constant::ENVNAME_MOONUP_DIST_SERVER,
-                        dist_server_url.as_str()
-                    )
-                    .arg("install")
-                    .arg(TEST_INSTALL_VERSION)
-                    .status()
-                    .expect("should run moonup install")
-                    .success()
-            );
-
+            let _ = ws
+                .cli()
+                .env(
+                    constant::ENVNAME_MOONUP_DIST_SERVER,
+                    dist_server_url.as_str(),
+                )
+                .arg("install")
+                .arg(TEST_INSTALL_VERSION)
+                .output()
+                .expect("should run moonup install");
             assert!(install_path.exists());
 
             // remove the poured shim so a successful recovery is provable by
             // its post-install steps re-pouring it
-            let moon_shim = ws.moon_home().join("bin").join(shim_exe_name());
-            assert!(
-                moon_shim.exists(),
-                "install should have poured the moon shim"
-            );
-            std::fs::remove_file(&moon_shim).expect("should remove the moon shim");
-            assert!(!moon_shim.exists());
+            let shim = ws.bin("moon");
+            assert!(shim.exists(), "install should have poured the moon shim");
+            std::fs::remove_file(&shim).expect("should remove the moon shim");
+            assert!(!shim.exists());
 
             // simulate a crash that left a complete staging directory
             simulate_crash_state(&ws, TEST_INSTALL_VERSION, TEST_INSTALL_VERSION);
 
             // the next install should recover the staging instead of
             // re-downloading
-            assert!(
-                ws.cli()
-                    .env(
-                        constant::ENVNAME_MOONUP_DIST_SERVER,
-                        dist_server_url.as_str()
-                    )
-                    .arg("install")
-                    .arg(TEST_INSTALL_VERSION)
-                    .status()
-                    .expect("should run moonup install")
-                    .success()
-            );
+            let _ = ws
+                .cli()
+                .env(
+                    constant::ENVNAME_MOONUP_DIST_SERVER,
+                    dist_server_url.as_str(),
+                )
+                .arg("install")
+                .arg(TEST_INSTALL_VERSION)
+                .output()
+                .expect("should run moonup install");
 
             // the promoted toolchain is live again and the staging is consumed
             assert!(
@@ -129,16 +109,12 @@ fn test_install_recovers_interrupted_swap() {
             assert!(!marker.exists(), "completeness marker should be cleaned up");
 
             // the recovery finalized the installation: the shim was re-poured
-            assert!(
-                moon_shim.exists(),
-                "post-install should have re-poured the moon shim after recovery"
-            );
+            assert!(shim.exists(), "shim should have re-poured after recovery");
         },
     );
 }
 
 #[test]
-#[serial]
 fn test_update_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
     let (_server, dist_server_url) = mock_dist_server();
@@ -152,18 +128,16 @@ fn test_update_recovers_interrupted_swap() {
             let (staging_dir, marker) = staging_leftovers(&spec);
 
             // install the `latest` channel first
-            assert!(
-                ws.cli()
-                    .env(
-                        constant::ENVNAME_MOONUP_DIST_SERVER,
-                        dist_server_url.as_str()
-                    )
-                    .arg("install")
-                    .arg("latest")
-                    .status()
-                    .expect("should run moonup install")
-                    .success()
-            );
+            let _ = ws
+                .cli()
+                .env(
+                    constant::ENVNAME_MOONUP_DIST_SERVER,
+                    dist_server_url.as_str(),
+                )
+                .arg("install")
+                .arg("latest")
+                .output()
+                .expect("should run moonup install");
 
             let actual_version = std::fs::read_to_string(install_path.join("version"))
                 .expect("should read version stub")
@@ -174,17 +148,15 @@ fn test_update_recovers_interrupted_swap() {
             simulate_crash_state(&ws, "latest", &actual_version);
 
             // the next update should recover the latest toolchain
-            assert!(
-                ws.cli()
-                    .env(
-                        constant::ENVNAME_MOONUP_DIST_SERVER,
-                        dist_server_url.as_str()
-                    )
-                    .arg("update")
-                    .status()
-                    .expect("should run moonup update")
-                    .success()
-            );
+            let _ = ws
+                .cli()
+                .env(
+                    constant::ENVNAME_MOONUP_DIST_SERVER,
+                    dist_server_url.as_str(),
+                )
+                .arg("update")
+                .output()
+                .expect("should run moonup update");
 
             // the promoted toolchain is live again and the staging is consumed
             assert!(

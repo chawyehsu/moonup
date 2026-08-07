@@ -105,6 +105,17 @@ impl TestWorkspace {
         self.moonup_home.as_path()
     }
 
+    /// Get shim path of given toolchain binary in this test workspace
+    #[allow(unused)]
+    pub fn bin(&self, name: &str) -> PathBuf {
+        let bin_dir = self.moon_home().join("bin");
+        if cfg!(windows) {
+            bin_dir.join(format!("{name}.exe"))
+        } else {
+            bin_dir.join(name)
+        }
+    }
+
     /// Get the test workspace path
     #[allow(unused)]
     pub fn tempdir(&self) -> &TempDir {
@@ -127,9 +138,10 @@ impl TestWorkspace {
 /// URL to point `MOONUP_DIST_SERVER` at.
 pub fn mock_dist_server() -> (ServerGuard, String) {
     let mut s = mockito::Server::new();
+    const FIXTURE_DIR: &str = "fixtures/dist_server";
 
     // serve every committed JSON fixture (index, channel, component indexes)
-    insta::glob!("fixtures/dist_server", "**/*.json", |path: &Path| {
+    insta::glob!(FIXTURE_DIR, "**/*.json", |path: &Path| {
         let path = path.display().to_string();
         #[cfg(target_os = "windows")]
         let path = path.replace("\\", "/");
@@ -142,18 +154,14 @@ pub fn mock_dist_server() -> (ServerGuard, String) {
     });
 
     // serve the shrunken toolchain archives from disk
-    insta::glob!(
-        "fixtures/dist_server",
-        "download/**/*.{tar.gz,zip}",
-        |path: &Path| {
-            let path = path.display().to_string();
-            #[cfg(target_os = "windows")]
-            let path = path.replace("\\", "/");
+    insta::glob!(FIXTURE_DIR, "download/**/*.{tar.gz,zip}", |path: &Path| {
+        let path = path.display().to_string();
+        #[cfg(target_os = "windows")]
+        let path = path.replace("\\", "/");
 
-            let pathname = path.rsplit_once("dist_server").unwrap().1;
-            s.mock("GET", pathname).with_body_from_file(path).create();
-        }
-    );
+        let pathname = path.rsplit_once("dist_server").unwrap().1;
+        s.mock("GET", pathname).with_body_from_file(path).create();
+    });
 
     let url = s.url();
     (s, url)
