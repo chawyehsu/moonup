@@ -11,11 +11,10 @@ use moonup::{
     toolchain::{ToolchainSpec, atomic},
 };
 
-use crate::util::{TestWorkspace, mock_dist_server};
-
-/// A toolchain version available from the committed dist-server fixtures
-/// (shrunk to a stub `moon` that only execs and exits 0).
-const TEST_INSTALL_VERSION: &str = "0.10.1+a46be2066";
+use crate::{
+    constant::E2E_TEST_MOCK_INSTALL_VERSION,
+    util::{TestWorkspace, mock_dist_server},
+};
 
 /// The staging leftovers a recovery is expected to consume.
 fn staging_leftovers(spec: &ToolchainSpec) -> (PathBuf, PathBuf) {
@@ -55,7 +54,7 @@ fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
 fn test_install_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
     let s = mock_dist_server();
-    let spec = ToolchainSpec::from(TEST_INSTALL_VERSION);
+    let spec = ToolchainSpec::from(E2E_TEST_MOCK_INSTALL_VERSION);
 
     temp_env::with_var(
         constant::ENVNAME_MOONUP_HOME,
@@ -69,7 +68,7 @@ fn test_install_recovers_interrupted_swap() {
                 .cli()
                 .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("install")
-                .arg(TEST_INSTALL_VERSION)
+                .arg(E2E_TEST_MOCK_INSTALL_VERSION)
                 .output()
                 .expect("should run moonup install");
             assert!(install_path.exists());
@@ -82,7 +81,11 @@ fn test_install_recovers_interrupted_swap() {
             assert!(!shim.exists());
 
             // simulate a crash that left a complete staging directory
-            simulate_crash_state(&ws, TEST_INSTALL_VERSION, TEST_INSTALL_VERSION);
+            simulate_crash_state(
+                &ws,
+                E2E_TEST_MOCK_INSTALL_VERSION,
+                E2E_TEST_MOCK_INSTALL_VERSION,
+            );
 
             // the next install should recover the staging instead of
             // re-downloading
@@ -90,7 +93,7 @@ fn test_install_recovers_interrupted_swap() {
                 .cli()
                 .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("install")
-                .arg(TEST_INSTALL_VERSION)
+                .arg(E2E_TEST_MOCK_INSTALL_VERSION)
                 .output()
                 .expect("should run moonup install");
 

@@ -1,3 +1,4 @@
+pub(crate) mod constant;
 mod e2e;
 mod integration;
 mod unit;

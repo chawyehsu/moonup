@@ -1,82 +1,13 @@
-use insta_cmd::assert_cmd_snapshot;
-use moonup::constant;
-use serial_test::serial;
-use std::{env, fs};
-
-use crate::util::{self, TestWorkspace};
-
-#[test]
-#[serial]
-fn test_basic_flow() {
-    util::apply_common_filters!();
-
-    let ws = TestWorkspace::new();
-
-    assert_cmd_snapshot!("moonup_completions", ws.cli().arg("completions").arg("zsh"));
-
-    // No toolchain installed
-    assert_cmd_snapshot!("moonup_show", ws.cli().arg("show"));
-
-    // Set default toolchain
-    assert_cmd_snapshot!("moonup_default", ws.cli().arg("default").arg("latest"));
-
-    // Set default toolchain interactively, but no toolchain installed,
-    // should show subcommand help
-    assert_cmd_snapshot!("moonup_default_2", ws.cli().arg("default"));
-
-    // Pin toolchain
-    let project_path = ws.project_path();
-    fs::create_dir_all(project_path).expect("should create project directory");
-    env::set_current_dir(project_path).expect("should set current directory");
-
-    assert_cmd_snapshot!("moonup_pin", ws.cli().arg("pin").arg("nightly"));
-    assert!(project_path.join(constant::TOOLCHAIN_FILE).exists());
-
-    // Pin, but no toolchain installed, should show subcommand help
-    assert_cmd_snapshot!("moonup_pin_2", ws.cli().arg("pin"));
-
-    // Run command
-    assert_cmd_snapshot!(
-        "moonup_run_not_installed",
-        ws.cli().arg("run").arg("nightly").arg("moon").arg("--help")
-    );
-
-    env::set_current_dir(ws.tempdir()).expect("should restore current directory");
-}
-
-#[test]
-fn test_flow_with_network_mock() {
-    util::apply_common_filters!();
-
-    let ws = TestWorkspace::new();
-
-    // setup mock server for dist_server from committed fixtures
-    let s = util::mock_dist_server();
-
-    // Override the dist server URL with the mock server URL
-    assert_cmd_snapshot!(
-        "moonup_install_list_available_mock",
-        ws.cli()
-            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
-            .arg("install")
-            .arg("--list-available")
-    );
-    // Should hit the cache and return the same result
-    assert_cmd_snapshot!(
-        "moonup_install_list_available_mock_2",
-        ws.cli()
-            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
-            .arg("install")
-            .arg("--list-available")
-            .arg("-vvv")
-    );
-}
-
 /// Test flow with production networking
 #[cfg(feature = "test-extra")]
 mod liveinstall {
-    use super::*;
     use serial_test::serial;
+
+    use insta_cmd::assert_cmd_snapshot;
+    use moonup::constant;
+    use std::{env, fs};
+
+    use crate::util::{self, TestWorkspace};
 
     #[cfg(feature = "test-liveinstall")]
     #[test]

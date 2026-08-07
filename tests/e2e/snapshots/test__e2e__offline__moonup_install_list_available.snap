@@ -1,0 +1,17 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - install
+    - "--list-available"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Available channel(s):
+  latest (0.10.6+80dc50f24)
+  nightly (0.10.6+09d021f04, 2026-08-06)
+  bleeding (0.1.20250525+30d3f4e0d)
+
+----- stderr -----
