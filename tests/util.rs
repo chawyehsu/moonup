@@ -4,6 +4,7 @@ use moonup::constant;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 
 /// A test workspace for e2e tests
 #[allow(unused)]
@@ -134,37 +135,39 @@ impl TestWorkspace {
 /// The JSON component/channel/index files and the `.tar.gz` toolchain stub
 /// archives under `tests/fixtures/dist_server` are served at their
 /// `/download/...` URL paths, so install/update e2e tests run with zero
-/// network. Returns the server guard (kept alive for the caller) and its base
-/// URL to point `MOONUP_DIST_SERVER` at.
-pub fn mock_dist_server() -> (ServerGuard, String) {
-    let mut s = mockito::Server::new();
-    const FIXTURE_DIR: &str = "fixtures/dist_server";
+/// network. The server is initialized once and reused across tests.
+pub fn mock_dist_server() -> &'static ServerGuard {
+    static DIST_SERVER: OnceLock<ServerGuard> = OnceLock::new();
 
-    // serve every committed JSON fixture (index, channel, component indexes)
-    insta::glob!(FIXTURE_DIR, "**/*.json", |path: &Path| {
-        let path = path.display().to_string();
-        #[cfg(target_os = "windows")]
-        let path = path.replace("\\", "/");
+    DIST_SERVER.get_or_init(|| {
+        let mut s = mockito::Server::new();
+        const FIXTURE_DIR: &str = "fixtures/dist_server";
 
-        let pathname = path.rsplit_once("dist_server").unwrap().1;
-        s.mock("GET", pathname)
-            .with_body_from_file(path)
-            .with_header("content-type", "application/json")
-            .create();
-    });
+        // serve every committed JSON fixture (index, channel, component indexes)
+        insta::glob!(FIXTURE_DIR, "**/*.json", |path: &Path| {
+            let path = path.display().to_string();
+            #[cfg(target_os = "windows")]
+            let path = path.replace("\\", "/");
 
-    // serve the shrunken toolchain archives from disk
-    insta::glob!(FIXTURE_DIR, "download/**/*.{tar.gz,zip}", |path: &Path| {
-        let path = path.display().to_string();
-        #[cfg(target_os = "windows")]
-        let path = path.replace("\\", "/");
+            let pathname = path.rsplit_once("dist_server").unwrap().1;
+            s.mock("GET", pathname)
+                .with_body_from_file(path)
+                .with_header("content-type", "application/json")
+                .create();
+        });
 
-        let pathname = path.rsplit_once("dist_server").unwrap().1;
-        s.mock("GET", pathname).with_body_from_file(path).create();
-    });
+        // serve the shrunken toolchain archives from disk
+        insta::glob!(FIXTURE_DIR, "download/**/*.{tar.gz,zip}", |path: &Path| {
+            let path = path.display().to_string();
+            #[cfg(target_os = "windows")]
+            let path = path.replace("\\", "/");
 
-    let url = s.url();
-    (s, url)
+            let pathname = path.rsplit_once("dist_server").unwrap().1;
+            s.mock("GET", pathname).with_body_from_file(path).create();
+        });
+
+        s
+    })
 }
 
 #[allow(unused_macros)]

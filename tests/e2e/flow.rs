@@ -51,16 +51,13 @@ fn test_flow_with_network_mock() {
     let ws = TestWorkspace::new();
 
     // setup mock server for dist_server from committed fixtures
-    let (_s, dist_server_url) = util::mock_dist_server();
+    let s = util::mock_dist_server();
 
     // Override the dist server URL with the mock server URL
     assert_cmd_snapshot!(
         "moonup_install_list_available_mock",
         ws.cli()
-            .env(
-                constant::ENVNAME_MOONUP_DIST_SERVER,
-                dist_server_url.as_str()
-            )
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
             .arg("install")
             .arg("--list-available")
     );
@@ -68,10 +65,7 @@ fn test_flow_with_network_mock() {
     assert_cmd_snapshot!(
         "moonup_install_list_available_mock_2",
         ws.cli()
-            .env(
-                constant::ENVNAME_MOONUP_DIST_SERVER,
-                dist_server_url.as_str()
-            )
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
             .arg("install")
             .arg("--list-available")
             .arg("-vvv")

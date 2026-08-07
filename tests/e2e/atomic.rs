@@ -54,7 +54,7 @@ fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
 #[test]
 fn test_install_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
-    let (_server, dist_server_url) = mock_dist_server();
+    let s = mock_dist_server();
     let spec = ToolchainSpec::from(TEST_INSTALL_VERSION);
 
     temp_env::with_var(
@@ -67,10 +67,7 @@ fn test_install_recovers_interrupted_swap() {
             // first, install the toolchain
             let _ = ws
                 .cli()
-                .env(
-                    constant::ENVNAME_MOONUP_DIST_SERVER,
-                    dist_server_url.as_str(),
-                )
+                .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("install")
                 .arg(TEST_INSTALL_VERSION)
                 .output()
@@ -91,10 +88,7 @@ fn test_install_recovers_interrupted_swap() {
             // re-downloading
             let _ = ws
                 .cli()
-                .env(
-                    constant::ENVNAME_MOONUP_DIST_SERVER,
-                    dist_server_url.as_str(),
-                )
+                .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("install")
                 .arg(TEST_INSTALL_VERSION)
                 .output()
@@ -117,7 +111,7 @@ fn test_install_recovers_interrupted_swap() {
 #[test]
 fn test_update_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
-    let (_server, dist_server_url) = mock_dist_server();
+    let s = mock_dist_server();
     let spec = ToolchainSpec::Latest;
 
     temp_env::with_var(
@@ -130,10 +124,7 @@ fn test_update_recovers_interrupted_swap() {
             // install the `latest` channel first
             let _ = ws
                 .cli()
-                .env(
-                    constant::ENVNAME_MOONUP_DIST_SERVER,
-                    dist_server_url.as_str(),
-                )
+                .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("install")
                 .arg("latest")
                 .output()
@@ -150,10 +141,7 @@ fn test_update_recovers_interrupted_swap() {
             // the next update should recover the latest toolchain
             let _ = ws
                 .cli()
-                .env(
-                    constant::ENVNAME_MOONUP_DIST_SERVER,
-                    dist_server_url.as_str(),
-                )
+                .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("update")
                 .output()
                 .expect("should run moonup update");
