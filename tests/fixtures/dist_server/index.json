@@ -1,15 +1,15 @@
 {
   "version": 3,
-  "lastModified": "20260626T2144258902Z",
+  "lastModified": "20260807T0102316213Z",
   "channels": [
     {
       "name": "latest",
-      "version": "0.10.1+a46be2066"
+      "version": "0.10.6+80dc50f24"
     },
     {
       "name": "nightly",
-      "version": "0.10.2+f06d4fbd5",
-      "date": "2026-06-26"
+      "version": "0.10.6+09d021f04",
+      "date": "2026-08-06"
     },
     {
       "name": "bleeding",

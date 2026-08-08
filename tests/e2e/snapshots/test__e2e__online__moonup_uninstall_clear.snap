@@ -1,0 +1,14 @@
+---
+source: tests/e2e/online.rs
+info:
+  program: moonup
+  args:
+    - uninstall
+    - "--clear"
+---
+success: true
+exit_code: 0
+----- stdout -----
+✔  Cleared all cached downloads
+
+----- stderr -----

@@ -1,0 +1,14 @@
+---
+source: tests/e2e/online.rs
+info:
+  program: moon
+  args:
+    - +0.1.20241231+ba15a9a4e
+    - version
+---
+success: true
+exit_code: 0
+----- stdout -----
+moon 0.1.20241231 (16670d0 2024-12-31)
+
+----- stderr -----
