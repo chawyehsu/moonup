@@ -8,7 +8,7 @@ use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 use std::env;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncRead, BufReader};
