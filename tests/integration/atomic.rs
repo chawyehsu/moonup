@@ -68,6 +68,23 @@ fn test_recover_promotes_complete_staging() {
 }
 
 #[test]
+fn test_recovery_recipe_uses_concrete_spec_for_stable_selector() {
+    let staged = atomic::StagedRelease {
+        version: "0.10.1+build".to_string(),
+        ..Default::default()
+    };
+    let requested = ToolchainSpec::Version("0.10".to_string());
+
+    let recipe = staged.into_recipe(&requested);
+
+    assert_eq!(
+        recipe.spec,
+        ToolchainSpec::Version("0.10.1+build".to_string())
+    );
+    assert_eq!(recipe.requested_spec, requested);
+}
+
+#[test]
 fn test_recover_does_not_promote_incomplete_staging() {
     let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
     let moonup_home = tempdir.path().join(".moonup");
