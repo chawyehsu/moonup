@@ -111,7 +111,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         let recipe = staged.into_recipe(&spec);
         post_install(&recipe)?;
         link_dirs(&recipe)?;
-        atomic::acknowledge(&spec);
+        atomic::acknowledge(&recipe.spec);
         return Ok(());
     }
 
@@ -132,7 +132,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     populate_install(&recipe).await?;
     post_install(&recipe)?;
     link_dirs(&recipe)?;
-    atomic::acknowledge(&spec);
+    atomic::acknowledge(&recipe.spec);
 
     println!(
         "{}Installed toolchain version '{}'",
