@@ -2,7 +2,7 @@
 
 ## Status
 
-Design confirmed. Implementation is the next task.
+Implemented and verified. The incomplete stable-version selector flow is complete.
 
 ## Agreed contract
 
