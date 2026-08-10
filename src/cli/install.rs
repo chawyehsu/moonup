@@ -128,7 +128,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         );
     }
 
-    println!("Installing toolchain '{}'", spec);
+    println!("Installing toolchain '{}'", recipe.spec);
     populate_install(&recipe).await?;
     post_install(&recipe)?;
     link_dirs(&recipe)?;
