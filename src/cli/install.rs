@@ -111,7 +111,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         let recipe = staged.into_recipe(&spec);
         post_install(&recipe)?;
         link_dirs(&recipe)?;
-        atomic::acknowledge(&spec);
+        atomic::acknowledge(&recipe.spec);
         return Ok(());
     }
 
@@ -120,16 +120,24 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         std::process::exit(1);
     });
 
-    println!("Installing toolchain '{}'", spec);
+    if recipe.requested_spec != recipe.spec {
+        tracing::info!(
+            requested = %recipe.requested_spec,
+            resolved = %recipe.spec,
+            "resolved stable version selector"
+        );
+    }
+
+    println!("Installing toolchain '{}'", recipe.spec);
     populate_install(&recipe).await?;
     post_install(&recipe)?;
     link_dirs(&recipe)?;
-    atomic::acknowledge(&spec);
+    atomic::acknowledge(&recipe.spec);
 
     println!(
         "{}Installed toolchain version '{}'",
         console::style(console::Emoji("✔ ", "")).green(),
-        spec
+        recipe.spec
     );
     println!(
         "Make sure '{}' is added to your PATH",

@@ -28,8 +28,9 @@ async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::R
     // resolution, so an interrupted update never leaves it without its
     // post-install steps; the pending marker is acknowledged once done.
     if let Some(staged) = atomic::recover(spec)? {
-        post_install(&staged.into_recipe(spec))?;
-        atomic::acknowledge(spec);
+        let recipe = staged.into_recipe(spec);
+        post_install(&recipe)?;
+        atomic::acknowledge(&recipe.spec);
     }
 
     let name = spec.as_str();

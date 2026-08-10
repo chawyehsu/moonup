@@ -71,8 +71,17 @@ impl StagedRelease {
     /// post-install steps (shims, core library bundle, directory links)
     /// without resolving a fresh release from the network.
     pub fn into_recipe(self, spec: &ToolchainSpec) -> InstallRecipe {
+        let requested_spec = spec.clone();
+        let effective_spec = match spec {
+            ToolchainSpec::Version(value) if super::version::is_stable_selector(value) => {
+                ToolchainSpec::Version(self.version.clone())
+            }
+            _ => requested_spec.clone(),
+        };
+
         InstallRecipe {
-            spec: spec.clone(),
+            spec: effective_spec,
+            requested_spec,
             release: Release {
                 version: self.version,
                 layout_version1: None,

@@ -10,13 +10,17 @@ use crate::dist_server::schema::{
 };
 use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
 
-use super::ToolchainSpec;
+use super::{ToolchainSpec, version};
 
 /// The install recipe for performing a toolchain installation
 #[derive(Debug)]
 pub struct InstallRecipe {
-    /// The requested toolchain spec
+    /// The effective toolchain spec used for installation and filesystem identity.
+    ///
+    /// This may be a channel name (`latest`, `nightly`, `bleeding`) or a concrete version.
     pub spec: ToolchainSpec,
+    /// The original user-requested spec, retained for diagnostics.
+    pub requested_spec: ToolchainSpec,
     /// The release information
     pub release: Release,
     /// The components to install
@@ -275,6 +279,9 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
         ToolchainSpec::Bleeding | ToolchainSpec::Latest | ToolchainSpec::Nightly => {
             releases.next_back().cloned().or(None)
         }
+        ToolchainSpec::Version(s) if !s.starts_with("nightly") => {
+            version::resolve_stable_selector(s, releases).cloned()
+        }
         ToolchainSpec::Version(s) => {
             let is_nightly = s.starts_with("nightly");
 
@@ -313,8 +320,15 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
         .await?
         .components()
         .to_vec();
+    let effective_spec = match spec {
+        ToolchainSpec::Version(s) if version::is_stable_selector(s) => {
+            ToolchainSpec::Version(release.version.clone())
+        }
+        _ => spec.clone(),
+    };
     let recipe = InstallRecipe {
-        spec: spec.clone(),
+        spec: effective_spec,
+        requested_spec: spec.clone(),
         release,
         components,
     };

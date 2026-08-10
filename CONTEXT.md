@@ -9,8 +9,14 @@ A named, self-contained installation of the MoonBit compiler and its components,
 _Avoid_: Install, build, distribution
 
 **Toolchain spec**:
-The identifier used to select a toolchain: `latest`, `nightly`, `bleeding`, or a specific version (e.g. `v1.0.0` or `nightly-2025-01-01`).
+The identifier used to select a toolchain: `latest`, `nightly`, `bleeding`, or a specific version (e.g. `1.0.0` or `nightly-2025-01-01`).
 _Avoid_: Channel, tag, release
+
+**Version selector**:
+A numeric stable-version input accepted by the install command. It may contain one, two, or three dot-separated components (for example, `0`, `0.10`, or `0.10.1`). A selector chooses a concrete stable release; it is not itself an installed toolchain identity.
+
+**Resolved release**:
+The concrete stable release selected from the ordered stable release index for a version selector. The resolved release, rather than the selector, is the toolchain's installation identity.
 
 **Atomic toolchain change**:
 An operation that replaces an installed toolchain such that the currently installed toolchain remains fully usable at every instant, even if the operation fails or the process is killed mid-way.
