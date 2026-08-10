@@ -178,10 +178,16 @@ impl InstalledToolchain {
             .ok_or_else(|| miette::miette!("failed to read toolchain install name"))?;
 
         let name = ToolchainSpec::from(n);
-        let tag = match &name {
+        Ok(name.into())
+    }
+}
+
+impl From<ToolchainSpec> for InstalledToolchain {
+    fn from(spec: ToolchainSpec) -> Self {
+        let tag = match &spec {
             ToolchainSpec::Version(_) => None,
             _ => Some(
-                std::fs::read_to_string(path.join("version"))
+                std::fs::read_to_string(spec.install_path().join("version"))
                     .map(|s| s.trim().to_owned())
                     .into_diagnostic()
                     .inspect_err(|e| tracing::warn!("failed to read toolchain version stub {}", e))
@@ -189,7 +195,7 @@ impl InstalledToolchain {
             ),
         };
 
-        Ok(Self { name, tag })
+        Self { name: spec, tag }
     }
 }
 
