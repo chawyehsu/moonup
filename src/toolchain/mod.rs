@@ -7,6 +7,7 @@ pub mod atomic;
 pub mod index;
 pub mod package;
 pub mod resolve;
+pub mod version;
 
 /// Install specification for a toolchain
 ///

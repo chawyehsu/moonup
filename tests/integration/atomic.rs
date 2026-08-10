@@ -224,6 +224,7 @@ fn test_staged_matches_requires_same_release() {
 
             let recipe = |version: &str| InstallRecipe {
                 spec: spec.clone(),
+                requested_spec: spec.clone(),
                 release: Release {
                     version: version.to_string(),
                     layout_version1: None,

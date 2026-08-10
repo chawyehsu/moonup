@@ -120,6 +120,14 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         std::process::exit(1);
     });
 
+    if recipe.requested_spec != recipe.spec {
+        tracing::info!(
+            requested = %recipe.requested_spec,
+            resolved = %recipe.spec,
+            "resolved stable version selector"
+        );
+    }
+
     println!("Installing toolchain '{}'", spec);
     populate_install(&recipe).await?;
     post_install(&recipe)?;
@@ -129,7 +137,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     println!(
         "{}Installed toolchain version '{}'",
         console::style(console::Emoji("✔ ", "")).green(),
-        spec
+        recipe.spec
     );
     println!(
         "Make sure '{}' is added to your PATH",

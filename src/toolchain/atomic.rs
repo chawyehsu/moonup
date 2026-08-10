@@ -73,6 +73,7 @@ impl StagedRelease {
     pub fn into_recipe(self, spec: &ToolchainSpec) -> InstallRecipe {
         InstallRecipe {
             spec: spec.clone(),
+            requested_spec: spec.clone(),
             release: Release {
                 version: self.version,
                 layout_version1: None,
