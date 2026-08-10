@@ -173,10 +173,7 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
             // in the cached `latest` channel index), followed by the channel
             // aliases `bleeding` < `nightly` < `latest`.
             let latest_positions = read_latest_channel_positions(&t);
-            t.sort_by(|a, b| {
-                release_order(&a.name, &latest_positions)
-                    .cmp(&release_order(&b.name, &latest_positions))
-            });
+            t.sort_by_key(|it| release_order(&it.name, &latest_positions));
             t
         }
     };
