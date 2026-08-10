@@ -191,8 +191,8 @@ enum ReleaseOrder {
     /// A versioned nightly install, ordered by its build date (YYYY-MM-DD)
     Nightly(String),
     /// A versioned latest install, ordered by its position in the cached
-    /// `latest` channel index (a release absent from the index is older and
-    /// sorts first), then numerically by version
+    /// `latest` channel index. A release absent from the index triggers
+    /// a fallback to numeric version ordering for the whole group
     Latest(Option<usize>, NumericVersion),
     /// A floating channel alias: `bleeding` < `nightly` < `latest`
     Channel(u8),
