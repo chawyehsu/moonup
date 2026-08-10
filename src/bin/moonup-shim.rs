@@ -7,7 +7,7 @@ use std::process::{Command, ExitStatus};
 use moonup::constant::RECURSION_LIMIT;
 use moonup::runner;
 use moonup::toolchain::ToolchainSpec;
-use moonup::toolchain::resolve::detect_active_toolchainspec;
+use moonup::toolchain::resolve::detect_active_toolchain;
 
 pub fn main() {
     match run() {
@@ -49,19 +49,17 @@ fn run() -> Result<ExitStatus> {
     // - If the first argument is a toolchain spec, use it.
     // - If the `MOONUP_TOOLCHAIN_SPEC` environment variable is set, use it.
     // - Otherwise, detect the active toolchain.
-    let active_toolchain = if args_1_is_toolchain {
+    let spec = if args_1_is_toolchain {
         let version = args_1.expect("has arg version").strip_prefix('+').unwrap();
-        version.to_string()
-    } else if let Some(toolchain_spec) = env::var_os("MOONUP_TOOLCHAIN_SPEC") {
-        toolchain_spec
+        ToolchainSpec::from(version)
+    } else if let Some(s) = env::var_os("MOONUP_TOOLCHAIN_SPEC") {
+        let version = s
             .to_str()
-            .expect("MOONUP_TOOLCHAIN_SPEC should be valid UTF-8")
-            .to_string()
+            .expect("MOONUP_TOOLCHAIN_SPEC should be valid UTF-8");
+        ToolchainSpec::from(version)
     } else {
-        detect_active_toolchainspec()
+        detect_active_toolchain()
     };
-
-    let spec = ToolchainSpec::from(active_toolchain);
 
     // If the active toolchain is not installed, call `moonup install`
     // to install it.
