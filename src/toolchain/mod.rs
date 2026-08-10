@@ -236,11 +236,14 @@ fn release_order(spec: &ToolchainSpec, latest_positions: &HashMap<String, usize>
 /// order latest-channel installs. Offline and best-effort: on any read or
 /// parse error the installs fall back to numeric version ordering.
 fn read_latest_channel_positions(installs: &[InstalledToolchain]) -> HashMap<String, usize> {
-    let has_latest = installs.iter().any(|t| match &t.name {
-        ToolchainSpec::Version(v) => !v.starts_with("nightly"),
-        _ => false,
-    });
-    if !has_latest {
+    let latest_versions = installs
+        .iter()
+        .filter_map(|t| match &t.name {
+            ToolchainSpec::Version(v) if !v.starts_with("nightly") => Some(v.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    if latest_versions.is_empty() {
         return HashMap::new();
     }
 
@@ -254,10 +257,20 @@ fn read_latest_channel_positions(installs: &[InstalledToolchain]) -> HashMap<Str
         return HashMap::new();
     };
 
-    index
+    let positions = index
         .releases()
         .iter()
         .enumerate()
         .map(|(i, r)| (r.version.clone(), i))
-        .collect()
+        .collect::<HashMap<_, _>>();
+
+    // A stale cache that lacks one of the installed releases would otherwise
+    // sort that release (as `None`) below older releases that are present in
+    // the index, breaking oldest-to-newest order. If the cache is incomplete,
+    // fall back to pure numeric version ordering for the whole group.
+    if latest_versions.iter().any(|v| !positions.contains_key(v)) {
+        return HashMap::new();
+    }
+
+    positions
 }
