@@ -15,7 +15,9 @@ use super::{ToolchainSpec, version};
 /// The install recipe for performing a toolchain installation
 #[derive(Debug)]
 pub struct InstallRecipe {
-    /// The concrete toolchain spec used for installation and filesystem identity
+    /// The effective toolchain spec used for installation and filesystem identity.
+    ///
+    /// This may be a channel name (`latest`, `nightly`, `bleeding`) or a concrete version.
     pub spec: ToolchainSpec,
     /// The original user-requested spec, retained for diagnostics.
     pub requested_spec: ToolchainSpec,
