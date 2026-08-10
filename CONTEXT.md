@@ -27,6 +27,10 @@ _Avoid_: Install in place
 A wrapper executable in `MOON_HOME/bin/` (and `bin/internal/`) that forwards a toolchain command (e.g. `moon`) to the active toolchain's real binary via moonup. It is a copy of the `moonup-shim` binary named after the toolchain command.
 _Avoid_: Launcher, proxy
 
+**Release order**:
+The order in which installed toolchains are listed: versioned installs first, grouped by channel and ordered oldest-to-newest by release date, then the floating channel aliases in `bleeding` → `nightly` → `latest` order.
+_Avoid_: Alphabetical order, install name order
+
 **Retire**:
 Moving a replaced executable into the hidden `MOON_HOME/bin/.trash/` directory under a unique name so the live name is freed immediately, deleting it best-effort once any process holding it has exited. On Windows a running executable can be renamed but not deleted, which is why retirement precedes deletion.
 _Avoid_: Delete in place
