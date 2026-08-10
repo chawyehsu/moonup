@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
 use moonup::constant::RECURSION_LIMIT;
+use moonup::runner;
 use moonup::toolchain::ToolchainSpec;
 use moonup::toolchain::resolve::detect_active_toolchainspec;
-use moonup::{moonup_home, runner};
 
 pub fn main() {
     match run() {
@@ -61,20 +61,15 @@ fn run() -> Result<ExitStatus> {
         detect_active_toolchainspec()
     };
 
-    let active_toolchain_root = moonup_home().join("toolchains").join(&active_toolchain);
+    let spec = ToolchainSpec::from(active_toolchain);
 
     // If the active toolchain is not installed, call `moonup install`
     // to install it.
-    if !active_toolchain_root.exists() {
-        let version = active_toolchain_root
-            .file_name()
-            .and_then(|v| v.to_str())
-            .expect("should get active toolchain version");
-
-        println!("toolchain version '{version}' not installed");
+    if !spec.install_path().exists() {
+        println!("toolchain version '{spec}' not installed");
 
         let mut cmd = Command::new("moonup");
-        cmd.args(["install", version]);
+        cmd.args(["install", spec.as_str()]);
 
         match cmd.status() {
             Err(e) => return Err(anyhow::anyhow!("Failed to run moonup install: {}", e)),
@@ -97,7 +92,6 @@ fn run() -> Result<ExitStatus> {
         }
     }
 
-    let spec = ToolchainSpec::from(active_toolchain.as_str());
     let mut run_args = vec![OsString::from(current_exe_name)];
 
     let idx = if args_1_is_toolchain { 2 } else { 1 };
