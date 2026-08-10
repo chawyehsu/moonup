@@ -1,9 +1,6 @@
 use clap::Parser;
 
-use crate::{
-    runner,
-    toolchain::{ToolchainSpec, resolve::detect_active_toolchainspec},
-};
+use crate::{runner, toolchain::resolve::detect_active_toolchain};
 
 /// Show the actual binary that will be run for a given command
 #[derive(Parser, Debug)]
@@ -20,9 +17,9 @@ fn format_command(cmd: &std::process::Command) -> String {
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    let active_toolchain = ToolchainSpec::from(detect_active_toolchainspec());
+    let spec = detect_active_toolchain();
 
-    match runner::build_command(active_toolchain, vec![args.command.as_str()]) {
+    match runner::build_command(spec, vec![args.command.as_str()]) {
         Ok(cmd) => println!("{}", format_command(&cmd)),
         Err(err) if err.to_string().starts_with("Command '") => {
             eprintln!("No command found for '{}'", args.command)

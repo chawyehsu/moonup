@@ -35,7 +35,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         }
 
         let active = resolve::detect_active_toolchain();
-        let t = InstalledToolchain::from_path(&active)?;
+        let t = InstalledToolchain::from(active);
         println!("\nActive toolchain: {}", console::style(t.name).green());
     }
 
