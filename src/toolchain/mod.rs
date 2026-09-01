@@ -1,11 +1,14 @@
 use miette::IntoDiagnostic;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::dist_server::schema::{ChannelIndex, ChannelName};
+use crate::{
+    dist_server::schema::ChannelName,
+    toolchain::ordering::{read_latest_channel_positions, release_order},
+};
 
 pub mod atomic;
 pub mod index;
+pub mod ordering;
 pub mod package;
 pub mod resolve;
 pub mod version;
@@ -180,95 +183,4 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
     };
 
     Ok(toolchains)
-}
-
-/// The release order of an installed toolchain, oldest first.
-///
-/// Versioned installs precede the floating channel aliases, grouped by channel
-/// and ordered by release date. The aliases sort `bleeding` < `nightly` <
-/// `latest`.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum ReleaseOrder {
-    /// A versioned nightly install, ordered by its build date (YYYY-MM-DD)
-    Nightly(String),
-    /// A versioned latest install, ordered by its position in the cached
-    /// `latest` channel index. A release absent from the index triggers
-    /// a fallback to numeric version ordering for the whole group
-    Latest(Option<usize>, NumericVersion),
-    /// A floating channel alias: `bleeding` < `nightly` < `latest`
-    Channel(u8),
-}
-
-/// A version number compared component-wise, so `0.10.6` orders after `0.9.0`.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct NumericVersion(Vec<u64>);
-
-impl NumericVersion {
-    fn parse(version: &str) -> Self {
-        // ignore the `+build` metadata suffix (e.g. `0.10.6+80dc50f24`)
-        let core = version.split('+').next().unwrap_or(version);
-        let parts = core
-            .split('.')
-            .map(|p| p.parse::<u64>().unwrap_or(0))
-            .collect();
-        NumericVersion(parts)
-    }
-}
-
-/// Derive the [`ReleaseOrder`] sort key for an installed toolchain.
-fn release_order(spec: &ToolchainSpec, latest_positions: &HashMap<String, usize>) -> ReleaseOrder {
-    match spec {
-        ToolchainSpec::Bleeding => ReleaseOrder::Channel(0),
-        ToolchainSpec::Nightly => ReleaseOrder::Channel(1),
-        ToolchainSpec::Latest => ReleaseOrder::Channel(2),
-        ToolchainSpec::Version(v) if v.starts_with("nightly") => {
-            ReleaseOrder::Nightly(v.trim_start_matches("nightly-").to_owned())
-        }
-        ToolchainSpec::Version(v) => {
-            ReleaseOrder::Latest(latest_positions.get(v).copied(), NumericVersion::parse(v))
-        }
-    }
-}
-
-/// Positions of latest releases in the cached `latest` channel index, used to
-/// order latest-channel installs. Offline and best-effort: on any read or
-/// parse error the installs fall back to numeric version ordering.
-fn read_latest_channel_positions(installs: &[InstalledToolchain]) -> HashMap<String, usize> {
-    let latest_versions = installs
-        .iter()
-        .filter_map(|t| match &t.name {
-            ToolchainSpec::Version(v) if !v.starts_with("nightly") => Some(v.clone()),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    if latest_versions.is_empty() {
-        return HashMap::new();
-    }
-
-    let path = crate::moonup_home()
-        .join("downloads")
-        .join("channel-latest.json");
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return HashMap::new();
-    };
-    let Ok(index) = serde_json::from_str::<ChannelIndex>(&content) else {
-        return HashMap::new();
-    };
-
-    let positions = index
-        .releases()
-        .iter()
-        .enumerate()
-        .map(|(i, r)| (r.version.clone(), i))
-        .collect::<HashMap<_, _>>();
-
-    // A stale cache that lacks one of the installed releases would otherwise
-    // sort that release (as `None`) below older releases that are present in
-    // the index, breaking oldest-to-newest order. If the cache is incomplete,
-    // fall back to pure numeric version ordering for the whole group.
-    if latest_versions.iter().any(|v| !positions.contains_key(v)) {
-        return HashMap::new();
-    }
-
-    positions
 }
