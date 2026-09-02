@@ -37,6 +37,18 @@ _Avoid_: Launcher, proxy
 The order in which installed toolchains are listed: versioned installs first, grouped by channel and ordered oldest-to-newest by release date, then the floating channel aliases in `bleeding` → `nightly` → `latest` order.
 _Avoid_: Alphabetical order, install name order
 
+**Channel release sequence**:
+An oldest-to-newest sequence of releases provided by a channel index. Its sequence position is authoritative, including when multiple releases share the same base version but differ in build metadata.
+_Avoid_: Sorted version list, numeric version order
+
+**Concrete release identity**:
+The exact version string of a release as it appears in a channel release sequence, including build metadata such as `0.10.6+old` when present. It identifies one channel member and is the only operand accepted by reusable release comparison.
+_Avoid_: Base version, partial version, version selector
+
+**Release comparison**:
+The channel-defined ordering between two concrete release identities. It returns older, equal, or newer according to sequence position; callers apply relational operators such as `>` or `>=` themselves.
+_Avoid_: Numeric version comparison, threshold resolution
+
 **Retire**:
 Moving a replaced executable into the hidden `MOON_HOME/bin/.trash/` directory under a unique name so the live name is freed immediately, deleting it best-effort once any process holding it has exited. On Windows a running executable can be renamed but not deleted, which is why retirement precedes deletion.
 _Avoid_: Delete in place
