@@ -183,6 +183,19 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let bin_dir = toolchain_dir.join("bin");
     let moon_exe = bin_dir.join(exe_name("moon"));
 
+    // moonx
+    if !recipe
+        .release
+        .moonx
+        .as_ref()
+        .is_some_and(|s| s == "unavailable")
+    {
+        let moonx_exe = bin_dir.join(exe_name("moonx"));
+        if !moonx_exe.exists() {
+            std::fs::copy(&moon_exe, moonx_exe).into_diagnostic()?;
+        }
+    }
+
     let bins = find_bins(bin_dir.as_path()).wrap_err("failed to find bins")?;
     for bin in bins {
         tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());

@@ -1,4 +1,4 @@
-use serde::{Deserialize, de::Error};
+use serde::{Deserialize, Serialize, de::Error};
 
 mod legacy;
 mod v2;
@@ -234,26 +234,50 @@ impl ChannelIndex {
 }
 
 /// Represents a release in the channel index
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Release {
     /// The (compiler) version number of the release
     pub version: String,
 
     /// Flag to indicate if the distribution layout of the release is version 1
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_version1: Option<bool>,
 
     /// Flag to indicate if `--source-dir` should be used for running `moon bundle`
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bundle_source_dir: Option<bool>,
 
+    /// Flag to indicate the support for `moonx` in this release, undefined
+    /// means that it is assumed to be supported
+    ///
+    /// Possible values:
+    /// - `"unavailable"`: `moonx` is not supported in this release
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub moonx: Option<String>,
+
     /// The (nightly build) date of the release
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
 
     /// The available target hosts for the release
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub targets: Option<Vec<Target>>,
 }
 
 impl Release {
+    /// Create a new release with the given version.
+    pub fn new(version: impl Into<String>) -> Self {
+        Self {
+            version: version.into(),
+            layout_version1: None,
+            bundle_source_dir: None,
+            moonx: None,
+            date: None,
+            targets: None,
+        }
+    }
+
     /// Check if the current host is supported by this release
     pub fn is_host_supported(&self) -> bool {
         match Target::from_host() {
@@ -274,7 +298,7 @@ impl Release {
 }
 
 /// The target architecture of the toolchain
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Target {
     /// Apple macOS on ARM64 (Apple Silicon)

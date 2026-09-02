@@ -1,5 +1,4 @@
 use miette::{Context, IntoDiagnostic};
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use crate::dist_server::schema::Release;
@@ -44,27 +43,12 @@ pub fn is_complete(spec: &ToolchainSpec) -> bool {
 }
 
 /// The release identity persisted in a completeness marker.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct StagedRelease {
-    /// The actual release version of the staged toolchain.
-    pub version: String,
-    /// The build date for nightly releases.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub date: Option<String>,
-    /// Whether the release bundles a source directory, used by the
-    /// post-install steps.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bundle_source_dir: Option<bool>,
-}
+pub type StagedRelease = Release;
 
 impl StagedRelease {
     /// Persist the release identity of the recipe being assembled.
     pub fn from_recipe(recipe: &InstallRecipe) -> Self {
-        Self {
-            version: recipe.release.version.clone(),
-            date: recipe.release.date.clone(),
-            bundle_source_dir: recipe.release.bundle_source_dir,
-        }
+        recipe.release.clone()
     }
 
     /// Build a recipe carrying the staged release metadata, enough to run the
@@ -82,13 +66,7 @@ impl StagedRelease {
         InstallRecipe {
             spec: effective_spec,
             requested_spec,
-            release: Release {
-                version: self.version,
-                layout_version1: None,
-                bundle_source_dir: self.bundle_source_dir,
-                date: self.date,
-                targets: None,
-            },
+            release: self,
             components: Vec::new(),
         }
     }

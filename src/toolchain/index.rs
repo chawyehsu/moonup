@@ -21,7 +21,7 @@ pub struct InstallRecipe {
     pub spec: ToolchainSpec,
     /// The original user-requested spec, retained for diagnostics.
     pub requested_spec: ToolchainSpec,
-    /// The release information
+    /// The release information associated with this install recipe.
     pub release: Release,
     /// The components to install
     pub components: Vec<Component>,
