@@ -234,7 +234,7 @@ impl ChannelIndex {
 }
 
 /// Represents a release in the channel index
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Release {
     /// The (compiler) version number of the release
