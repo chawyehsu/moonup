@@ -1859,6 +1859,7 @@ dependencies = [
  "expectrl",
  "flate2",
  "futures-util",
+ "hex",
  "indicatif",
  "insta",
  "insta-cmd",

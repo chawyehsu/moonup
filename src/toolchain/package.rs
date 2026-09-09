@@ -94,7 +94,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         if !is_bleeding && local_file.exists() {
             match compute_file_sha256(&local_file).await {
                 Ok(sha256) => {
-                    let sha256_actual = format!("{:x}", sha256);
+                    let sha256_actual = hex::encode(sha256);
                     if sha256_actual == sha256_expected {
                         tracing::debug!("cache hit for {} at {}", name, local_file.display());
                         use_cache = true;
@@ -135,7 +135,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             let reporter = Some(Arc::new(progress_reporter) as Arc<dyn Reporter>);
 
             let reader = url_to_reader(url, &client, reporter.clone()).await?;
-            let sha256_actual = format!("{:x}", save_file(reader, &local_file).await?);
+            let sha256_actual = hex::encode(save_file(reader, &local_file).await?);
 
             if let Some(reporter) = &reporter {
                 reporter.on_complete();
@@ -191,7 +191,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             false => extract_tar_gz(reader, &component_install_dir).await?,
         };
 
-        let sha256_actual = format!("{:x}", sha256);
+        let sha256_actual = hex::encode(sha256);
 
         if sha256_actual != sha256_expected {
             let msg = format!(

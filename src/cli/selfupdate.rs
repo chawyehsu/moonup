@@ -89,7 +89,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
                 true => archive::extract_zip(reader, extract_to).await?,
             };
 
-            sha256_actual = format!("{:x}", sha256);
+            sha256_actual = hex::encode(sha256);
         }
     }
 
