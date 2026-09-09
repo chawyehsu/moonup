@@ -68,6 +68,23 @@ fn test_recover_promotes_complete_staging() {
 }
 
 #[test]
+fn test_recovery_recipe_uses_concrete_spec_for_stable_selector() {
+    let staged = atomic::StagedRelease {
+        version: "0.10.1+build".to_string(),
+        ..Default::default()
+    };
+    let requested = ToolchainSpec::Version("0.10".to_string());
+
+    let recipe = staged.into_recipe(&requested);
+
+    assert_eq!(
+        recipe.spec,
+        ToolchainSpec::Version("0.10.1+build".to_string())
+    );
+    assert_eq!(recipe.requested_spec, requested);
+}
+
+#[test]
 fn test_recover_does_not_promote_incomplete_staging() {
     let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
     let moonup_home = tempdir.path().join(".moonup");
@@ -224,13 +241,8 @@ fn test_staged_matches_requires_same_release() {
 
             let recipe = |version: &str| InstallRecipe {
                 spec: spec.clone(),
-                release: Release {
-                    version: version.to_string(),
-                    layout_version1: None,
-                    bundle_source_dir: None,
-                    date: None,
-                    targets: None,
-                },
+                requested_spec: spec.clone(),
+                release: Release::new(version),
                 components: Vec::new(),
             };
 
@@ -266,6 +278,42 @@ fn test_installed_toolchains_excludes_staging() {
             let installed = installed_toolchains().expect("should list installed toolchains");
             assert_eq!(installed.len(), 1);
             assert_eq!(installed[0].name, ToolchainSpec::Latest);
+        },
+    );
+}
+
+#[test]
+fn test_installed_toolchains_stale_latest_cache_falls_back_to_numeric() {
+    let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+    let moonup_home = tempdir.path().join(".moonup");
+
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(moonup_home.as_os_str()),
+        || {
+            // A stale cache that no longer lists the installed `0.11.0` must not
+            // sort it below `0.10.0` (which the cache does list); the whole
+            // latest group falls back to numeric version ordering.
+            let toolchains_dir = moonup_home.join("toolchains");
+            for v in ["0.10.0", "0.11.0"] {
+                std::fs::create_dir_all(toolchains_dir.join(v))
+                    .expect("should create toolchain dir");
+            }
+
+            let downloads_dir = moonup_home.join("downloads");
+            std::fs::create_dir_all(&downloads_dir).expect("should create downloads dir");
+            std::fs::write(
+                downloads_dir.join("channel-latest.json"),
+                r#"{ "version": 3, "lastModified": "STALE", "releases": [ { "version": "0.10.0", "targets": ["aarch64-apple-darwin"] } ] }"#,
+            )
+            .expect("should write stale latest cache");
+
+            let installed = installed_toolchains().expect("should list installed toolchains");
+            let names = installed
+                .iter()
+                .map(|t| t.name.to_string())
+                .collect::<Vec<_>>();
+            assert_eq!(names, vec!["0.10.0", "0.11.0"]);
         },
     );
 }
