@@ -21,7 +21,7 @@ async fn test_archive_zip_extraction() {
         .child("hello.txt")
         .assert(predicates::path::exists());
 
-    let sha256 = format!("{:x}", hash);
+    let sha256 = hex::encode(hash);
     assert_snapshot!(sha256, @"cf1b56aea8868e856e3345d4e8ed0fd2cd10907170a0bcbf4494ec532abb3e86");
 }
 
@@ -42,6 +42,6 @@ async fn test_archive_tar_gz_extraction() {
         .child("world.txt")
         .assert(predicates::path::exists());
 
-    let sha256 = format!("{:x}", hash);
+    let sha256 = hex::encode(hash);
     assert_snapshot!(sha256, @"65f77ae8d172385a19157f338ca63f6cdb836e1fce82751c2ea8d7e5c7991823");
 }
