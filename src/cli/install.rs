@@ -183,6 +183,22 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let bin_dir = toolchain_dir.join("bin");
     let moon_exe = bin_dir.join(exe_name("moon"));
 
+    // moonx
+    if !recipe
+        .release
+        .moonx
+        .as_ref()
+        .is_some_and(|s| s == "unavailable")
+    {
+        let moonx_exe = bin_dir.join(exe_name("moonx"));
+        if !moonx_exe.exists() {
+            #[cfg(target_os = "windows")]
+            std::fs::copy(&moon_exe, &moonx_exe).into_diagnostic()?;
+            #[cfg(not(target_os = "windows"))]
+            std::os::unix::fs::symlink(&moon_exe, &moonx_exe).into_diagnostic()?;
+        }
+    }
+
     let bins = find_bins(bin_dir.as_path()).wrap_err("failed to find bins")?;
     for bin in bins {
         tracing::debug!("pouring shim for '{}'", bin.to_string_lossy());
@@ -239,7 +255,16 @@ fn find_bins(dir: &Path) -> miette::Result<Vec<OsString>> {
             let is_file = e
                 .file_type()
                 .into_diagnostic()
-                .map(|t| t.is_file())
+                .map(|t| {
+                    #[cfg(target_os = "windows")]
+                    {
+                        t.is_file()
+                    }
+                    #[cfg(not(target_os = "windows"))]
+                    {
+                        t.is_file() || t.is_symlink()
+                    }
+                })
                 .unwrap_or(false);
 
             if is_file {

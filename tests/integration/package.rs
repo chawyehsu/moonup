@@ -25,13 +25,7 @@ fn test_populate_install_redownloads_invalid_cache() {
     let recipe = InstallRecipe {
         spec: ToolchainSpec::Version(version.to_string()),
         requested_spec: ToolchainSpec::Version(version.to_string()),
-        release: Release {
-            version: version.to_string(),
-            layout_version1: None,
-            bundle_source_dir: None,
-            date: None,
-            targets: None,
-        },
+        release: Release::new(version),
         components: vec![Component {
             name: "toolchain".to_string(),
             file: archive_file.to_string(),

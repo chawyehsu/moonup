@@ -62,13 +62,7 @@ mod tests {
     fn releases(values: &[&str]) -> Vec<Release> {
         values
             .iter()
-            .map(|version| Release {
-                version: (*version).into(),
-                layout_version1: None,
-                bundle_source_dir: None,
-                date: None,
-                targets: None,
-            })
+            .map(|version| Release::new(*version))
             .collect()
     }
 
