@@ -21,7 +21,8 @@ jobs:
   ci_style_check:
     name: Code Style Check
     runs-on: ubuntu-latest
-    if: github.actor != 'release-maid[bot]'
+    # skip if it's a release commit to the main branch
+    if: "!(github.event_name == 'push' && contains(github.event.head_commit.message, 'chore(main): release'))"
     env:
       SCCACHE_GHA_ENABLED: true
       RUSTC_WRAPPER: sccache
