@@ -187,7 +187,8 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     if recipe
         .release
         .moonx
-        .as_ref().is_none_or(|s| s != "unavailable")
+        .as_ref()
+        .is_none_or(|s| s != "unavailable")
     {
         let moonx_exe = bin_dir.join(exe_name("moonx"));
         if !moonx_exe.exists() {
