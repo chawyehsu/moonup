@@ -18,13 +18,13 @@ Usage: moonup [OPTIONS] <COMMAND>
 Commands:
   completions  Generate shell completions
   default      Set the default toolchain
-  install      Install or update a MoonBit toolchain [aliases: i]
-  list         List installed and active toolchains [aliases: ls]
+  install      Install or update a MoonBit toolchain [alias: i]
+  list         List installed and active toolchains [alias: ls]
   pin          Pin the MoonBit toolchain to a specific version
-  run          Run a command with a specific toolchain [aliases: x]
+  run          Run a command with a specific toolchain [alias: x]
   self-update  Update Moonup to the latest version
   uninstall    Uninstall a MoonBit toolchain
-  update       Update MoonBit toolchains [aliases: u]
+  update       Update MoonBit toolchains [alias: u]
   which        Show the actual binary that will be run for a given command
   help         Print this message or the help of the given subcommand(s)
 
