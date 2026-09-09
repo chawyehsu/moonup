@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/chawyehsu/moonup/compare/v0.6.0...v0.6.1) (2026-09-09)
+
+
+### Features
+
+* **toolchain:** support moonx in release installs ([#211](https://github.com/chawyehsu/moonup/issues/211)) ([097d32a](https://github.com/chawyehsu/moonup/commit/097d32afb61dde9ab27ce24e76a4e2efc164b8b8))
+
 ## [0.6.0](https://github.com/chawyehsu/moonup/compare/v0.5.2...v0.6.0) (2026-08-10)
 
 
