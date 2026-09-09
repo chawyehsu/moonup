@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tokio::io::AsyncReadExt;
 
 use crate::archive;
-use crate::utils::{self, build_http_client_with_retry};
+use crate::utils::{self, build_http_client_with_retry, exe_name};
 
 /// Update Moonup to the latest version
 #[derive(Parser, Debug)]
@@ -97,9 +97,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
 
     let args = env::args_os().collect::<Vec<_>>();
     for bin in ["moonup", "moonup-shim"] {
-        let ext = if cfg!(windows) { ".exe" } else { "" };
-        let name = format!("{}{}", bin, ext);
-
+        let name = exe_name(bin);
         let src = extract_to.join(&name);
         let dst = env::current_exe()
             .unwrap_or_else(|_| PathBuf::from(&args[0]))

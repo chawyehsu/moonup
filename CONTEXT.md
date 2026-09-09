@@ -9,8 +9,14 @@ A named, self-contained installation of the MoonBit compiler and its components,
 _Avoid_: Install, build, distribution
 
 **Toolchain spec**:
-The identifier used to select a toolchain: `latest`, `nightly`, `bleeding`, or a specific version (e.g. `v1.0.0` or `nightly-2025-01-01`).
+The identifier used to select a toolchain: `latest`, `nightly`, `bleeding`, or a specific version (e.g. `1.0.0` or `nightly-2025-01-01`).
 _Avoid_: Channel, tag, release
+
+**Version selector**:
+A numeric stable-version input accepted by the install command. It may contain one, two, or three dot-separated components (for example, `0`, `0.10`, or `0.10.1`). A selector chooses a concrete stable release; it is not itself an installed toolchain identity.
+
+**Resolved release**:
+The concrete stable release selected from the ordered stable release index for a version selector. The resolved release, rather than the selector, is the toolchain's installation identity.
 
 **Atomic toolchain change**:
 An operation that replaces an installed toolchain such that the currently installed toolchain remains fully usable at every instant, even if the operation fails or the process is killed mid-way.
@@ -26,6 +32,22 @@ _Avoid_: Install in place
 **Shim**:
 A wrapper executable in `MOON_HOME/bin/` (and `bin/internal/`) that forwards a toolchain command (e.g. `moon`) to the active toolchain's real binary via moonup. It is a copy of the `moonup-shim` binary named after the toolchain command.
 _Avoid_: Launcher, proxy
+
+**Release order**:
+The order in which installed toolchains are listed: versioned installs first, grouped by channel and ordered oldest-to-newest by release date, then the floating channel aliases in `bleeding` → `nightly` → `latest` order.
+_Avoid_: Alphabetical order, install name order
+
+**Channel release sequence**:
+An oldest-to-newest sequence of releases provided by a channel index. Its sequence position is authoritative, including when multiple releases share the same base version but differ in build metadata.
+_Avoid_: Sorted version list, numeric version order
+
+**Concrete release identity**:
+The exact version string of a release as it appears in a channel release sequence, including build metadata such as `0.10.6+old` when present. It identifies one channel member and is the only operand accepted by reusable release comparison.
+_Avoid_: Base version, partial version, version selector
+
+**Release comparison**:
+The channel-defined ordering between two concrete release identities. It returns older, equal, or newer according to sequence position; callers apply relational operators such as `>` or `>=` themselves.
+_Avoid_: Numeric version comparison, threshold resolution
 
 **Retire**:
 Moving a replaced executable into the hidden `MOON_HOME/bin/.trash/` directory under a unique name so the live name is freed immediately, deleting it best-effort once any process holding it has exited. On Windows a running executable can be renamed but not deleted, which is why retirement precedes deletion.

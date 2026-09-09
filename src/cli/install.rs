@@ -14,6 +14,7 @@ use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_toolchain;
 use crate::toolchain::{ToolchainSpec, atomic, index};
 use crate::toolchain::{index::build_installrecipe, package::populate_install};
+use crate::utils::exe_name;
 
 use super::ToolchainSpecValueParser;
 
@@ -111,7 +112,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         let recipe = staged.into_recipe(&spec);
         post_install(&recipe)?;
         link_dirs(&recipe)?;
-        atomic::acknowledge(&spec);
+        atomic::acknowledge(&recipe.spec);
         return Ok(());
     }
 
@@ -120,16 +121,24 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         std::process::exit(1);
     });
 
-    println!("Installing toolchain '{}'", spec);
+    if recipe.requested_spec != recipe.spec {
+        tracing::info!(
+            requested = %recipe.requested_spec,
+            resolved = %recipe.spec,
+            "resolved stable version selector"
+        );
+    }
+
+    println!("Installing toolchain '{}'", recipe.spec);
     populate_install(&recipe).await?;
     post_install(&recipe)?;
     link_dirs(&recipe)?;
-    atomic::acknowledge(&spec);
+    atomic::acknowledge(&recipe.spec);
 
     println!(
         "{}Installed toolchain version '{}'",
         console::style(console::Emoji("✔ ", "")).green(),
-        spec
+        recipe.spec
     );
     println!(
         "Make sure '{}' is added to your PATH",
@@ -159,10 +168,7 @@ fn toolchain_install_dirname(recipe: &InstallRecipe) -> String {
 pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
-    let moonup_shim_name = {
-        let ext = if cfg!(windows) { ".exe" } else { "" };
-        format!("moonup-shim{}", ext)
-    };
+    let moonup_shim_name = exe_name("moonup-shim");
     moonup_shim_exe.set_file_name(moonup_shim_name);
 
     let mut toolchain_dir = crate::moonup_home();
@@ -175,6 +181,23 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // bins
     let bin_dir = toolchain_dir.join("bin");
+    let moon_exe = bin_dir.join(exe_name("moon"));
+
+    // moonx
+    if !recipe
+        .release
+        .moonx
+        .as_ref()
+        .is_some_and(|s| s == "unavailable")
+    {
+        let moonx_exe = bin_dir.join(exe_name("moonx"));
+        if !moonx_exe.exists() {
+            #[cfg(target_os = "windows")]
+            std::fs::copy(&moon_exe, &moonx_exe).into_diagnostic()?;
+            #[cfg(not(target_os = "windows"))]
+            std::os::unix::fs::symlink(&moon_exe, &moonx_exe).into_diagnostic()?;
+        }
+    }
 
     let bins = find_bins(bin_dir.as_path()).wrap_err("failed to find bins")?;
     for bin in bins {
@@ -199,18 +222,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // Build core library
     let corelib_dir = toolchain_dir.join("lib").join("core");
-    let actual_moon_exe = bin_dir.join({
-        #[cfg(target_os = "windows")]
-        {
-            "moon.exe"
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            "moon"
-        }
-    });
-
-    let mut cmd = Command::new(actual_moon_exe);
+    let mut cmd = Command::new(moon_exe);
 
     let bundle_dir_arg = if recipe.release.bundle_source_dir.unwrap_or(false) {
         "--source-dir"
@@ -243,7 +255,16 @@ fn find_bins(dir: &Path) -> miette::Result<Vec<OsString>> {
             let is_file = e
                 .file_type()
                 .into_diagnostic()
-                .map(|t| t.is_file())
+                .map(|t| {
+                    #[cfg(target_os = "windows")]
+                    {
+                        t.is_file()
+                    }
+                    #[cfg(not(target_os = "windows"))]
+                    {
+                        t.is_file() || t.is_symlink()
+                    }
+                })
                 .unwrap_or(false);
 
             if is_file {

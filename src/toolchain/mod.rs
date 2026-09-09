@@ -1,12 +1,17 @@
 use miette::IntoDiagnostic;
 use std::path::{Path, PathBuf};
 
-use crate::dist_server::schema::ChannelName;
+use crate::{
+    dist_server::schema::ChannelName,
+    toolchain::ordering::{read_latest_channel_positions, release_order},
+};
 
 pub mod atomic;
 pub mod index;
+pub mod ordering;
 pub mod package;
 pub mod resolve;
+pub mod version;
 
 /// Install specification for a toolchain
 ///
@@ -64,51 +69,6 @@ impl ToolchainSpec {
             ToolchainSpec::Bleeding => "bleeding",
             ToolchainSpec::Version(v) => v.as_str(),
         }
-    }
-}
-
-impl Ord for ToolchainSpec {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match (self, other) {
-            // latest
-            (ToolchainSpec::Latest, ToolchainSpec::Latest) => std::cmp::Ordering::Equal,
-            (ToolchainSpec::Latest, ToolchainSpec::Nightly) => std::cmp::Ordering::Less,
-            (ToolchainSpec::Latest, ToolchainSpec::Bleeding) => std::cmp::Ordering::Less,
-            (ToolchainSpec::Latest, ToolchainSpec::Version(s)) => {
-                if s.starts_with("nightly") {
-                    std::cmp::Ordering::Less
-                } else {
-                    std::cmp::Ordering::Greater
-                }
-            }
-            // nightly
-            (ToolchainSpec::Nightly, ToolchainSpec::Nightly) => std::cmp::Ordering::Equal,
-            (ToolchainSpec::Nightly, ToolchainSpec::Latest) => std::cmp::Ordering::Greater,
-            (ToolchainSpec::Nightly, ToolchainSpec::Bleeding) => std::cmp::Ordering::Less,
-            (ToolchainSpec::Nightly, ToolchainSpec::Version(_)) => std::cmp::Ordering::Greater,
-            // bleeding
-            (ToolchainSpec::Bleeding, ToolchainSpec::Bleeding) => std::cmp::Ordering::Equal,
-            (ToolchainSpec::Bleeding, ToolchainSpec::Latest) => std::cmp::Ordering::Greater,
-            (ToolchainSpec::Bleeding, ToolchainSpec::Nightly) => std::cmp::Ordering::Greater,
-            (ToolchainSpec::Bleeding, ToolchainSpec::Version(_)) => std::cmp::Ordering::Greater,
-            // version
-            (ToolchainSpec::Version(a), ToolchainSpec::Version(b)) => a.cmp(b),
-            (ToolchainSpec::Version(s), ToolchainSpec::Latest) => {
-                if s.starts_with("nightly") {
-                    std::cmp::Ordering::Greater
-                } else {
-                    std::cmp::Ordering::Less
-                }
-            }
-            (ToolchainSpec::Version(_), ToolchainSpec::Nightly) => std::cmp::Ordering::Less,
-            (ToolchainSpec::Version(_), ToolchainSpec::Bleeding) => std::cmp::Ordering::Less,
-        }
-    }
-}
-
-impl PartialOrd for ToolchainSpec {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -177,10 +137,16 @@ impl InstalledToolchain {
             .ok_or_else(|| miette::miette!("failed to read toolchain install name"))?;
 
         let name = ToolchainSpec::from(n);
-        let tag = match &name {
+        Ok(name.into())
+    }
+}
+
+impl From<ToolchainSpec> for InstalledToolchain {
+    fn from(spec: ToolchainSpec) -> Self {
+        let tag = match &spec {
             ToolchainSpec::Version(_) => None,
             _ => Some(
-                std::fs::read_to_string(path.join("version"))
+                std::fs::read_to_string(spec.install_path().join("version"))
                     .map(|s| s.trim().to_owned())
                     .into_diagnostic()
                     .inspect_err(|e| tracing::warn!("failed to read toolchain version stub {}", e))
@@ -188,7 +154,7 @@ impl InstalledToolchain {
             ),
         };
 
-        Ok(Self { name, tag })
+        Self { name: spec, tag }
     }
 }
 
@@ -205,7 +171,13 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
                 .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
                 .filter_map(|e| InstalledToolchain::from_path(&e.path()).ok())
                 .collect::<Vec<_>>();
-            t.sort_by_key(|t| t.name.clone());
+
+            // List in release order: versioned installs grouped by channel
+            // (nightly builds by build date, latest releases by their position
+            // in the cached `latest` channel index), followed by the channel
+            // aliases `bleeding` < `nightly` < `latest`.
+            let latest_positions = read_latest_channel_positions(&t);
+            t.sort_by_key(|it| release_order(&it.name, &latest_positions));
             t
         }
     };

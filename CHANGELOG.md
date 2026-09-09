@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.6.0](https://github.com/chawyehsu/moonup/compare/v0.5.2...v0.6.0) (2026-08-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* add partial version selector resolution ([#200](https://github.com/chawyehsu/moonup/issues/200))
+
+### Features
+
+* add partial version selector resolution ([#200](https://github.com/chawyehsu/moonup/issues/200)) ([9ab4ef0](https://github.com/chawyehsu/moonup/commit/9ab4ef06b95a59137612cd92d991f00a706d55a1))
+* introduce operation atomicity over toolchain change ([#196](https://github.com/chawyehsu/moonup/issues/196)) ([d449920](https://github.com/chawyehsu/moonup/commit/d449920106d19233cfba293e26c175ce2425d57e))
+* **toolchain:** list installed toolchains in release order ([#206](https://github.com/chawyehsu/moonup/issues/206)) ([b490f16](https://github.com/chawyehsu/moonup/commit/b490f1618556b46619060f5137c770edc0dffa7e))
+
+
+### Bug Fixes
+
+* tolerate in-use and skip identical executables when replacing shims ([#197](https://github.com/chawyehsu/moonup/issues/197)) ([9314705](https://github.com/chawyehsu/moonup/commit/93147051353a9aff7b65e6cd40759c9e473304ef))
+
+
+### Tests
+
+* refactor mock dist server to support offline e2e tests ([#199](https://github.com/chawyehsu/moonup/issues/199)) ([1681cb4](https://github.com/chawyehsu/moonup/commit/1681cb43f6fb1f1000400e48d74530e056af92e0))
+
 ## [0.5.2](https://github.com/chawyehsu/moonup/compare/v0.5.1...v0.5.2) (2026-06-10)
 
 
