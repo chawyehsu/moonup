@@ -173,6 +173,11 @@ fn read_up_to(file: &mut std::fs::File, buf: &mut [u8]) -> std::io::Result<usize
     Ok(filled)
 }
 
+/// Return the platform-specific executable name for the given base name.
+pub(crate) fn exe_name(name: &str) -> String {
+    format!("{}{}", name, env::consts::EXE_SUFFIX)
+}
+
 /// Move `old` to a unique name inside `bin/.trash/` so the live name is freed
 /// immediately, even while the file is still mapped by a running process
 /// (Windows permits renaming but not deleting a running image). Falls back to

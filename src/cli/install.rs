@@ -14,6 +14,7 @@ use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_toolchain;
 use crate::toolchain::{ToolchainSpec, atomic, index};
 use crate::toolchain::{index::build_installrecipe, package::populate_install};
+use crate::utils::exe_name;
 
 use super::ToolchainSpecValueParser;
 
@@ -167,10 +168,7 @@ fn toolchain_install_dirname(recipe: &InstallRecipe) -> String {
 pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
-    let moonup_shim_name = {
-        let ext = if cfg!(windows) { ".exe" } else { "" };
-        format!("moonup-shim{}", ext)
-    };
+    let moonup_shim_name = exe_name("moonup-shim");
     moonup_shim_exe.set_file_name(moonup_shim_name);
 
     let mut toolchain_dir = crate::moonup_home();
@@ -183,6 +181,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // bins
     let bin_dir = toolchain_dir.join("bin");
+    let moon_exe = bin_dir.join(exe_name("moon"));
 
     let bins = find_bins(bin_dir.as_path()).wrap_err("failed to find bins")?;
     for bin in bins {
@@ -207,18 +206,7 @@ pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
     // Build core library
     let corelib_dir = toolchain_dir.join("lib").join("core");
-    let actual_moon_exe = bin_dir.join({
-        #[cfg(target_os = "windows")]
-        {
-            "moon.exe"
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            "moon"
-        }
-    });
-
-    let mut cmd = Command::new(actual_moon_exe);
+    let mut cmd = Command::new(moon_exe);
 
     let bundle_dir_arg = if recipe.release.bundle_source_dir.unwrap_or(false) {
         "--source-dir"
