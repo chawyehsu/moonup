@@ -15,54 +15,22 @@
 
 ### Install
 
-Moonup is available for installation via different ways.
+The recommended way to install moonup is via the universal installer:
 
-#### Conda (Cross-platform)
-
-You can install moonup with conda/mamba/[pixi] from our conda-forge channel:
+#### Unix
 
 ```sh
-pixi global install moonup -c chawyehsu -c conda-forge
+curl -fsSL https://moonup.csu.moe/install | sh
 ```
 
-#### cargo-binstall (Cross-platform, pre-built binaries)
-
-If you have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall),
-this downloads pre-built binaries without compiling from source:
-
-```sh
-cargo-binstall moonup
-```
-
-#### Homebrew (macOS)
-
-If you are on macOS and you have Homebrew installed, you can install moonup from our Homebrew Tap:
-
-```zsh
-brew install chawyehsu/brew/moonup
-```
-
-#### Cargo (Cross-platform, build from source)
-
-If you have the Rust toolchain installed, you can install **moonup** easily with Cargo:
-
-```sh
-cargo install moonup
-```
-
-#### Scoop (Windows)
-
-If you are on Windows and you have Scoop installed:
+#### Windows
 
 ```pwsh
-scoop bucket add dorado https://github.com/chawyehsu/dorado
-scoop install moonup
+irm https://moonup.csu.moe/install | iex
 ```
 
-#### GitHub Releases
-
-Or you may download the latest release from [GitHub releases][releases],
-manually extract the archive and put the executables in a directory that is in your `PATH`.
+The universal installer will detect your platform and install moonup accordingly.
+Optionally, you can also install moonup via other methods described in the [Installation Guide](docs/guide/installation.md).
 
 ### For AI Agents
 

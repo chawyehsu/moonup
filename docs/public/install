@@ -1,0 +1,368 @@
+#!/bin/sh
+#Requires -Version 5.1
+
+# moonup universal installer
+# POSIX: curl -fsSL https://moonup.csu.moe/install | sh
+# PowerShell: irm https://moonup.csu.moe/install | iex
+
+#---------------#
+#  POSIX SHELL  #
+#---------------#
+echo " \`" > /dev/null # " <#
+set -eu
+
+__moonup_install__() {
+    if command -v moonup >/dev/null 2>&1; then
+        echo "moonup is already installed, run moonup self-update to update"
+        exit 0
+    fi
+
+    try_brew() {
+        command -v brew >/dev/null 2>&1 || return 1
+        echo "Installing via Homebrew..."
+        brew install chawyehsu/brew/moonup
+    }
+
+    try_cargo_binstall() {
+        command -v cargo-binstall >/dev/null 2>&1 || return 1
+        echo "Installing via cargo-binstall..."
+        cargo-binstall moonup
+    }
+
+    try_pixi() {
+        command -v pixi >/dev/null 2>&1 || return 1
+        echo "Installing via pixi..."
+        pixi global install moonup -c chawyehsu -c conda-forge
+    }
+
+    try_cargo() {
+        command -v cargo >/dev/null 2>&1 || return 1
+        echo "Installing via cargo..."
+        cargo install moonup --locked
+    }
+
+    update_shell() {
+        file="$1"
+        line="$2"
+        mkdir -p "$(dirname "$file")"
+        [ -f "$file" ] || touch "$file"
+        if ! grep -Fxq "$line" "$file"; then
+            echo "Updating '$file'"
+            printf '\n%s\n' "$line" >>"$file"
+            echo "Please restart or source your shell."
+        fi
+    }
+
+    update_posix_path() {
+        install_dir="$1"
+        [ -n "${NO_PATH_UPDATE:-}" ] && {
+            echo "No PATH update because NO_PATH_UPDATE is set"
+            return
+        }
+        shell_name=$(basename "${SHELL-}")
+        case "$shell_name" in
+            bash|zsh) update_shell "${HOME}/.${shell_name}rc" "export PATH=\"${install_dir}:\$PATH\"" ;;
+            fish) update_shell "${HOME}/.config/fish/config.fish" "set -gx PATH \"${install_dir}\" \$PATH" ;;
+            tcsh) update_shell "${HOME}/.tcshrc" "set path = ( ${install_dir} \$path )" ;;
+            *)
+                echo "Could not detect a supported shell profile."
+                echo "Please add ${install_dir} to PATH manually."
+                ;;
+        esac
+    }
+
+    install_from_github() {
+        os=$(uname -s)
+        arch=$(uname -m)
+        case "$os:$arch" in
+            Darwin:arm64) target="aarch64-apple-darwin" ;;
+            Linux:x86_64) target="x86_64-unknown-linux-gnu" ;;
+            Linux:aarch64|Linux:arm64) target="aarch64-unknown-linux-gnu" ;;
+            *) echo "unsupported platform: $os/$arch" >&2; exit 1 ;;
+        esac
+        asset="moonup-${target}.tar.gz"
+        base_url="https://github.com/chawyehsu/moonup/releases/latest/download"
+        tmpdir=$(mktemp -d)
+        trap 'rm -rf "$tmpdir"' EXIT
+        echo "Downloading ${asset}..."
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL "${base_url}/${asset}" -o "${tmpdir}/${asset}"
+            curl -fsSL "${base_url}/${asset}.sha256" -o "${tmpdir}/${asset}.sha256"
+        elif command -v wget >/dev/null 2>&1; then
+            wget -q "${base_url}/${asset}" -O "${tmpdir}/${asset}"
+            wget -q "${base_url}/${asset}.sha256" -O "${tmpdir}/${asset}.sha256"
+        else
+            echo "curl or wget is required" >&2; exit 1
+        fi
+        expected=$(tr -d '[:space:]' <"${tmpdir}/${asset}.sha256")
+        if command -v sha256sum >/dev/null 2>&1; then
+            actual=$(sha256sum "${tmpdir}/${asset}" | awk '{print $1}')
+        elif command -v shasum >/dev/null 2>&1; then
+            actual=$(shasum -a 256 "${tmpdir}/${asset}" | awk '{print $1}')
+        else
+            echo "sha256sum or shasum is required" >&2; exit 1
+        fi
+        [ "$actual" = "$expected" ] || { echo "checksum mismatch" >&2; exit 1; }
+        install_dir="${HOME}/.moonup/bin"
+        mkdir -p "$install_dir"
+        tar -xzf "${tmpdir}/${asset}" -C "$tmpdir"
+        for bin in moonup moonup-shim; do
+            [ -f "${tmpdir}/${bin}" ] && install -m 755 "${tmpdir}/${bin}" "${install_dir}/${bin}"
+        done
+        update_posix_path "$install_dir"
+    }
+
+    if command -v brew >/dev/null 2>&1; then
+        try_brew
+    elif command -v cargo-binstall >/dev/null 2>&1; then
+        try_cargo_binstall
+    elif command -v pixi >/dev/null 2>&1; then
+        try_pixi
+    elif command -v cargo >/dev/null 2>&1; then
+        try_cargo
+    else
+        install_from_github
+    fi
+    echo "moonup installed successfully!"
+    echo "Run moonup install latest to install a MoonBit toolchain."
+} && __moonup_install__
+exit #> > $null
+
+#--------------#
+#  POWERSHELL  #
+#--------------#
+Set-StrictMode -Version 1.0
+$IS_EXECUTED_FROM_IEX = ($null -eq $MyInvocation.MyCommand.Path)
+
+function Exit-Install {
+    param(
+        [Int] $ErrorCode = 1
+    )
+
+    if ((-not $env:CI) -and $IS_EXECUTED_FROM_IEX) {
+        $Global:LASTEXITCODE = $ErrorCode
+        break
+    } else {
+        exit $ErrorCode
+    }
+}
+
+function Test-Command {
+    param (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Command
+    )
+
+    return [bool](Get-Command -Name $Command `
+            -CommandType Application -ErrorAction SilentlyContinue)
+}
+
+function Test-IsWindows {
+    return $env:OS -eq 'Windows_NT' -or $IsWindows
+}
+
+function Publish-Env {
+    if (-not ("Win32.NativeMethods" -as [Type])) {
+        Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @"
+[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+public static extern IntPtr SendMessageTimeout(
+    IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
+    uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
+"@
+    }
+
+    $HWND_BROADCAST = [IntPtr] 0xffff
+    $WM_SETTINGCHANGE = 0x1a
+    $result = [UIntPtr]::Zero
+
+    [Win32.Nativemethods]::SendMessageTimeout($HWND_BROADCAST,
+        $WM_SETTINGCHANGE,
+        [UIntPtr]::Zero,
+        "Environment",
+        2,
+        5000,
+        [ref] $result
+    ) | Out-Null
+}
+
+function Write-Env {
+    param(
+        [String] $name,
+        [String] $val,
+        [Switch] $global
+    )
+
+    $RegisterKey = if ($global) {
+        Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
+    } else {
+        Get-Item -Path 'HKCU:'
+    }
+
+    $EnvRegisterKey = $RegisterKey.OpenSubKey('Environment', $true)
+    if ($null -eq $val) {
+        $EnvRegisterKey.DeleteValue($name)
+    } else {
+        $RegistryValueKind = if ($val.Contains('%')) {
+            [Microsoft.Win32.RegistryValueKind]::ExpandString
+        } elseif ($EnvRegisterKey.GetValue($name)) {
+            $EnvRegisterKey.GetValueKind($name)
+        } else {
+            [Microsoft.Win32.RegistryValueKind]::String
+        }
+        $EnvRegisterKey.SetValue($name, $val, $RegistryValueKind)
+    }
+    Publish-Env
+}
+
+function Get-Env {
+    param(
+        [String] $name,
+        [Switch] $global
+    )
+
+    $RegisterKey = if ($global) {
+        Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
+    } else {
+        Get-Item -Path 'HKCU:'
+    }
+
+    $EnvRegisterKey = $RegisterKey.OpenSubKey('Environment')
+    $RegistryValueOption = [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
+    $EnvRegisterKey.GetValue($name, $null, $RegistryValueOption)
+}
+
+function Invoke-Installer {
+    param (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string] $Name,
+        [Parameter(Mandatory = $true, Position = 1)]
+        [scriptblock] $Action
+    )
+
+    if (-not (Test-Command $Name)) {
+        return $false
+    }
+
+    & $Action
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "${Name} failed with exit code ${LASTEXITCODE}" -ForegroundColor Red
+        Exit-Install -ErrorCode $LASTEXITCODE
+    }
+    return $true
+}
+
+function Install-Moonup {
+    if (Test-Command 'moonup') {
+        Write-Output 'moonup is already installed, run moonup self-update to update'
+        Exit-Install -ErrorCode 0
+    }
+
+    $installed = $false
+
+    # WinGet
+    $installed = Invoke-Installer 'winget' {
+        Write-Output 'Installing via Winget...'
+        winget install --id ChawyeHsu.Moonup --exact --source winget --accept-source-agreements --accept-package-agreements
+    }
+    # Scoop
+    if (Test-IsWindows -and (-not $installed)) {
+        $installed = Invoke-Installer 'scoop' {
+            Write-Output 'Installing via Scoop...'
+            $bucket = scoop bucket list | Select-String -SimpleMatch 'dorado'
+            if (-not $bucket) {
+                scoop bucket add dorado https://github.com/chawyehsu/dorado
+            }
+            scoop install moonup
+        }
+    }
+    # cargo-binstall
+    if (-not $installed) {
+        $installed = Invoke-Installer 'cargo-binstall' {
+            Write-Output 'Installing via cargo-binstall...'
+            cargo-binstall moonup
+        }
+    }
+    # Pixi
+    if (-not $installed) {
+        $installed = Invoke-Installer 'pixi' {
+            Write-Output 'Installing via Pixi...'
+            pixi global install moonup -c chawyehsu -c conda-forge
+        }
+    }
+    # Cargo
+    if (-not $installed) {
+        $installed = Invoke-Installer 'cargo' {
+            Write-Output 'Installing via Cargo...'
+            cargo install moonup --locked
+        }
+    }
+    # GitHub Releases
+    if (Test-IsWindows -and (-not $installed)) {
+        $is64Bit = [System.Environment]::Is64BitOperatingSystem
+        if (-not $is64Bit) {
+            Write-Host "unsupported Windows architecture: only x86_64 is supported" -ForegroundColor Red
+            Exit-Install -ErrorCode 1
+        }
+
+        $asset = 'moonup-x86_64-pc-windows-msvc.zip'
+        $baseUrl = 'https://github.com/chawyehsu/moonup/releases/latest/download'
+        $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+        New-Item -ItemType Directory -Path $tempDir | Out-Null
+
+        try {
+            $archive = Join-Path $tempDir $asset
+            $checksumFile = Join-Path $tempDir "${asset}.sha256"
+            Write-Output "Downloading ${asset}..."
+            Invoke-WebRequest "${baseUrl}/${asset}" -OutFile $archive
+            Invoke-WebRequest "${baseUrl}/${asset}.sha256" -OutFile $checksumFile
+            $expected = (Get-Content -Raw $checksumFile).Trim() -split '\s+' | Select-Object -First 1
+            $actual = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+            if ($actual -ne $expected.ToLowerInvariant()) {
+                Write-Host "checksum mismatch: expected ${expected}, got ${actual}" -ForegroundColor Red
+                Exit-Install -ErrorCode 1
+            }
+
+            $installDir = Join-Path $HOME '.moonup\bin'
+            New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+            Microsoft.PowerShell.Archive\Expand-Archive -Path $archive -DestinationPath $tempDir -Force
+            foreach ($binary in @('moonup.exe', 'moonup-shim.exe')) {
+                $source = Join-Path $tempDir $binary
+                if (Test-Path $source) {
+                    Copy-Item -Force $source (Join-Path $installDir $binary)
+                }
+            }
+
+            if ($env:NO_PATH_UPDATE) {
+                Write-Output 'No PATH update because NO_PATH_UPDATE is set'
+            } else {
+                $PATH = Get-Env 'PATH'
+                if ($PATH -notlike "*$installDir*") {
+                    Write-Output "Adding $installDir to PATH"
+                    # Future session
+                    Write-Env -name 'PATH' -val "$installDir;$PATH"
+                    # Current session
+                    $env:PATH = "$installDir;$env:PATH"
+                }
+            }
+        } finally {
+            Remove-Item -Recurse -Force $tempDir -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Output 'moonup installed successfully!'
+    Write-Output 'Run moonup install latest to install a MoonBit toolchain.'
+}
+
+$oldErrorActionPreference = $ErrorActionPreference
+$oldProgressPreference = $ProgressPreference
+try {
+    $ErrorActionPreference = 'Stop'
+    $ProgressPreference = 'SilentlyContinue'
+    Install-Moonup
+} finally {
+    $ErrorActionPreference = $oldErrorActionPreference
+    $ProgressPreference = $oldProgressPreference
+}
