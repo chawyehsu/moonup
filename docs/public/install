@@ -66,7 +66,7 @@ __moonup_install__() {
             tcsh) update_shell "${HOME}/.tcshrc" "set path = ( ${install_dir} \$path )" ;;
             *)
                 echo "Could not detect a supported shell profile."
-                echo "Add ${install_dir} to PATH manually."
+                echo "Please add ${install_dir} to PATH manually."
                 ;;
         esac
     }
