@@ -159,9 +159,8 @@ function Test-Command {
             -CommandType Application -ErrorAction SilentlyContinue)
 }
 
-if (Test-Command 'moonup') {
-    Write-Output 'moonup is already installed, run moonup self-update to update'
-    Exit-Install -ErrorCode 0
+function Test-IsWindows {
+    return $env:OS -eq 'Windows_NT' -or $IsWindows
 }
 
 function Invoke-Installer {
@@ -186,6 +185,11 @@ function Invoke-Installer {
 }
 
 function Install-Moonup {
+    if (Test-Command 'moonup') {
+        Write-Output 'moonup is already installed, run moonup self-update to update'
+        Exit-Install -ErrorCode 0
+    }
+
     $installed = $false
 
     # WinGet
@@ -194,7 +198,7 @@ function Install-Moonup {
         winget install --id ChawyeHsu.Moonup --exact --source winget --accept-source-agreements --accept-package-agreements
     }
     # Scoop
-    if (-not $installed) {
+    if (Test-IsWindows -and (-not $installed)) {
         $installed = Invoke-Installer 'scoop' {
             Write-Output 'Installing via Scoop...'
             $bucket = scoop bucket list | Select-String -SimpleMatch 'dorado'
@@ -226,7 +230,7 @@ function Install-Moonup {
         }
     }
     # GitHub Releases
-    if (-not $installed) {
+    if (Test-IsWindows -and (-not $installed)) {
         $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
         if ($arch -ne 'X64') {
             Write-Host "unsupported Windows architecture: ${arch}; only x86_64 is supported" -ForegroundColor Red
