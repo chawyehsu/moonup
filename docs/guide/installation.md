@@ -2,9 +2,11 @@
 
 moonup is available for installation via multiple methods. Choose the one that works best for your platform and preferences.
 
-## Universal Installer
+## Universal Installer (Recommended)
 
 The recommended way to install moonup on any platform is via the universal installer:
+
+::: code-group
 
 ```sh [Unix]
 curl -fsSL https://moonup.csu.moe/install | sh
@@ -14,7 +16,10 @@ curl -fsSL https://moonup.csu.moe/install | sh
 irm https://moonup.csu.moe/install | iex
 ```
 
+:::
+
 It'll detect and use the appropriate installation method for your platform.
+Optionally, you can also install moonup via other methods described below.
 
 ## cargo-binstall
 

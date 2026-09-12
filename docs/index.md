@@ -30,7 +30,7 @@ features:
 
 ## Quick Start
 
-Install moonup with your preferred method:
+Install moonup:
 
 ::: code-group
 
