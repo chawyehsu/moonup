@@ -2,7 +2,21 @@
 
 moonup is available for installation via multiple methods. Choose the one that works best for your platform and preferences.
 
-## cargo-binstall (Recommended)
+## Universal Installer
+
+The recommended way to install moonup on any platform is via the universal installer:
+
+```sh [Unix]
+curl -fsSL https://moonup.csu.moe/install | sh
+```
+
+```sh [Windows]
+irm https://moonup.csu.moe/install | iex
+```
+
+It'll detect and use the appropriate installation method for your platform.
+
+## cargo-binstall
 
 [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) downloads pre-built binaries without compiling from source:
 
