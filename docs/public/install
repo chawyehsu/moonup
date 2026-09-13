@@ -135,7 +135,7 @@ function Invoke-Installer {
 
 function Install-Moonup {
     if (Test-Command 'moonup') {
-        Write-Output 'moonup is already installed, run moonup self-update to update'
+        Write-Host 'moonup is already installed, run moonup self-update to update'
         Exit-Install -ErrorCode 0
     }
 
@@ -143,13 +143,13 @@ function Install-Moonup {
 
     # WinGet
     $installed = Invoke-Installer 'winget' {
-        Write-Output 'Installing via Winget...'
+        Write-Host 'Installing via Winget...'
         winget install --id ChawyeHsu.Moonup --exact --source winget --accept-source-agreements --accept-package-agreements
     }
     # Scoop
     if ((Test-IsWindows) -and (-not $installed)) {
         $installed = Invoke-Installer 'scoop' {
-            Write-Output 'Installing via Scoop...'
+            Write-Host 'Installing via Scoop...'
             $bucket = scoop bucket list | Select-String -SimpleMatch 'dorado'
             if (-not $bucket) {
                 scoop bucket add dorado https://github.com/chawyehsu/dorado
@@ -160,21 +160,21 @@ function Install-Moonup {
     # cargo-binstall
     if (-not $installed) {
         $installed = Invoke-Installer 'cargo-binstall' {
-            Write-Output 'Installing via cargo-binstall...'
+            Write-Host 'Installing via cargo-binstall...'
             cargo-binstall moonup
         }
     }
     # Pixi
     if (-not $installed) {
         $installed = Invoke-Installer 'pixi' {
-            Write-Output 'Installing via Pixi...'
+            Write-Host 'Installing via Pixi...'
             pixi global install moonup -c chawyehsu -c conda-forge
         }
     }
     # Cargo
     if (-not $installed) {
         $installed = Invoke-Installer 'cargo' {
-            Write-Output 'Installing via Cargo...'
+            Write-Host 'Installing via Cargo...'
             cargo install moonup --locked
         }
     }
@@ -194,7 +194,7 @@ function Install-Moonup {
         try {
             $archive = Join-Path $tempDir $asset
             $checksumFile = Join-Path $tempDir "${asset}.sha256"
-            Write-Output "Downloading ${asset}..."
+            Write-Host "Downloading ${asset}..."
             Invoke-WebRequest "${baseUrl}/${asset}" -OutFile $archive
             Invoke-WebRequest "${baseUrl}/${asset}.sha256" -OutFile $checksumFile
             $expected = (Get-Content -Raw $checksumFile).Trim() -split '\s+' | Select-Object -First 1
@@ -206,6 +206,7 @@ function Install-Moonup {
 
             $installDir = Join-Path $HOME '.moonup\bin'
             New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+            Write-Host 'Extracting archive...'
             Microsoft.PowerShell.Archive\Expand-Archive -Path $archive -DestinationPath $tempDir -Force
             $moonupSource = Join-Path $tempDir 'moonup.exe'
             if (-not (Test-Path -PathType Leaf $moonupSource)) {
@@ -220,12 +221,12 @@ function Install-Moonup {
             }
 
             if ($env:NO_PATH_UPDATE) {
-                Write-Output 'No PATH update because NO_PATH_UPDATE is set'
+                Write-Host 'No PATH update because NO_PATH_UPDATE is set'
             } else {
                 $userPath = Get-Env 'PATH'
                 $userEntries = @($userPath -split ';' | Where-Object { $_ })
                 if ($userEntries -notcontains $installDir) {
-                    Write-Output "Adding $installDir to PATH"
+                    Write-Host "Adding $installDir to PATH"
                     Write-Env -name 'PATH' -val "$installDir;$userPath"
                 }
                 $processEntries = @($env:PATH -split ';' | Where-Object { $_ })
@@ -238,8 +239,8 @@ function Install-Moonup {
         }
     }
 
-    Write-Output 'moonup installed successfully!'
-    Write-Output 'Run moonup install latest to install a MoonBit toolchain.'
+    Write-Host 'moonup installed successfully!' -ForegroundColor Green
+    Write-Host 'Run moonup install latest to install a MoonBit toolchain'
 }
 
 $oldErrorActionPreference = $ErrorActionPreference
