@@ -15,25 +15,12 @@ The fastest way to get started:
 
 ::: code-group
 
-```sh [cargo-binstall]
-cargo-binstall moonup
+```sh [Unix]
+curl -fsSL https://moonup.csu.moe/install | sh
 ```
 
-```sh [cargo]
-cargo install moonup
-```
-
-```sh [homebrew]
-brew install chawyehsu/brew/moonup
-```
-
-```sh [pixi]
-pixi global install moonup -c chawyehsu -c conda-forge
-```
-
-```sh [scoop]
-scoop bucket add dorado https://github.com/chawyehsu/dorado
-scoop install moonup
+```sh [Windows]
+irm https://moonup.csu.moe/install | iex
 ```
 
 :::

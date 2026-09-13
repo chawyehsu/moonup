@@ -30,24 +30,16 @@ features:
 
 ## Quick Start
 
-Install moonup with your preferred method:
+Install moonup:
 
 ::: code-group
 
-```sh [cargo-binstall]
-cargo-binstall moonup
+```sh [Unix]
+curl -fsSL https://moonup.csu.moe/install | sh
 ```
 
-```sh [cargo]
-cargo install moonup
-```
-
-```sh [homebrew]
-brew install chawyehsu/brew/moonup
-```
-
-```sh [pixi]
-pixi global install moonup -c chawyehsu -c conda-forge
+```sh [Windows]
+irm https://moonup.csu.moe/install | iex
 ```
 
 :::
