@@ -106,6 +106,10 @@ __moonup_install__() {
         install_dir="${HOME}/.moonup/bin"
         mkdir -p "$install_dir"
         tar -xzf "${tmpdir}/${asset}" -C "$tmpdir"
+        [ -f "${tmpdir}/moonup" ] || {
+            echo "release archive does not contain moonup" >&2
+            exit 1
+        }
         for bin in moonup moonup-shim; do
             [ -f "${tmpdir}/${bin}" ] && install -m 755 "${tmpdir}/${bin}" "${install_dir}/${bin}"
         done
@@ -268,7 +272,7 @@ function Install-Moonup {
         winget install --id ChawyeHsu.Moonup --exact --source winget --accept-source-agreements --accept-package-agreements
     }
     # Scoop
-    if (Test-IsWindows -and (-not $installed)) {
+    if ((Test-IsWindows) -and (-not $installed)) {
         $installed = Invoke-Installer 'scoop' {
             Write-Output 'Installing via Scoop...'
             $bucket = scoop bucket list | Select-String -SimpleMatch 'dorado'
@@ -300,7 +304,7 @@ function Install-Moonup {
         }
     }
     # GitHub Releases
-    if (Test-IsWindows -and (-not $installed)) {
+    if ((Test-IsWindows) -and (-not $installed)) {
         $is64Bit = [System.Environment]::Is64BitOperatingSystem
         if (-not $is64Bit) {
             Write-Host "unsupported Windows architecture: only x86_64 is supported" -ForegroundColor Red
@@ -328,6 +332,11 @@ function Install-Moonup {
             $installDir = Join-Path $HOME '.moonup\bin'
             New-Item -ItemType Directory -Force -Path $installDir | Out-Null
             Microsoft.PowerShell.Archive\Expand-Archive -Path $archive -DestinationPath $tempDir -Force
+            $moonupSource = Join-Path $tempDir 'moonup.exe'
+            if (-not (Test-Path -PathType Leaf $moonupSource)) {
+                Write-Host 'release archive does not contain moonup.exe' -ForegroundColor Red
+                Exit-Install -ErrorCode 1
+            }
             foreach ($binary in @('moonup.exe', 'moonup-shim.exe')) {
                 $source = Join-Path $tempDir $binary
                 if (Test-Path $source) {
@@ -338,12 +347,14 @@ function Install-Moonup {
             if ($env:NO_PATH_UPDATE) {
                 Write-Output 'No PATH update because NO_PATH_UPDATE is set'
             } else {
-                $PATH = Get-Env 'PATH'
-                if ($PATH -notlike "*$installDir*") {
+                $userPath = Get-Env 'PATH'
+                $userEntries = @($userPath -split ';' | Where-Object { $_ })
+                if ($userEntries -notcontains $installDir) {
                     Write-Output "Adding $installDir to PATH"
-                    # Future session
-                    Write-Env -name 'PATH' -val "$installDir;$PATH"
-                    # Current session
+                    Write-Env -name 'PATH' -val "$installDir;$userPath"
+                }
+                $processEntries = @($env:PATH -split ';' | Where-Object { $_ })
+                if ($processEntries -notcontains $installDir) {
                     $env:PATH = "$installDir;$env:PATH"
                 }
             }

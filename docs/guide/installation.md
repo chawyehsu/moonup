@@ -4,7 +4,7 @@ moonup is available for installation via multiple methods. Choose the one that w
 
 ## Universal Installer (Recommended)
 
-The recommended way to install moonup on any platform is via the universal installer:
+The recommended way to install moonup on supported platforms is via the universal installer:
 
 ::: code-group
 
