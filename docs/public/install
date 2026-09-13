@@ -1,5 +1,4 @@
 #!/bin/sh
-#Requires -Version 5.1
 
 # moonup universal installer
 # POSIX: curl -fsSL https://moonup.csu.moe/install | sh
@@ -261,7 +260,7 @@ __POWERSHELL__
 #---------------#
 set -eu
 
-__moonup_install__() {
+__install_moonup__() {
     if command -v moonup >/dev/null 2>&1; then
         echo "moonup is already installed, run moonup self-update to update"
         exit 0
@@ -379,5 +378,5 @@ __moonup_install__() {
     fi
     echo "moonup installed successfully!"
     echo "Run moonup install latest to install a MoonBit toolchain."
-} && __moonup_install__
+} && __install_moonup__
 #>
