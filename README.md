@@ -41,6 +41,17 @@ install and use moonup via the skill:
 npx skills add chawyehsu/moonup
 ```
 
+### Moonup in GitHub Actions
+
+With the [setup-moonup] action, It's super easy to use Moonup to set up a
+MoonBit environment in GitHub CI. Here is an example workflow:
+
+```yaml
+- name: Setup MoonBit
+  uses: chawyehsu/setup-moonup@v2
+  run: moon version --all
+```
+
 ### Usage
 
 After installation, run `moonup help` to see the available commands.
@@ -134,24 +145,13 @@ moonup uninstall 0.1.20241231+ba15a9a4e
 moonup uninstall --clear
 ```
 
-### Use Moonup in GitHub Actions
-
-With the [setup-moonup] action, It's super easy to use Moonup to set up a
-MoonBit environment in GitHub CI. Here is an example workflow:
-
-```yaml
-- name: Setup MoonBit
-  uses: chawyehsu/setup-moonup@v1
-  run: moon version --all
-```
-
 ### Distribution Server
 
 Moonup is backed by [chawyehsu/moonbit-binaries], a service built with
 GitHub Actions to continuously archive MoonBit releases from the official
 website and provide a distribution server with a stable API.
 
-The default dist server endpoint is `https://moonup.csu.moe/v2` at the
+The default dist server endpoint is `https://moonup.csu.moe/v3` at the
 time of writing. Moonup supports overriding the distribution server with
 the `MOONUP_DIST_SERVER` environment variable.
 
