@@ -1,24 +1,27 @@
 [package]
 name = "moonup"
+version = "0.6.1"
+edition = "2024"
 description = "Manage multiple MoonBit installations"
+documentation = "https://docs.rs/moonup"
 homepage = "https://github.com/chawyehsu/moonup"
 repository = "https://github.com/chawyehsu/moonup"
-documentation = "https://docs.rs/moonup"
-keywords = ["version-manager", "moonbit"]
-categories = ["development-tools"]
-version = "0.6.1"
-authors = ["Chawye Hsu <su+cratesio@chawyehsu.com>"]
 license = "Apache-2.0"
-edition = "2024"
+keywords = ["moonbit", "version-manager"]
+categories = ["development-tools"]
 
 [dependencies]
 anyhow = "1.0.102"
 chrono = "0.4.44"
 clap = { version = "4.5", features = ["derive"] }
-clap-verbosity-flag = { version = "3.0.4", features = [
-    "tracing",
-], default-features = false }
 clap_complete = "4.5.65"
+clap-verbosity-flag = {
+  version = "3.0.4",
+  default-features = false,
+  features = [
+    "tracing",
+  ]
+}
 console = "0.16.1"
 dialoguer = "0.12.0"
 dirs = "6.0.0"
@@ -44,17 +47,17 @@ url = "2.5.8"
 which = "8.0.0"
 zip = "8.6.0"
 
-[target.'cfg(windows)'.dependencies]
-junction = "2.0.0"
-
 [dev-dependencies]
 assert_fs = "1.1.3"
-insta = { version = "1.46.3", features = [
+insta = {
+  version = "1.46.3",
+  features = [
     "filters",
     "glob",
     "redactions",
     "yaml",
-] }
+  ]
+}
 insta-cmd = "0.7.0"
 mockito = "1.7.0"
 predicates = "3.1.3"
@@ -63,19 +66,22 @@ temp-env = "0.3.6"
 
 # expectrl has some issues on Windows
 # see: https://github.com/zhiburt/expectrl/issues/52
-[target.'cfg(not(windows))'.dev-dependencies]
+[target."cfg(not(windows))".dev-dependencies]
 expectrl = "0.9.0"
 regex = "1.12.2"
+
+[target."cfg(windows)".dependencies]
+junction = "2.0.0"
 
 [features]
 default = ["self_update"]
 # Display the self-update subcommand in the --help output
 self_update = []
+# Test interactive commands that require TTY
+test-interactive = []
 # Extra tests that require network access to prod MOONUP_DIST_SERVER APIs,
 # which may be flaky and slow, default is off
 test-online = []
-# Test interactive commands that require TTY
-test-interactive = []
 
 # https://insta.rs/docs/quickstart/#optional-faster-runs
 [profile.dev.package]
@@ -84,9 +90,9 @@ similar.opt-level = 3
 
 [profile.release]
 debug = false
+strip = "symbols"
 lto = "fat"
 panic = "abort"
-strip = "symbols"
 codegen-units = 1
 
 [profile.release-debug]

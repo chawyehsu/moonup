@@ -1,6 +1,6 @@
 {
   "recommendations": [
     "editorconfig.editorconfig",
-    "tamasfe.even-better-toml"
+    "tombi-toml.tombi"
   ]
 }
