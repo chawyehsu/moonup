@@ -9,15 +9,16 @@ use moonup::runner;
 use moonup::toolchain::ToolchainSpec;
 use moonup::toolchain::resolve::detect_active_toolchain;
 
-pub fn main() {
+pub fn main() -> std::process::ExitCode {
     match run() {
         Err(err) => {
             eprintln!("Error: {err}");
-            std::process::exit(1);
+            std::process::ExitCode::FAILURE
         }
-        Ok(status) => {
-            std::process::exit(status.code().unwrap_or(1));
-        }
+        Ok(status) => match status.code() {
+            Some(code) => moonup::status::from_code(code),
+            None => std::process::ExitCode::FAILURE,
+        },
     }
 }
 

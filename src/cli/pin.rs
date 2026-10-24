@@ -4,7 +4,7 @@ use miette::IntoDiagnostic;
 use std::env;
 
 use crate::{
-    constant,
+    constant, status,
     toolchain::{ToolchainSpec, resolve::resolve_toolchain_file},
 };
 
@@ -19,37 +19,34 @@ pub struct Args {
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    let version = args.toolchain.or_else(|| {
-        if let Ok(toolchains) = crate::toolchain::installed_toolchains() {
-            let selections = toolchains
-                .iter()
-                .map(|t| t.name.to_owned())
-                .rev()
-                .collect::<Vec<_>>();
-
-            if !selections.is_empty() {
-                let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
-                    .with_prompt("Pick a installed version")
-                    .items(&selections)
-                    .max_length(constant::MAX_SELECT_ITEMS)
-                    .default(0)
-                    .interact()
-                    .into_diagnostic()
-                    .expect("can't select a toolchain version");
-
-                return Some(selections[selection].clone());
-            }
-        }
-
-        None
-    });
-
-    let version = match version {
-        Some(v) => v,
+    let version = match args.toolchain {
+        Some(version) => version,
         None => {
-            let mut cmd = Args::command();
-            cmd.print_help().into_diagnostic()?;
-            std::process::exit(2);
+            let selections = match crate::toolchain::installed_toolchains() {
+                Ok(toolchains) => toolchains
+                    .iter()
+                    .map(|t| t.name.to_owned())
+                    .rev()
+                    .collect::<Vec<_>>(),
+                Err(_) => Vec::new(),
+            };
+
+            if selections.is_empty() {
+                let mut cmd = Args::command();
+                cmd.print_help().into_diagnostic()?;
+                return Err(status::exit_with(2));
+            }
+
+            let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("Pick a installed version")
+                .items(&selections)
+                .max_length(constant::MAX_SELECT_ITEMS)
+                .default(0)
+                .interact()
+                .into_diagnostic()
+                .expect("can't select a toolchain version");
+
+            selections[selection].clone()
         }
     };
 

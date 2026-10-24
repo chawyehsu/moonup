@@ -1,7 +1,12 @@
 #[tokio::main]
-pub async fn main() {
-    if let Err(err) = moonup::cli::start().await {
-        eprintln!("{err:?}");
-        std::process::exit(1);
+async fn main() -> std::process::ExitCode {
+    match moonup::cli::start().await {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(err) => {
+            if moonup::status::should_report(&err) {
+                eprintln!("{err:?}");
+            }
+            moonup::status::exit_code_of(&err)
+        }
     }
 }

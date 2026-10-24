@@ -2,7 +2,7 @@ use clap::Parser;
 use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
 
-use crate::{constant, toolchain::ToolchainSpec};
+use crate::{constant, status, toolchain::ToolchainSpec};
 
 use super::ToolchainSpecValueParser;
 
@@ -15,31 +15,35 @@ pub struct Args {
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    let version = args.toolchain.unwrap_or_else(|| {
-        if let Ok(toolchains) = crate::toolchain::installed_toolchains() {
-            let selections = toolchains
-                .iter()
-                .map(|t| t.name.to_owned())
-                .rev()
-                .collect::<Vec<_>>();
+    let version = match args.toolchain {
+        Some(version) => version,
+        None => {
+            let selections = match crate::toolchain::installed_toolchains() {
+                Ok(toolchains) => toolchains
+                    .iter()
+                    .map(|t| t.name.to_owned())
+                    .rev()
+                    .collect::<Vec<_>>(),
+                Err(_) => Vec::new(),
+            };
 
-            if !selections.is_empty() {
-                let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
-                    .with_prompt("Pick a installed version")
-                    .items(&selections)
-                    .max_length(constant::MAX_SELECT_ITEMS)
-                    .default(0)
-                    .interact()
-                    .into_diagnostic()
-                    .expect("can't select a toolchain version");
-
-                return selections[selection].clone();
+            if selections.is_empty() {
+                eprintln!("Please provide a toolchain version to set as default");
+                return Err(status::exit_with(1));
             }
-        }
 
-        eprintln!("Please provide a toolchain version to set as default");
-        std::process::exit(1);
-    });
+            let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("Pick a installed version")
+                .items(&selections)
+                .max_length(constant::MAX_SELECT_ITEMS)
+                .default(0)
+                .interact()
+                .into_diagnostic()
+                .expect("can't select a toolchain version");
+
+            selections[selection].clone()
+        }
+    };
 
     let default_file = crate::moonup_home().join("default");
     std::fs::create_dir_all(default_file.parent().unwrap()).into_diagnostic()?;
