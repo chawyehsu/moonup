@@ -144,9 +144,14 @@ impl TestWorkspace {
         self.project_path.as_path()
     }
 
+    /// PATH environment variable for the test workspace
+    ///
+    /// Includes the MoonUp binary directory and the Moon home bin directory.
     fn path_env(&self) -> OsString {
         let existing = std::env::var_os("PATH").unwrap_or_default();
         let mut paths = std::env::split_paths(&existing).collect::<Vec<_>>();
+
+        paths.insert(0, self.moonup().parent().unwrap().to_path_buf());
         paths.insert(0, self.moon_home().join("bin"));
         std::env::join_paths(paths).expect("should join paths")
     }
