@@ -75,7 +75,7 @@ function download_and_process() {
         > $WORKDIR/channel-latest.json.tmp
     mv $WORKDIR/channel-latest.json.tmp $WORKDIR/channel-latest.json
     cat $WORKDIR/channel-nightly.json \
-        | jq --argjson keep "$KEEP" '.releases |= .[-$keep:]' \
+        | jq --argjson keep "$KEEP" '.releases |= (.[-$keep:] | map(.targets = []))' \
         > $WORKDIR/channel-nightly.json.tmp
     mv $WORKDIR/channel-nightly.json.tmp $WORKDIR/channel-nightly.json
     cp -a $DIR/channel-bleeding.json $WORKDIR/

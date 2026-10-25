@@ -5,32 +5,17 @@
     {
       "version": "0.10.17+49927f997",
       "date": "2026-10-22",
-      "targets": [
-        "aarch64-apple-darwin",
-        "aarch64-unknown-linux",
-        "x86_64-unknown-linux",
-        "x86_64-pc-windows"
-      ]
+      "targets": []
     },
     {
       "version": "0.10.17+eac832a64",
       "date": "2026-10-23",
-      "targets": [
-        "aarch64-apple-darwin",
-        "aarch64-unknown-linux",
-        "x86_64-unknown-linux",
-        "x86_64-pc-windows"
-      ]
+      "targets": []
     },
     {
       "version": "0.10.17+1c70d827d",
       "date": "2026-10-24",
-      "targets": [
-        "aarch64-apple-darwin",
-        "aarch64-unknown-linux",
-        "x86_64-unknown-linux",
-        "x86_64-pc-windows"
-      ]
+      "targets": []
     }
   ]
 }
