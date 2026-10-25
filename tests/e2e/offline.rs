@@ -111,6 +111,34 @@ fn moonup_install() {
     );
 }
 
+#[cfg(not(windows))]
+#[test]
+fn moonup_shim_unix_sigterm() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+
+    // setup mock server for dist_server from committed fixtures
+    let s = util::mock_dist_server();
+
+    // Install the latest toolchain
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should install latest toolchain successfully");
+    assert!(output.status.success());
+
+    let exitstatus = ws
+        .cmd("moon")
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("sigterm")
+        .status()
+        .expect("should run moon subcommand and get sigterm exit code");
+    assert!(!exitstatus.success());
+}
+
 #[test]
 fn offline_flow() {
     util::apply_common_filters!();
@@ -168,7 +196,7 @@ fn offline_flow() {
     assert!(output.status.success());
 }
 
-// #[cfg(feature = "test-interactive")]
+#[cfg(feature = "test-interactive")]
 #[cfg(not(windows))]
 #[test]
 #[serial]

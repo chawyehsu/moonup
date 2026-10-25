@@ -4,7 +4,7 @@
     {
       "name": "toolchain",
       "file": "moonbit-v0.10.17+d971670cd-x86_64-unknown-linux.tar.gz",
-      "sha256": "45a1ee3f6a70af203a2997bf764b46f56a6fc0eaac223e306faaa1c02b5954d1"
+      "sha256": "0fe673659025702e3e183830ee34587f25bb9a0c6a2a5a1be1b5a6e6123e2595"
     }
   ]
 }
