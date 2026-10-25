@@ -93,6 +93,11 @@ impl TestWorkspace {
         cmd
     }
 
+    /// Get the MoonUp binary path in this test workspace
+    pub fn moonup(&self) -> PathBuf {
+        insta_cmd::get_cargo_bin("moonup")
+    }
+
     /// Get the MoonBit home path
     #[allow(unused)]
     pub fn moon_home(&self) -> &Path {
@@ -111,6 +116,10 @@ impl TestWorkspace {
         S: AsRef<OsStr>,
     {
         let name = name.as_ref().to_str().expect("should convert OsStr to str");
+        if name == "moonup" {
+            return self.moonup();
+        }
+
         let bin_dir = self.moon_home().join("bin");
         let path = if cfg!(windows) {
             bin_dir.join(format!("{name}.exe"))
@@ -136,10 +145,10 @@ impl TestWorkspace {
     }
 
     fn path_env(&self) -> OsString {
-        let existing = PathBuf::from(std::env::var("PATH").unwrap_or_default());
-        let moon_path = self.moon_home().join("bin");
-
-        std::env::join_paths([moon_path, existing]).expect("should join paths")
+        let existing = std::env::var_os("PATH").unwrap_or_default();
+        let mut paths = std::env::split_paths(&existing).collect::<Vec<_>>();
+        paths.insert(0, self.moon_home().join("bin"));
+        std::env::join_paths(paths).expect("should join paths")
     }
 }
 
