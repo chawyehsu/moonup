@@ -1,0 +1,15 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - run
+    - latest
+    - moon
+    - subcommand
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----

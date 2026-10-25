@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "components": [
+    {
+      "name": "toolchain",
+      "file": "moonbit-v0.10.17+d971670cd-x86_64-unknown-linux.tar.gz",
+      "sha256": "45a1ee3f6a70af203a2997bf764b46f56a6fc0eaac223e306faaa1c02b5954d1"
+    }
+  ]
+}

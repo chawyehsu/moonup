@@ -147,7 +147,8 @@ function shrink_stub_archives() {
             # while writing the archive to the absolute output path.
             (cd "$layout" && zip -qr "$archive" bin)
         else
-            tar -C "$layout" -czf "$archive" bin
+            # COPYFILE_DISABLE=1 prevents macOS from adding ._ files
+            COPYFILE_DISABLE=1 tar -C "$layout" -czf "$archive" bin
         fi
 
         local sha256

@@ -1,9 +1,9 @@
 {
   "version": 3,
-  "lastModified": "20260804T1048034263Z",
+  "lastModified": "20261023T1319504539Z",
   "releases": [
     {
-      "version": "0.10.5+5e7afb0c0",
+      "version": "0.10.16+b1a0e846e",
       "targets": [
         "aarch64-apple-darwin",
         "aarch64-unknown-linux",
@@ -12,7 +12,7 @@
       ]
     },
     {
-      "version": "0.10.6+62c2592d1",
+      "version": "0.10.17+093cb8f9c",
       "targets": [
         "aarch64-apple-darwin",
         "aarch64-unknown-linux",
@@ -21,7 +21,7 @@
       ]
     },
     {
-      "version": "0.10.6+80dc50f24",
+      "version": "0.10.17+d971670cd",
       "targets": [
         "aarch64-apple-darwin",
         "aarch64-unknown-linux",
