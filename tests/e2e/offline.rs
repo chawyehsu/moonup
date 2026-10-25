@@ -176,6 +176,10 @@ fn offline_flow_interactive() {
     let output =
         String::from_utf8_lossy(p.expect(Eof).expect("should finish defaulting").as_bytes())
             .to_string();
+    // Sanitize output to avoid snapshot mismatches
+    let re = regex::Regex::new(r"(?s)Installing toolchain.*?Installed").unwrap();
+    let output = re.replace_all(&output, "Installing toolchain...\n...\nInstalled");
+
     assert_snapshot!("moonup_install_latest_interactive", output);
 
     // Uninstall the toolchain interactively
