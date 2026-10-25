@@ -1,7 +1,7 @@
 use assert_fs::TempDir;
 use mockito::ServerGuard;
 use moonup::constant;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
@@ -58,6 +58,8 @@ impl TestWorkspace {
         cli.env(constant::ENVNAME_MOONUP_HOME, self.moonup_home.as_os_str());
         cli.env(constant::ENVNAME_MOON_HOME, self.moon_home.as_os_str());
 
+        cli.env("PATH", self.path_env());
+
         // Force emoji support on Windows during tests by setting WT_SESSION
         // see:
         //   https://github.com/console-rs/console/issues/207
@@ -86,14 +88,9 @@ impl TestWorkspace {
         // index for testing, so that we can ensure the same version is used in tests.
         static TEST_DIST_SERVER: &str = "https://moonup.csu.moe/testing/v3";
 
-        let mut cmd = self.cmd(self.moonup());
+        let mut cmd = self.cmd("moonup");
         cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, TEST_DIST_SERVER);
         cmd
-    }
-
-    /// Get the MoonUp binary path in this test workspace
-    pub fn moonup(&self) -> PathBuf {
-        insta_cmd::get_cargo_bin("moonup")
     }
 
     /// Get the MoonBit home path
@@ -136,6 +133,13 @@ impl TestWorkspace {
     #[allow(unused)]
     pub fn project_path(&self) -> &Path {
         self.project_path.as_path()
+    }
+
+    fn path_env(&self) -> OsString {
+        let existing = PathBuf::from(std::env::var("PATH").unwrap_or_default());
+        let moon_path = self.moon_home().join("bin");
+
+        std::env::join_paths([moon_path, existing]).expect("should join paths")
     }
 }
 
