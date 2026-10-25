@@ -47,7 +47,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         if installed.is_empty() {
             let mut cmd = Args::command();
             cmd.print_help().into_diagnostic()?;
-            std::process::exit(2);
+            return Err(crate::status::exit_with(2));
         }
 
         let selections = installed
@@ -69,7 +69,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     if toolchains.is_empty() {
         eprintln!("No toolchain provided to uninstall");
-        std::process::exit(1);
+        return Err(crate::status::exit_with(1));
     }
 
     for toolchain in toolchains {

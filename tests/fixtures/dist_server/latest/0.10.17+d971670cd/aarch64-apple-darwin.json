@@ -4,7 +4,7 @@
     {
       "name": "toolchain",
       "file": "moonbit-v0.10.17+d971670cd-aarch64-apple-darwin.tar.gz",
-      "sha256": "382dade66959ac7b41204f10ad929a7e3f651bed75961b757c806000f1b8fe23"
+      "sha256": "d2f32f886e8ddf238dc33122efebb83b7ce22f07cc5c47b256bbf47c36adc80f"
     }
   ]
 }

@@ -88,7 +88,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
                     ToolchainSpec::from(picked)
                 } else {
                     eprintln!("No available toolchain versions to select");
-                    std::process::exit(1);
+                    return Err(crate::status::exit_with(1));
                 }
             } else {
                 s
@@ -99,7 +99,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             None => {
                 let mut cmd = Args::command();
                 cmd.print_help().into_diagnostic()?;
-                std::process::exit(2);
+                return Err(crate::status::exit_with(2));
             }
         },
     };
@@ -116,10 +116,13 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         return Ok(());
     }
 
-    let recipe = build_installrecipe(&spec).await?.unwrap_or_else(|| {
-        eprintln!("No toolchain available for requested spec '{}'", spec);
-        std::process::exit(1);
-    });
+    let recipe = match build_installrecipe(&spec).await? {
+        Some(recipe) => recipe,
+        None => {
+            eprintln!("No toolchain available for requested spec '{}'", spec);
+            return Err(crate::status::exit_with(1));
+        }
+    };
 
     if recipe.requested_spec != recipe.spec {
         tracing::info!(

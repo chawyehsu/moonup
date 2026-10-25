@@ -1,6 +1,6 @@
 use clap::{Parser, ValueHint};
 
-use crate::{runner, toolchain::ToolchainSpec};
+use crate::{runner, status, toolchain::ToolchainSpec};
 
 /// Run a command with a specific toolchain
 #[derive(Parser, Debug)]
@@ -20,7 +20,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     match cmd.status() {
         Err(e) => Err(miette::miette!("Failed to run command: {}", e)),
-        Ok(status) if status.success() => Ok(()),
-        Ok(status) => std::process::exit(status.code().unwrap_or(1)),
+        Ok(exit_status) if exit_status.success() => Ok(()),
+        Ok(exit_status) => Err(status::exit_with(exit_status.code().unwrap_or(1))),
     }
 }

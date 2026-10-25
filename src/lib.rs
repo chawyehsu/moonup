@@ -7,6 +7,7 @@ pub mod dist_server;
 pub mod fs;
 pub(crate) mod reporter;
 pub mod runner;
+pub mod status;
 pub mod toolchain;
 pub mod utils;
 
