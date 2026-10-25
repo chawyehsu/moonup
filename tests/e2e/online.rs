@@ -15,10 +15,6 @@ fn flow() {
 
     let ws = TestWorkspace::new();
     let test_install_version = "0.1.20241231+ba15a9a4e";
-    let moon_exe_name = std::ffi::OsStr::new("moon");
-
-    let build_moonup_path = ws.moonup();
-    let build_output_path = build_moonup_path.parent().expect("should have parent");
 
     // Test self update (should be no update)
     assert_cmd_snapshot!("moonup_selfupdate", ws.cli().arg("self-update"));
@@ -43,60 +39,35 @@ fn flow() {
     assert!(pin_file.exists());
 
     // Test command runner (runx)
-    assert_cmd_snapshot!("moonup_which", ws.cli().arg("which").arg(moon_exe_name));
+    assert_cmd_snapshot!("moonup_which", ws.cli().arg("which").arg("moon"));
     assert_cmd_snapshot!(
         "moonup_run",
         ws.cli()
             .arg("run")
             .arg(test_install_version)
-            .arg(moon_exe_name)
+            .arg("moon")
             .arg("version")
     );
 
-    let moon_path = ws.moon_home().join("bin").display().to_string();
-    let current_path = env::var("PATH").unwrap_or_else(|_| String::new());
-    let updated_path = if current_path.is_empty() {
-        moon_path
-    } else {
-        let env_separator = if cfg!(windows) { ";" } else { ":" };
-        format!(
-            "{}{}{}{}{}",
-            moon_path,
-            env_separator,
-            build_output_path.display(),
-            env_separator,
-            current_path
-        )
-    };
-    // println!("Updated PATH: {}", updated_path);
-
     // Test using pinned toolchain version
-    temp_env::with_var("PATH", Some(updated_path.clone()), || {
-        let mut cmd_moon = ws.cmd(moon_exe_name);
-        assert_cmd_snapshot!(
-            "moon_use_pinned_version",
-            cmd_moon.arg("version").arg("--all")
-        );
+    assert_cmd_snapshot!(
+        "moon_use_pinned_version",
+        ws.cmd("moon").arg("version").arg("--all")
+    );
 
-        let mut cmd_moon = ws.cmd(moon_exe_name);
-        // No toolchain should be upgraded
-        assert_cmd_snapshot!("moon_upgrade_intercept", cmd_moon.arg("upgrade"));
-    });
+    // No toolchain should be upgraded
+    assert_cmd_snapshot!("moon_upgrade_intercept", ws.cmd("moon").arg("upgrade"));
 
     // Remove the pinned toolchain file
     std::fs::remove_file(pin_file).expect("should remove pinned toolchain file");
 
     // Test using specified toolchain version from argument (+ syntax)
-    temp_env::with_var("PATH", Some(updated_path.clone()), || {
-        // println!("PATH: {:?}", std::env::var("PATH"));
-        let mut cmd_moon = ws.cmd(moon_exe_name);
-        assert_cmd_snapshot!(
-            "moon_use_version_from_arg",
-            cmd_moon
-                .arg(format!("+{}", test_install_version))
-                .arg("version")
-        );
-    });
+    assert_cmd_snapshot!(
+        "moon_use_version_from_arg",
+        ws.cmd("moon")
+            .arg(format!("+{}", test_install_version))
+            .arg("version")
+    );
 
     // Uninstall the installed toolchain, keep cache
     assert_cmd_snapshot!(
@@ -122,10 +93,7 @@ fn flow() {
     );
 
     // Install the specific `default` version of the toolchain
-    temp_env::with_var("PATH", Some(updated_path.clone()), || {
-        let mut cmd_moon = ws.cmd(moon_exe_name);
-        assert_cmd_snapshot!("moon_use_default_version", cmd_moon.arg("version"));
-    });
+    assert_cmd_snapshot!("moon_use_default_version", ws.cmd("moon").arg("version"));
 
     // List installed toolchains, no toolchain should be listed
     assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
@@ -185,26 +153,24 @@ fn flow() {
     // LSP delegation tests
     // NOTE(chawyehsu): `moon-lsp` shim should be available after installing
     // the `latest` toolchain
-    temp_env::with_var("PATH", Some(updated_path.clone()), || {
-        let mut cmd_moonlsp = ws.cmd("moon-lsp");
+    if let Ok(_node_path) = which::which("node") {
         assert_cmd_snapshot!(
             "moon_lsp_nodebased_lsp_version",
-            cmd_moonlsp
+            ws.cmd("moon-lsp")
                 .arg(format!("+{}", test_nightly_version))
                 .arg("-v")
         );
-    });
+    }
+
     // no javascript runtime
-    let path = ws.moon_home().join("bin").display().to_string();
-    temp_env::with_var("PATH", Some(path), || {
-        let mut cmd_moonlsp = ws.cmd("moon-lsp");
-        assert_cmd_snapshot!(
-            "moon_lsp_nodebased_lsp_help",
-            cmd_moonlsp
-                .arg(format!("+{}", test_nightly_version))
-                .arg("--help")
-        );
-    });
+    assert_cmd_snapshot!(
+        "moon_lsp_nodebased_lsp_help",
+        ws.cmd("moon-lsp")
+            // drop system PATH to avoid picking up any globally installed Node.js or Bun
+            .env("PATH", ws.moon_home().join("bin"))
+            .arg(format!("+{}", test_nightly_version))
+            .arg("--help")
+    );
 
     // Test update toolchains
     assert_cmd_snapshot!("moonup_update", ws.cli().arg("update"));

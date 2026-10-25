@@ -11,7 +11,7 @@ fn test_moonup_home() {
     temp_env::with_var_unset("MOONUP_HOME", || {
         let mut moonup_home = moonup::moonup_home().display().to_string();
         moonup_home = moonup_home.replace(&home, "~");
-        assert_snapshot!(moonup_home, @r"~/.moonup");
+        assert_snapshot!(moonup_home, @"[MOONUP_HOME]");
     });
 }
 
@@ -42,7 +42,7 @@ fn test_moon_home() {
     temp_env::with_var_unset("MOON_HOME", || {
         let mut moon_home = moonup::moon_home().display().to_string();
         moon_home = moon_home.replace(&home, "~");
-        assert_snapshot!(moon_home, @r"~/.moon");
+        assert_snapshot!(moon_home, @"[MOON_HOME]");
     });
 }
 

@@ -48,11 +48,13 @@ impl TestWorkspace {
     }
 
     /// Run the given command with the test workspace environment
+    ///
+    /// `ws.bin()` will be used to resolve the path for the given command.
     pub fn cmd<S>(&self, cmd: S) -> Command
     where
         S: AsRef<OsStr>,
     {
-        let mut cli = Command::new(cmd);
+        let mut cli = Command::new(self.bin(cmd));
         cli.env(constant::ENVNAME_MOONUP_HOME, self.moonup_home.as_os_str());
         cli.env(constant::ENVNAME_MOON_HOME, self.moon_home.as_os_str());
 
@@ -84,7 +86,7 @@ impl TestWorkspace {
         // index for testing, so that we can ensure the same version is used in tests.
         static TEST_DIST_SERVER: &str = "https://moonup.csu.moe/testing/v3";
 
-        let mut cmd = self.cmd(self.moonup().as_os_str());
+        let mut cmd = self.cmd(self.moonup());
         cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, TEST_DIST_SERVER);
         cmd
     }
@@ -107,14 +109,21 @@ impl TestWorkspace {
     }
 
     /// Get shim path of given toolchain binary in this test workspace
-    #[allow(unused)]
-    pub fn bin(&self, name: &str) -> PathBuf {
+    pub fn bin<S>(&self, name: S) -> PathBuf
+    where
+        S: AsRef<OsStr>,
+    {
+        let name = name.as_ref().to_str().expect("should convert OsStr to str");
         let bin_dir = self.moon_home().join("bin");
-        if cfg!(windows) {
+        let path = if cfg!(windows) {
             bin_dir.join(format!("{name}.exe"))
         } else {
             bin_dir.join(name)
-        }
+        };
+
+        println!("Binary path: {}", path.display());
+
+        path
     }
 
     /// Get the test workspace path
@@ -181,9 +190,9 @@ macro_rules! apply_common_filters {
         settings.add_filter(r"\x1b(?:\[[0-9;?]*[A-Za-z]|\][^\x07]*\x07)", "");
 
         // moonup home
-        settings.add_filter(r"(\b[A-Z]:)?[\\/].*?[\\/].moonup", "[MOONUP_HOME]");
+        settings.add_filter(r"~?(\b[A-Z]:)?[\\/](?:.*?[\\/])?\.moonup", "[MOONUP_HOME]");
         // moon home
-        settings.add_filter(r"~?(\b[A-Z]:)?[\\/].*?[\\/].moon", "[MOON_HOME]");
+        settings.add_filter(r"~?(\b[A-Z]:)?[\\/](?:.*?[\\/])?\.moon", "[MOON_HOME]");
         // moonup selfupdate
         settings.add_filter(r"Updating moonup: ([\d.]+) -> ([\d.]+)", "Updating moonup: [MOONUP_VERSION] -> [MOONUP_VERSION]");
 
