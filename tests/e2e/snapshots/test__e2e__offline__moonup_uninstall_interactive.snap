@@ -1,0 +1,9 @@
+---
+source: tests/e2e/offline.rs
+expression: output
+---
+ ›
+⬚ 0.10.17+d971670cd
+✔ 0.10.17+d971670cd
+✔ Select toolchains to uninstall · 0.10.17+d971670cd
+✔  Uninstalled toolchain 0.10.17+d971670cd

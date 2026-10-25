@@ -146,7 +146,7 @@ fn offline_flow() {
 #[serial]
 fn offline_flow_interactive() {
     use crate::util::{self, TestWorkspace};
-    use expectrl::{Eof, Expect, Session};
+    use expectrl::{ControlCode, Eof, Expect, Session};
     use insta::assert_snapshot;
     use std::{env, fs};
 
@@ -177,6 +177,26 @@ fn offline_flow_interactive() {
         String::from_utf8_lossy(p.expect(Eof).expect("should finish defaulting").as_bytes())
             .to_string();
     assert_snapshot!("moonup_install_latest_interactive", output);
+
+    // Uninstall the toolchain interactively
+    let mut cmd = ws.cli();
+    cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("uninstall");
+
+    let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+    p.expect("Select toolchains to uninstall")
+        .expect("should prompt for selecting installed version");
+    p.send_line(ControlCode::Space) // select first version
+        .expect("should send space");
+    p.send_line("").expect("should send new line"); // confirm selection
+
+    let output = String::from_utf8_lossy(
+        p.expect(Eof)
+            .expect("should finish uninstalling")
+            .as_bytes(),
+    )
+    .to_string();
+    assert_snapshot!("moonup_uninstall_interactive", output);
 
     env::set_current_dir(ws.tempdir()).expect("should restore current directory");
 }
