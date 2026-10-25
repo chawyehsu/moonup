@@ -118,13 +118,22 @@ fn offline_flow() {
             .arg("bad")
     );
 
+    let exitstatus = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("run")
+        .arg("latest")
+        .arg("moon")
+        .arg("subcommand")
+        .status()
+        .expect("should run moon subcommand and get nonzero exit code");
+    assert!(!exitstatus.success());
+
     assert_cmd_snapshot!(
-        "moonup_run_command_nonzero_exit",
+        "moonup_which_command_unavailable",
         ws.cli()
             .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
-            .arg("run")
-            .arg("latest")
-            .arg("moon")
-            .arg("subcommand")
+            .arg("which")
+            .arg("bad")
     );
 }
