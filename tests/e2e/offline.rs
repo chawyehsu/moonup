@@ -74,6 +74,13 @@ fn moonup_install() {
     // setup mock server for dist_server from committed fixtures
     let s = util::mock_dist_server();
 
+    assert_cmd_snapshot!(
+        "moonup_install",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+    );
+
     // Override the dist server URL with the mock server URL
     assert_cmd_snapshot!(
         "moonup_install_list_available",
@@ -82,6 +89,7 @@ fn moonup_install() {
             .arg("install")
             .arg("--list-available")
     );
+
     // Should hit the cache and return the same result
     assert_cmd_snapshot!(
         "moonup_install_list_available_verbose",
@@ -90,6 +98,16 @@ fn moonup_install() {
             .arg("install")
             .arg("--list-available")
             .arg("-vvv")
+    );
+
+    // No available toolchains for the channel
+    assert_cmd_snapshot!(
+        "moonup_install_no_available_toolchains",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg("nightly")
+            .arg("--list-available")
     );
 }
 
