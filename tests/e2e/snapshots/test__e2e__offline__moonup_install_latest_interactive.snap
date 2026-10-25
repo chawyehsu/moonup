@@ -1,0 +1,13 @@
+---
+source: tests/e2e/offline.rs
+expression: output
+---
+ ›
+❯ 0.10.17+d971670cd
+  0.10.17+093cb8f9c
+  0.10.16+b1a0e846e
+✔ Pick a version from latest channel · 0.10.17+d971670cd
+Installing toolchain...
+...
+Installed toolchain version '0.10.17+d971670cd'
+Make sure '[MOON_HOME]/bin' is added to your PATH

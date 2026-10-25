@@ -1,0 +1,8 @@
+---
+source: tests/e2e/offline.rs
+expression: output
+---
+ ›
+❯ 0.10.17+d971670cd
+✔ Pick a installed version · 0.10.17+d971670cd
+✔ Default toolchain set to version '0.10.17+d971670cd'

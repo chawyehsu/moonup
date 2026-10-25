@@ -3,13 +3,12 @@ source: tests/e2e/offline.rs
 info:
   program: moonup
   args:
-    - run
-    - latest
-    - moon
-    - subcommand
+    - which
+    - bad
 ---
-success: false
-exit_code: 1
+success: true
+exit_code: 0
 ----- stdout -----
 
 ----- stderr -----
+No command found for 'bad'
