@@ -138,6 +138,16 @@ fn offline_flow() {
             .arg("which")
             .arg("bad")
     );
+
+    // Uninstall the toolchain
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("uninstall")
+        .arg("latest")
+        .output()
+        .expect("should uninstall latest toolchain successfully");
+    assert!(output.status.success());
 }
 
 // #[cfg(feature = "test-interactive")]
