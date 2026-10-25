@@ -1,0 +1,15 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - run
+    - latest
+    - bad
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+  × Failed to build command: Command 'bad' not found in toolchain 'latest'

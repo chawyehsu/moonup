@@ -92,3 +92,39 @@ fn moonup_install() {
             .arg("-vvv")
     );
 }
+
+#[test]
+fn offline_flow() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+
+    // setup mock server for dist_server from committed fixtures
+    let s = util::mock_dist_server();
+
+    // Install the latest toolchain
+    ws.cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg("latest")
+        .status()
+        .expect("should install latest toolchain successfully");
+
+    assert_cmd_snapshot!(
+        "moonup_run_command_unavailable",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("run")
+            .arg("latest")
+            .arg("bad")
+    );
+
+    assert_cmd_snapshot!(
+        "moonup_run_command_nonzero_exit",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("run")
+            .arg("latest")
+            .arg("moon")
+            .arg("subcommand")
+    );
+}
