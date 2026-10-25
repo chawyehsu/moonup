@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "components": [
+    {
+      "name": "toolchain",
+      "file": "moonbit-v0.10.17+d971670cd-x86_64-pc-windows.zip",
+      "sha256": "b11f4d2516a651de33cf9893f24164628e5fcd6aa6816b466b50579285aae665"
+    }
+  ]
+}

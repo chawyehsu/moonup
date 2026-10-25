@@ -12,8 +12,8 @@ exit_code: 0
 ----- stdout -----
 DEBUG moonup::toolchain::index: index [MOONUP_HOME]/downloads/index.json cache valid 'true'
 Available channel(s):
-  latest (0.10.6+80dc50f24)
-  nightly (0.10.6+09d021f04, 2026-08-06)
+  latest (0.10.17+d971670cd)
+  nightly (0.10.17+1c70d827d, 2026-10-24)
   bleeding (0.1.20250525+30d3f4e0d)
 
 ----- stderr -----
