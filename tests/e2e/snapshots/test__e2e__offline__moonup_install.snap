@@ -1,0 +1,22 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - install
+---
+success: false
+exit_code: 2
+----- stdout -----
+Install or update a MoonBit toolchain
+
+Usage: moonup [OPTIONS] [TOOLCHAIN]
+
+Arguments:
+  [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
+
+Options:
+  -l, --list-available  List available channels or versions
+  -h, --help            Print help (see more with '--help')
+
+----- stderr -----

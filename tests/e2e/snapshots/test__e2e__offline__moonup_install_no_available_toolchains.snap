@@ -1,0 +1,15 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - install
+    - nightly
+    - "--list-available"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+No available toolchain versions to select
