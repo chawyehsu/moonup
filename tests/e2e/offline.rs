@@ -102,12 +102,14 @@ fn offline_flow() {
     let s = util::mock_dist_server();
 
     // Install the latest toolchain
-    ws.cli()
+    let output = ws
+        .cli()
         .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
         .arg("install")
         .arg("latest")
-        .status()
+        .output()
         .expect("should install latest toolchain successfully");
+    assert!(output.status.success());
 
     assert_cmd_snapshot!(
         "moonup_run_command_unavailable",
@@ -136,4 +138,45 @@ fn offline_flow() {
             .arg("which")
             .arg("bad")
     );
+}
+
+// #[cfg(feature = "test-interactive")]
+#[cfg(not(windows))]
+#[test]
+#[serial]
+fn offline_flow_interactive() {
+    use crate::util::{self, TestWorkspace};
+    use expectrl::{Eof, Expect, Session};
+    use insta::assert_snapshot;
+    use std::{env, fs};
+
+    util::apply_common_filters!();
+
+    // setup mock server for dist_server from committed fixtures
+    let s = util::mock_dist_server();
+
+    // Set up project directory
+    let ws = TestWorkspace::new();
+    let project_path = ws.project_path();
+    fs::create_dir_all(project_path).expect("should create project directory");
+    env::set_current_dir(project_path).expect("should set current directory");
+
+    // Install the toolchain interactively
+    let mut cmd = ws.cli();
+    cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg("latest")
+        .arg("--list-available");
+
+    let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+    p.expect("Pick a version from latest channel")
+        .expect("should prompt for selecting version");
+    p.send_line("").expect("should send new line"); // select first version
+
+    let output =
+        String::from_utf8_lossy(p.expect(Eof).expect("should finish defaulting").as_bytes())
+            .to_string();
+    assert_snapshot!("moonup_install_latest_interactive", output);
+
+    env::set_current_dir(ws.tempdir()).expect("should restore current directory");
 }
