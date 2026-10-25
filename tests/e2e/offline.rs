@@ -182,6 +182,35 @@ fn offline_flow_interactive() {
 
     assert_snapshot!("moonup_install_latest_interactive", output);
 
+    // Pin toolchain interactively
+    let mut cmd = ws.cli();
+    cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("pin");
+
+    let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+    p.expect("Pick a installed version")
+        .expect("should prompt for selecting installed version");
+    p.send_line("").expect("should send new line"); // select first version
+
+    let output = String::from_utf8_lossy(p.expect(Eof).expect("should finish pinning").as_bytes())
+        .to_string();
+    assert_snapshot!("moonup_pin_interactive", output);
+
+    // Set default toolchain interactively
+    let mut cmd = ws.cli();
+    cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("default");
+
+    let mut p = Session::spawn(cmd).expect("should spawn moonup process");
+    p.expect("Pick a installed version")
+        .expect("should prompt for selecting installed version");
+    p.send_line("").expect("should send new line"); // select first version
+
+    let output =
+        String::from_utf8_lossy(p.expect(Eof).expect("should finish defaulting").as_bytes())
+            .to_string();
+    assert_snapshot!("moonup_default_interactive", output);
+
     // Uninstall the toolchain interactively
     let mut cmd = ws.cli();
     cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
