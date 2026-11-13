@@ -22,28 +22,35 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    # skip if the commit message contains 'build(deps)', typically for dependabot
+    if: "!contains(github.event.head_commit.message, 'build(deps)')"
     env:
       SCCACHE_GHA_ENABLED: true
       RUSTC_WRAPPER: sccache
+    permissions:
+      id-token: write
     steps:
-      - name: Checkout Source
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Cache Setup
-        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+      - name: Expose GitHub Actions Cache Environment Variables
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
-          tool: cargo-llvm-cov
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL'] || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN'] || '');
+
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          run-install: false
 
       - name: Generate Coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.out
+        run: pixi run -e ci-coverage cargo llvm-cov --all-features --workspace --lcov --output-path lcov.out
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: lcov.out
           fail_ci_if_error: true

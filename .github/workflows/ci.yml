@@ -82,3 +82,6 @@ jobs:
 
       - name: Build
         run: pixi run -e ci-test build
+
+      - name: Cache Status
+        run: pixi run -e ci-test cache-stat
