@@ -74,8 +74,8 @@ jobs:
         with:
           run-install: false
 
-      - name: Clippy Check
-        run: pixi run -e ci-test clippy
+      - name: Lint Check
+        run: pixi run -e ci-test lint
 
       - name: Run Tests
         run: pixi run -e ci-test test
