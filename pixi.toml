@@ -1,24 +1,144 @@
 [workspace]
-name = "moonup"
-authors = ["Chawye Hsu <su+git@chawyehsu.com>"]
-channels = ["conda-forge"]
+channels = ["https://prefix.dev/conda-forge"]
 platforms = ["linux-64", "linux-aarch64", "win-64", "osx-64", "osx-arm64"]
+preview = ["pixi-build"]
 
-[tasks]
-build = "cargo build"
-build-release = "cargo build --release"
-test = { cmd = "cargo insta test --review", env = { CARGO_TARGET_DIR = "target/insta" } }
-test-all = { cmd = "cargo insta test --review --all-features", env = { CARGO_TARGET_DIR = "target/insta" } }
+# sync with rust-toolchain.toml
+[workspace.build-variants]
+rust_compiler_version = ["1.95.0"]
 
-[dependencies]
+[workspace.target.win.build-variants]
+c_compiler = ["vs2022"]
+cxx_compiler = ["vs2022"]
+
+[workspace.target.linux.build-variants]
+c_stdlib = ["sysroot"]
+c_stdlib_version = ["2.17"]
+
+[workspace.target.osx.build-variants]
+c_stdlib = ["macosx_deployment_target"]
+c_stdlib_version = ["11.0"]
+
+[workspace.dependencies]
 actionlint = ">=1.7.8,<2"
-prek = ">=0.3.13,<0.4"
-pre-commit-hooks = ">=5.0.0,<6"
-typos = ">=1.29.5,<2"
-# build dependencies
-rust = "~=1.95.0"
-rust-src = "~=1.95.0"
-c-compiler = ">=1.9.0,<2"     # MSVC v142/VS2019 Build Tools is required on Windows
+cargo-insta = ">=1.43.2,<2"
+cargo-llvm-cov = ">=0.9.1,<0.10"
+c-compiler = ">=2.0.0,<3"
 openssl = ">=3.4.0,<4"
 pkg-config = ">=0.29.2,<0.30"
-cargo-insta = ">=1.43.2,<2"
+prek = ">=0.3.13,<0.4"
+pre-commit-hooks = ">=5.0.0,<6"
+pixi-build-rust = ">=0.5.7,<0.6"
+rust = "~=1.95.0"
+rust-src = "~=1.95.0"
+sccache = ">=0.19.0,<0.20"
+sigtool = ">=0.1.3,<0.2"
+typos = ">=1.29.5,<2"
+
+# ----------- #
+# Environment #
+# ----------- #
+
+## Features
+[feature.cache.dependencies]
+sccache = { workspace = true }
+
+[feature.coverage.dependencies]
+cargo-llvm-cov = { workspace = true }
+
+[feature.compilers.dependencies]
+c-compiler = { workspace = true }
+rust = { workspace = true }
+rust-src = { workspace = true }
+
+[feature.test.dependencies]
+cargo-insta = { workspace = true }
+
+# release: pixi-build-rust backend handles all deps for us
+[environments.release.dependencies]
+# bsdtar to extract conda artifacts, except macos
+libarchive = { version = ">=3.8.7,<4", when = { any = ["__win", "__linux"] } }
+
+[environments.release.tasks]
+release = { cmd = "pixi publish --target-channel .pixi/out", description = "Build in release mode, artifact output to .pixi/out" }
+
+## Environments for CI
+# ci-check
+[environments.ci-check]
+features = ["compilers"]
+
+# coverage
+[environments.ci-coverage]
+features = ["compilers", "cache", "coverage"]
+
+# test
+[environments.ci-test]
+features = ["compilers", "cache", "test"]
+
+## Environments for local
+# dev: activate this env when the local environment does not have Rust toolchains
+[environments.dev]
+features = ["compilers", "cache", "coverage", "test"]
+
+# default
+[tasks]
+build = { cmd = "cargo build", description = "Build in dev mode" }
+fmt = { cmd = "cargo fmt --all", description = "Code formatting" }
+lint = { cmd = "cargo clippy", description = "Code lintting" }
+test = { cmd = "cargo insta test --review", description = "Run tests", env = { CARGO_TARGET_DIR = "target/insta" } }
+test-all = { cmd = "cargo insta test --review --all-features", description = "Run tests with all features on", env = { CARGO_TARGET_DIR = "target/insta" } }
+
+# -------- #
+# Package  #
+# -------- #
+[package]
+name = "moonup"
+license = "Apache-2.0"
+authors = ["Chawye Hsu <su+git@chawyehsu.com>"]
+publish = true
+
+[package.build-dependencies]
+sccache = { workspace = true }
+
+[package.build-dependencies."if(osx)"]
+# Provides the `codesign` command used by rattler-build when cross-compiling.
+sigtool = { workspace = true }
+
+[package.build]
+backend = { name = "pixi-build-rust", workspace = true }
+# sccache configuration for GitHub Actions. The values are pulled from the
+# parent environment at build time and baked into the build script, so they
+# only exist in CI. Local builds stay a plain cargo build.
+#
+# Due to a flaw in the pixi-build backends, the underlying `rattler-build`
+# enforces build-environment isolation. This prevents the Rust toolchain
+# from accessing build host's Cargo cache and the `CARGO_HOME` env var,
+# resulting in a performance degradation where all crates must be
+# re-downloaded during every build. Including CARGO_HOME in the secrets,
+# which is not ideal, allows developers to work around this issue for
+# local builds. Setting SCCACHE_DIR will also help when running local builds
+# with sccache enabled.
+secrets = ["ACTIONS_RESULTS_URL", "ACTIONS_RUNTIME_TOKEN", "CARGO_HOME"]
+
+[package.build.config]
+# The default profile is "release" and it doesn't need to be specified explicitly
+# but we explicitly set it here to provide a way to override it if needed, via
+# regex/sed replacement
+extra-args = ["--profile", "release"]
+# sccache must use the GitHub Actions cache service v2; the legacy v1
+# service is deprecated/blocked and rejects all cache writes.
+#
+# `SCCACHE_ENABLED` is a fake env var used to trigger sccache engagement in
+# the pixi-build backend, as it has bug with detecting sccache correctly.
+env = { ACTIONS_CACHE_SERVICE_V2 = "on", SCCACHE_ENABLED = "true" }
+
+[package.build.target.osx.config.env]
+# conda-forge cannot ship the macOS SDK; CI replaces this placeholder with the
+# absolute SDK path before cross-building.
+SDKROOT = "__MACOS_SDK_ROOT__"
+CONDA_BUILD_SYSROOT = "__MACOS_SDK_ROOT__"
+
+[package.build.target.win-arm64.config.env]
+# Use CMake to build aws-lc-sys, because conda's CFLAGS inject -O2 which
+# overrides the -O0 required by jitterentropy-base.c.
+AWS_LC_SYS_CMAKE_BUILDER = "1"

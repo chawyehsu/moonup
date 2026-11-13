@@ -1,4 +1,5 @@
 name: CI
+
 on:
   workflow_dispatch:
   pull_request:
@@ -15,19 +16,17 @@ on:
       - ".vscode"
       - "*.md"
       - ".github/workflows/docs.yml"
+
 permissions: {}
+
 jobs:
-  # format and lint check
   ci_style_check:
+    # skip if it's a release commit
+    if: "!contains(github.event.head_commit.message, 'chore(main): release')"
     name: Code Style Check
     runs-on: ubuntu-latest
-    # skip if it's a release commit to the main branch
-    if: "!(github.event_name == 'push' && contains(github.event.head_commit.message, 'chore(main): release'))"
-    env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
     steps:
-      - name: Checkout Source
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Check for .snap.new files
@@ -37,67 +36,49 @@ jobs:
             exit 1
           fi
 
-      - name: Rust Setup
-        run: rustup component add clippy rustfmt
-
-      - name: Cache Setup
-        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          run-install: false
 
       - name: Format Check
-        run: cargo fmt -- --check
+        run: pixi run -e ci-check fmt -- --check
 
-      - name: Clippy Check
-        run: cargo clippy
-
-  # tests and build
   ci_test_build:
-    name: Test Build
     needs: ci_style_check
     strategy:
-      fail-fast: false
       matrix:
         include:
-          - {
-              name: "Windows",
-              target: x86_64-pc-windows-msvc,
-              os: windows-latest,
-              zip: moonup-x86_64-pc-windows-msvc.zip,
-            }
-          - {
-              name: "Linux x86_64",
-              target: x86_64-unknown-linux-gnu,
-              os: ubuntu-latest,
-              zip: moonup-x86_64-unknown-linux-gnu.tar.gz,
-            }
-          - {
-              name: "Linux Aarch64",
-              target: aarch64-unknown-linux-gnu,
-              os: ubuntu-24.04-arm,
-              zip: moonup-aarch64-unknown-linux-gnu.tar.gz,
-            }
-          - {
-              name: "macOS ARM",
-              target: aarch64-apple-darwin,
-              os: macos-latest,
-              zip: moonup-aarch64-apple-darwin.tar.gz,
-            }
-
+          - { os: "ubuntu-latest" }
+          - { os: "ubuntu-24.04-arm" }
+          - { os: "windows-latest" }
+          - { os: "macos-latest" }
+    name: Test and Build
     runs-on: ${{ matrix.os }}
     env:
       SCCACHE_GHA_ENABLED: true
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Checkout Source
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Cache Setup
-        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - name: Expose GitHub Actions Cache Environment Variables
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
-          version: "v0.12.0"
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL'] || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN'] || '');
 
-      - name: Tests Check
-        if: matrix.os != 'ubuntu-latest' || matrix.os != 'macos-15-intel'
-        run: cargo test
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          run-install: false
 
-      - name: Dev Build
-        run: cargo build --locked --target ${{ matrix.target }}
+      - name: Clippy Check
+        run: pixi run -e ci-test clippy
+
+      - name: Run Tests
+        run: pixi run -e ci-test test
+
+      - name: Build
+        run: pixi run -e ci-test build
