@@ -27,6 +27,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: true
       RUSTC_WRAPPER: sccache
+      ACTIONS_CACHE_SERVICE_V2: on
     permissions:
       id-token: write
     steps:
