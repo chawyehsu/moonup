@@ -14,23 +14,20 @@ pub struct Args {}
 pub async fn execute(_: Args) -> miette::Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
 
-    // self_update does not work well with async, see:
-    //   https://github.com/jaemk/self_update/issues/44
-    let latest_release = tokio::task::spawn_blocking(move || {
-        let updater = self_update::backends::github::Update::configure()
-            .repo_owner("chawyehsu")
-            .repo_name("moonup")
-            .bin_name(env!("CARGO_PKG_NAME"))
-            .current_version(current_version)
-            .build()?;
-        updater.get_latest_release()
-    })
-    .await
-    .expect("spawn blocking task")
-    .into_diagnostic()?;
+    let updater = self_update::backends::github::Update::configure()
+        .repo_owner("chawyehsu")
+        .repo_name("moonup")
+        .bin_name(env!("CARGO_PKG_NAME"))
+        .current_version(current_version)
+        .build_async()
+        .into_diagnostic()?
+        .get_latest_release_async()
+        .await
+        .into_diagnostic()?;
+    let latest_release = updater.latest().expect("should have latest release");
 
     let is_greater =
-        self_update::version::bump_is_greater(current_version, &latest_release.version)
+        self_update::version::bump_is_greater(current_version, latest_release.version())
             .ok()
             .unwrap_or(false);
 
@@ -44,20 +41,21 @@ pub async fn execute(_: Args) -> miette::Result<()> {
 
     println!(
         "Updating moonup: {} -> {}",
-        current_version, latest_release.version
+        current_version,
+        latest_release.version()
     );
 
     let assets = latest_release
-        .assets
+        .assets()
         .iter()
-        .filter(|a| a.name.contains(self_update::get_target()))
+        .filter(|a| a.name().contains(self_update::get_target()))
         .collect::<Vec<_>>();
 
     tracing::trace!("moonup assets: {:?}", assets);
     assert_eq!(assets.len(), 2, "expected two assets");
 
     let client = build_http_client_with_retry();
-    let temp_dir = self_update::TempDir::with_prefix("moonup").into_diagnostic()?;
+    let temp_dir = tempfile::TempDir::with_prefix("moonup").into_diagnostic()?;
 
     let mut sha256_actual = String::new();
     let mut sha256_expected = String::new();
@@ -67,14 +65,15 @@ pub async fn execute(_: Args) -> miette::Result<()> {
     for asset in assets {
         let url = format!(
             "https://github.com/chawyehsu/moonup/releases/download/v{}/{}",
-            latest_release.version, asset.name
+            latest_release.version(),
+            asset.name()
         );
         let url = url::Url::parse(url.as_str()).into_diagnostic()?;
-        tracing::debug!("downloading {} from {}", asset.name, url);
+        tracing::debug!("downloading {} from {}", asset.name(), url);
 
         let mut reader = utils::url_to_reader(url, &client, None).await?;
 
-        if asset.name.ends_with(".sha256") {
+        if asset.name().ends_with(".sha256") {
             let mut content = String::new();
             reader
                 .read_to_string(&mut content)
@@ -84,7 +83,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         } else {
             tracing::debug!("extracting to {}", extract_to.display());
 
-            let sha256 = match asset.name.ends_with(".zip") {
+            let sha256 = match asset.name().ends_with(".zip") {
                 false => archive::extract_tar_gz(reader, extract_to).await?,
                 true => archive::extract_zip(reader, extract_to).await?,
             };
