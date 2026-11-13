@@ -24,7 +24,9 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         .get_latest_release_async()
         .await
         .into_diagnostic()?;
-    let latest_release = updater.latest().expect("should have latest release");
+    let latest_release = updater
+        .latest()
+        .ok_or_else(|| miette::miette!("No latest release found"))?;
 
     let is_greater =
         self_update::version::bump_is_greater(current_version, latest_release.version())
