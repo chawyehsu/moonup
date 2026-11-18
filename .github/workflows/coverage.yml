@@ -22,32 +22,55 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    # skip if the commit message contains 'build(deps)', typically for dependabot
-    if: "!contains(github.event.head_commit.message, 'build(deps)')"
+    # skip if release commit and the dependabot commit
+    if: "!contains(github.event.head_commit.message, 'build(deps)') && !contains(github.event.pull_request.title, 'build(deps)') && !contains(github.event.pull_request.title, 'chore(main): release') && !contains(github.event.head_commit.message, 'chore(main): release')"
     env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
-      ACTIONS_CACHE_SERVICE_V2: on
+      KACHE_CACHE_DIR: ${{ github.workspace }}/.kache
+      KACHE_RUNTIME_DIR: ${{ github.workspace }}/.kache-runtime
+      KACHE_LOCAL_ONLY: "1"
+      RUSTC_WRAPPER: kache
     permissions:
       id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Expose GitHub Actions Cache Environment Variables
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL'] || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN'] || '');
+      - name: Compute cache epoch
+        id: cache-epoch
+        shell: bash
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Pixi
         uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          run-install: false
+          environments: coverage
+          cache: true
+          cache-write: ${{ github.ref == 'refs/heads/main' }}
+          cache-key: pixi-coverage-
+
+      # Restore the latest snapshot on every run. Only main saves, and the
+      # weekly epoch makes it at most one snapshot per job/platform per week
+      # instead of one per commit.
+      - name: Restore kache store
+        id: kache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .kache
+          key: kache-1.2.2-${{ runner.os }}-${{ runner.arch }}-coverage-${{ hashFiles('Cargo.lock') }}-${{ steps.cache-epoch.outputs.week }}
+          restore-keys: |
+            kache-1.2.2-${{ runner.os }}-${{ runner.arch }}-coverage-
+
+      - name: Restore cargo registry
+        id: cargo
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
 
       - name: Generate Coverage
-        run: pixi run -e ci-coverage cargo llvm-cov --all-features --workspace --lcov --output-path lcov.out
+        run: pixi run -e coverage cargo llvm-cov --all-features --workspace --lcov --output-path lcov.out
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
@@ -55,3 +78,24 @@ jobs:
           use_oidc: true
           files: lcov.out
           fail_ci_if_error: true
+
+      - name: Save kache store
+        if: success() && github.ref == 'refs/heads/main' && steps.kache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .kache
+          key: ${{ steps.kache.outputs.cache-primary-key }}
+
+      - name: Save cargo registry
+        if: success() && github.ref == 'refs/heads/main' && steps.cargo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo
+          key: ${{ steps.cargo.outputs.cache-primary-key }}
+
+      - name: Check kache
+        if: always()
+        shell: bash
+        run: |
+          pixi run -e coverage cache-stats
+          pixi run -e coverage kache stats --since 24h --format github >> "$GITHUB_STEP_SUMMARY"

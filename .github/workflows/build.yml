@@ -2,83 +2,101 @@ name: Build
 
 on:
   workflow_call:
+    inputs:
+      build_type:
+        description: Build release or nightly artifacts
+        required: false
+        type: string
+        default: release
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: Artifact type to build
+        required: true
+        type: choice
+        options:
+          - release
+          - nightly
+        default: release
 
 jobs:
   build:
     strategy:
       matrix:
         include:
-          - {
-              name: "Windows",
-              target: x86_64-pc-windows-msvc,
-              os: windows-latest,
-              zip: moonup-x86_64-pc-windows-msvc.zip,
-            }
-          - {
-              name: "Linux x86_64",
-              target: x86_64-unknown-linux-gnu,
-              os: ubuntu-latest,
-              zip: moonup-x86_64-unknown-linux-gnu.tar.gz,
-            }
-          - {
-              name: "Linux Aarch64",
-              target: aarch64-unknown-linux-gnu,
-              os: ubuntu-24.04-arm,
-              zip: moonup-aarch64-unknown-linux-gnu.tar.gz,
-            }
-          - {
-              name: "macOS ARM",
-              target: aarch64-apple-darwin,
-              os: macos-latest,
-              zip: moonup-aarch64-apple-darwin.tar.gz,
-            }
-    name: Build - ${{ matrix.name }}
+          - { os: ubuntu-24.04, platform: linux }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64 }
+          - { os: macos-26, platform: macos }
+          - { os: windows-2022, platform: windows }
+    name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
+      KACHE_CACHE_DIR: ${{ github.workspace }}/.kache
+      KACHE_RUNTIME_DIR: ${{ github.workspace }}/.kache-runtime
+      KACHE_LOCAL_ONLY: "1"
+      RUSTC_WRAPPER: kache
     steps:
-      - name: Checkout Source
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Cache Setup
-        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
-
-      - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }}
-
-      - name: Strip Artifacts [Linux]
-        if: matrix.os == 'ubuntu-latest'
+      - name: Compute cache epoch
+        id: cache-epoch
         shell: bash
-        run: |
-          case ${{ matrix.target }} in
-            aarch64-unknown-linux-gnu) sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
-          esac
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
 
-          STRIP="strip"
-          case ${{ matrix.target }} in
-            aarch64-unknown-linux-gnu) STRIP="aarch64-linux-gnu-strip" ;;
-          esac;
-          "${STRIP}" target/${{ matrix.target }}/release/moonup
-          "${STRIP}" target/${{ matrix.target }}/release/moonup-shim
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          run-install: false
 
-      - name: Prepare Artifacts [Unix]
-        if: matrix.os != 'windows-latest'
-        run: |
-          cp target/${{ matrix.target }}/release/moonup .
-          cp target/${{ matrix.target }}/release/moonup-shim .
-          tar czvf ${{ matrix.zip }} moonup moonup-shim LICENSE README.md
+      # Restore the latest snapshot on every run. Only main saves, and the
+      # weekly epoch makes it at most one snapshot per job/platform per week
+      # instead of one per commit.
+      - name: Restore kache store
+        id: kache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .kache
+          key: kache-1.2.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('Cargo.lock') }}-${{ steps.cache-epoch.outputs.week }}
+          restore-keys: |
+            kache-1.2.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-
 
-      - name: Prepare Artifacts [Windows]
-        if: matrix.os == 'windows-latest'
-        run: |
-          cp target/${{ matrix.target }}/release/moonup.exe .
-          cp target/${{ matrix.target }}/release/moonup-shim.exe .
-          7z a ${{ matrix.zip }} moonup.exe moonup-shim.exe LICENSE README.md
+      - name: Restore cargo registry
+        id: cargo
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
 
-      - name: Upload Artifacts
+      - name: Build and package
+        shell: pwsh
+        run: ./build.ps1 -Platform ${{ matrix.platform }} -BuildType ${{ inputs.build_type }}
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ${{ matrix.zip }}
-          path: ${{ matrix.zip }}
+          name: ${{ matrix.platform }}
+          path: out/*
+
+      - name: Save kache store
+        if: success() && github.ref == 'refs/heads/main' && steps.kache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .kache
+          key: ${{ steps.kache.outputs.cache-primary-key }}
+
+      - name: Save cargo registry
+        if: success() && github.ref == 'refs/heads/main' && steps.cargo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo
+          key: ${{ steps.cargo.outputs.cache-primary-key }}
+
+      - name: Check kache
+        if: always()
+        shell: bash
+        run: |
+          pixi run -e test cache-stats
+          pixi run -e test kache stats --since 24h --format github >> "$GITHUB_STEP_SUMMARY"

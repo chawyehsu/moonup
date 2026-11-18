@@ -2,6 +2,9 @@
 /target
 moonbit-version
 
+# build.ps1 outputs
+/out
+
 # pixi environments
 .pixi
 *.egg-info

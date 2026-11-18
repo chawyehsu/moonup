@@ -27,9 +27,10 @@ c-compiler = ">=2.0.0,<3"
 prek = ">=0.3.13,<0.4"
 pre-commit-hooks = ">=5.0.0,<6"
 pixi-build-rust = ">=0.5.7,<0.6"
+kache = "==1.2.2"
+rattler-build = ">=0.80.1,<0.81"
 rust = "~=1.95.0"
 rust-src = "~=1.95.0"
-sccache = ">=0.19.0,<0.20"
 sigtool = ">=0.1.3,<0.2"
 typos = ">=1.29.5,<2"
 
@@ -38,8 +39,11 @@ typos = ">=1.29.5,<2"
 # ----------- #
 
 ## Features
+[feature.build.dependencies]
+rattler-build = { workspace = true }
+
 [feature.cache.dependencies]
-sccache = { workspace = true }
+kache = { workspace = true }
 
 [feature.coverage.dependencies]
 cargo-llvm-cov = { workspace = true }
@@ -52,25 +56,17 @@ rust-src = { workspace = true }
 [feature.test.dependencies]
 cargo-insta = { workspace = true }
 
-# release: pixi-build-rust backend handles all deps for us
-[environments.release.dependencies]
-# bsdtar to extract conda artifacts, except macos
-libarchive = { version = ">=3.8.7,<4", when = { any = ["__win", "__linux"] } }
-
-[environments.release.tasks]
-release = { cmd = "pixi publish --target-channel .pixi/out", description = "Build in release mode, artifact output to .pixi/out" }
-
-## Environments for CI
-# ci-check
-[environments.ci-check]
-features = ["compilers"]
+## Environments
+# build (used by build.ps1)
+[environments.build]
+features = ["build"]
 
 # coverage
-[environments.ci-coverage]
+[environments.coverage]
 features = ["compilers", "cache", "coverage"]
 
 # test
-[environments.ci-test]
+[environments.test]
 features = ["compilers", "cache", "test"]
 
 ## Environments for local
@@ -85,6 +81,7 @@ fmt = { cmd = "cargo fmt --all", description = "Code formatting" }
 lint = { cmd = "cargo clippy", description = "Code lintting" }
 test = { cmd = "cargo insta test --review", description = "Run tests", env = { CARGO_TARGET_DIR = "target/insta" } }
 test-all = { cmd = "cargo insta test --review --all-features", description = "Run tests with all features on", env = { CARGO_TARGET_DIR = "target/insta" } }
+cache-stats = { cmd = "kache stats --since 24h --full", description = "Show kache build cache statistics" }
 
 # -------- #
 # Package  #
@@ -96,7 +93,7 @@ authors = ["Chawye Hsu <su+git@chawyehsu.com>"]
 publish = true
 
 [package.build-dependencies]
-sccache = { workspace = true }
+kache = { workspace = true }
 
 [package.build-dependencies."if(osx)"]
 # Provides the `codesign` command used by rattler-build when cross-compiling.
@@ -104,31 +101,14 @@ sigtool = { workspace = true }
 
 [package.build]
 backend = { name = "pixi-build-rust", workspace = true }
-# sccache configuration for GitHub Actions. The values are pulled from the
-# parent environment at build time and baked into the build script, so they
-# only exist in CI. Local builds stay a plain cargo build.
-#
-# Due to a flaw in the pixi-build backends, the underlying `rattler-build`
-# enforces build-environment isolation. This prevents the Rust toolchain
-# from accessing build host's Cargo cache and the `CARGO_HOME` env var,
-# resulting in a performance degradation where all crates must be
-# re-downloaded during every build. Including CARGO_HOME in the secrets,
-# which is not ideal, allows developers to work around this issue for
-# local builds. Setting SCCACHE_DIR will also help when running local builds
-# with sccache enabled.
-secrets = ["ACTIONS_RESULTS_URL", "ACTIONS_RUNTIME_TOKEN", "CARGO_HOME"]
+secrets = ["KACHE_CACHE_DIR", "KACHE_RUNTIME_DIR", "CARGO_HOME"]
 
 [package.build.config]
 # The default profile is "release" and it doesn't need to be specified explicitly
 # but we explicitly set it here to provide a way to override it if needed, via
 # regex/sed replacement
 extra-args = ["--profile", "release"]
-# sccache must use the GitHub Actions cache service v2; the legacy v1
-# service is deprecated/blocked and rejects all cache writes.
-#
-# `SCCACHE_ENABLED` is a fake env var used to trigger sccache engagement in
-# the pixi-build backend, as it has bug with detecting sccache correctly.
-env = { ACTIONS_CACHE_SERVICE_V2 = "on", SCCACHE_ENABLED = "true" }
+env = { RUSTC_WRAPPER = "kache", KACHE_LOCAL_ONLY = "1" }
 
 [package.build.target.osx.config.env]
 # conda-forge cannot ship the macOS SDK; CI replaces this placeholder with the

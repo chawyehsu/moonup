@@ -20,11 +20,9 @@ on:
 permissions: {}
 
 jobs:
-  ci_style_check:
-    # skip if it's a release commit
-    if: "!contains(github.event.head_commit.message, 'chore(main): release')"
-    name: Code Style Check
-    runs-on: ubuntu-latest
+  ci_guard:
+    name: Snapshot Guard
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,53 +34,95 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Pixi
-        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
-        with:
-          run-install: false
-
-      - name: Format Check
-        run: pixi run -e ci-check fmt -- --check
-
-  ci_test_build:
-    needs: ci_style_check
+  ci_test:
+    needs: ci_guard
+    # skip if it's a release commit
+    if: "!contains(github.event.head_commit.message, 'chore(main): release') && !contains(github.event.pull_request.title, 'chore(main): release')"
     strategy:
       matrix:
         include:
-          - { os: "ubuntu-latest" }
-          - { os: "ubuntu-24.04-arm" }
-          - { os: "windows-latest" }
-          - { os: "macos-latest" }
-    name: Test and Build
+          - { os: "ubuntu-24.04" }
+          - { os: "windows-2022" }
+    name: Test
     runs-on: ${{ matrix.os }}
     env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
-      ACTIONS_CACHE_SERVICE_V2: on
+      KACHE_CACHE_DIR: ${{ github.workspace }}/.kache
+      KACHE_RUNTIME_DIR: ${{ github.workspace }}/.kache-runtime
+      KACHE_LOCAL_ONLY: "1"
+      RUSTC_WRAPPER: kache
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Expose GitHub Actions Cache Environment Variables
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL'] || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN'] || '');
+      - name: Compute cache epoch
+        id: cache-epoch
+        shell: bash
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Pixi
         uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          run-install: false
+          environments: test
+          cache: true
+          cache-write: ${{ github.ref == 'refs/heads/main' }}
+          cache-key: pixi-test-
+
+      # Restore the latest snapshot on every run. Only main saves, and the
+      # weekly epoch makes it at most one snapshot per job/platform per week
+      # instead of one per commit.
+      - name: Restore kache store
+        id: kache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .kache
+          key: kache-1.2.2-${{ runner.os }}-${{ runner.arch }}-tests-${{ hashFiles('Cargo.lock') }}-${{ steps.cache-epoch.outputs.week }}
+          restore-keys: |
+            kache-1.2.2-${{ runner.os }}-${{ runner.arch }}-tests-
+
+      - name: Restore cargo registry
+        id: cargo
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Format Check
+        run: pixi run -e test fmt -- --check
 
       - name: Lint Check
-        run: pixi run -e ci-test lint
+        run: pixi run -e test lint
 
       - name: Run Tests
-        run: pixi run -e ci-test test
+        run: pixi run -e test test
 
-      - name: Build
-        run: pixi run -e ci-test build
+      - name: Save kache store
+        if: success() && github.ref == 'refs/heads/main' && steps.kache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .kache
+          key: ${{ steps.kache.outputs.cache-primary-key }}
 
-      - name: Cache Status
-        run: pixi run -e ci-test sccache --show-stats
+      - name: Save cargo registry
+        if: success() && github.ref == 'refs/heads/main' && steps.cargo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo
+          key: ${{ steps.cargo.outputs.cache-primary-key }}
+
+      - name: Check kache
+        if: always()
+        shell: bash
+        run: |
+          pixi run -e test cache-stats
+          pixi run -e test kache stats --since 24h --format github >> "$GITHUB_STEP_SUMMARY"
+
+  ci_nightly_build:
+    needs: ci_test
+    # only build on push to main
+    if: github.ref == 'refs/heads/main'
+    name: Build Nightly
+    uses: ./.github/workflows/build.yml
+    with:
+      build_type: nightly
