@@ -159,7 +159,7 @@ function Install-NativeMacOSSDK {
 function Build-CondaPackage {
     param([Parameter(Mandatory)][string] $TargetPlatform)
 
-    Invoke-Pixi -Arguments @('run', '-e', 'build', 'build', '--target-platform', $TargetPlatform)
+    Invoke-Pixi -Arguments @('run', '-e', 'build', 'package', '--target-platform', $TargetPlatform)
 
     $package = Get-ChildItem -Path . -Filter 'moonup*.conda' -File | Select-Object -First 1
     if (-not $package) {
@@ -209,8 +209,8 @@ function Write-LinuxAbiReport {
     & ldd -v $Path
 
     $glibc = & objdump -T $Path | Select-String 'GLIBC' |
-        ForEach-Object { if ($_.Line -match 'GLIBC_([.0-9]+)') { $Matches[1] } } |
-        Sort-Object -Unique
+    ForEach-Object { if ($_.Line -match 'GLIBC_([.0-9]+)') { $Matches[1] } } |
+    Sort-Object -Unique
     Write-Host ($glibc -join "`n")
 }
 
@@ -286,8 +286,7 @@ function Get-WindowsBuildDirectory {
         if ($target -ine $repoRoot) {
             throw "The existing junction '$junction' points to '$target', not '$repoRoot'. Remove it and retry."
         }
-    }
-    else {
+    } else {
         New-Item -ItemType Junction -Path $junction -Target $repoRoot | Out-Null
     }
 
@@ -330,14 +329,12 @@ try {
             try {
                 $package = Build-CondaPackage -TargetPlatform 'win-64'
                 New-WindowsArchive -PackageFile $package -Target 'x86_64-pc-windows-msvc' | Out-Null
-            }
-            finally {
+            } finally {
                 Pop-Location
             }
         }
     }
-}
-finally {
+} finally {
     Set-Content -Path 'pixi.toml' -Value $manifest -NoNewline
 }
 
