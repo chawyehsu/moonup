@@ -130,6 +130,20 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
         return Ok(());
     }
 
+    // `update` only operates on live installs. In particular, do not resolve a
+    // release for an incomplete staging directory with no live toolchain: it
+    // has nothing to update, and resolution could fail for an unavailable
+    // channel or an unreachable server. The install name is unchanged by the
+    // index-based interpretation below.
+    let local_meta = spec.install_meta();
+    if !first_time && local_meta.is_none() {
+        println!(
+            "{} toolchain is not installed, run 'moonup install {}' to install",
+            spec, spec
+        );
+        return Ok(());
+    }
+
     // Refine the syntactic spec interpretation against the main index: a
     // channel-name match wins over version interpretation (ADR 0007).
     let spec = index::interpret_spec(&spec.canonical()).await?;
@@ -144,22 +158,20 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
     }
 
     // toolchain is considered upgradable if the local key differs from the release key
-    if let Some(local_key) = spec.install_meta().map(|meta| meta.key) {
+    if let Some(local_key) = local_meta.map(|meta| meta.key) {
         if local_key == recipe.release.key() {
             println!("The {} toolchain is up to date", spec);
+            if first_time {
+                // An explicit install also repairs shims and links outside
+                // MOONUP_HOME, which may have changed since the toolchain was
+                // originally installed.
+                repair_install(&recipe)?;
+            }
             return Ok(());
         }
 
         println!("Updating the {} toolchain", spec);
     } else {
-        if !first_time {
-            println!(
-                "{} toolchain is not installed, run 'moonup install {}' to install",
-                spec, spec
-            );
-            return Ok(());
-        }
-
         println!("Installing toolchain '{}'", recipe.spec);
     }
 
@@ -185,6 +197,27 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
 /// Post installation: pour shims, build the core library, and link
 /// directories if needed
 fn post_install(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
+    pour_shims(recipe)?;
+    build_core_library(recipe)?;
+
+    if link {
+        link_dirs(recipe)?;
+    }
+
+    Ok(())
+}
+
+/// Repair files outside the toolchain directory without rebuilding its core
+/// library. Used when an explicit install finds the requested release already
+/// installed.
+fn repair_install(recipe: &InstallRecipe) -> miette::Result<()> {
+    pour_shims(recipe)?;
+    link_dirs(recipe)
+}
+
+/// Ensure the toolchain executables and their shims are available in the
+/// current `MOON_HOME`.
+fn pour_shims(recipe: &InstallRecipe) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
     let moonup_shim_name = exe_name("moonup-shim");
@@ -239,6 +272,17 @@ fn post_install(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
         }
     }
 
+    Ok(())
+}
+
+/// Build the core library in the installed toolchain directory.
+fn build_core_library(recipe: &InstallRecipe) -> miette::Result<()> {
+    let toolchain_dir = crate::moonup_home()
+        .join("toolchains")
+        .join(recipe.spec.install_name());
+    let bin_dir = toolchain_dir.join("bin");
+    let moon_exe = bin_dir.join(exe_name("moon"));
+
     // Build core library
     let corelib_dir = toolchain_dir.join("lib").join("core");
     let mut cmd = Command::new(moon_exe);
@@ -256,11 +300,6 @@ fn post_install(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
     cmd.env("PATH", bin_dir.display().to_string());
     tracing::debug!("running command: {:?}", cmd);
     cmd.status().into_diagnostic()?;
-
-    // Link the directories if requested
-    if link {
-        link_dirs(recipe)?;
-    }
 
     Ok(())
 }
