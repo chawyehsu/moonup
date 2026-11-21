@@ -1,11 +1,9 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use crate::cli::install::post_install;
+use crate::cli::install::{heal_recovered, install_recipe};
 use crate::toolchain::ToolchainSpec;
-use crate::toolchain::atomic;
 use crate::toolchain::index::build_installrecipe;
-use crate::toolchain::package::populate_install;
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
@@ -27,11 +25,7 @@ async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::R
     // toolchain is finalized immediately, before any fallible network
     // resolution, so an interrupted update never leaves it without its
     // post-install steps; the pending marker is acknowledged once done.
-    if let Some(staged) = atomic::recover(spec)? {
-        let recipe = staged.into_recipe(spec);
-        post_install(&recipe)?;
-        atomic::acknowledge(&recipe.spec);
-    }
+    heal_recovered(spec, false)?;
 
     let name = spec.as_str();
     path.push(name);
@@ -59,9 +53,7 @@ async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::R
 
             if should_update {
                 println!("Updating the {} toolchain", name);
-                populate_install(&recipe).await?;
-                post_install(&recipe)?;
-                atomic::acknowledge(&recipe.spec);
+                install_recipe(&recipe, false).await?;
             } else {
                 println!("The {} toolchain is up to date", name);
             }

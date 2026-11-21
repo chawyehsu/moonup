@@ -104,15 +104,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         },
     };
 
-    // Heal any toolchain left in a half-swapped state by an interrupted
-    // operation before doing any network work. A promoted staging directory is
-    // a complete installation, finalized with its own persisted metadata and
-    // acknowledged once done.
-    if let Some(staged) = atomic::recover(&spec)? {
-        let recipe = staged.into_recipe(&spec);
-        post_install(&recipe)?;
-        link_dirs(&recipe)?;
-        atomic::acknowledge(&recipe.spec);
+    if heal_recovered(&spec, true)? {
         return Ok(());
     }
 
@@ -133,10 +125,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     }
 
     println!("Installing toolchain '{}'", recipe.spec);
-    populate_install(&recipe).await?;
-    post_install(&recipe)?;
-    link_dirs(&recipe)?;
-    atomic::acknowledge(&recipe.spec);
+    install_recipe(&recipe, true).await?;
 
     println!(
         "{}Installed toolchain version '{}'",
@@ -165,6 +154,51 @@ fn toolchain_install_dirname(recipe: &InstallRecipe) -> String {
     } else {
         recipe.release.version.clone()
     }
+}
+
+/// Heal a toolchain left in a half-swapped state by an interrupted operation:
+/// promote a complete staging directory, run the post-install steps, and
+/// acknowledge the promotion.
+///
+/// Returns whether a crash state was healed. The caller decides what to do
+/// next: `install` treats the toolchain as installed and stops, while `update`
+/// continues to its up-to-date check.
+///
+/// `link` controls whether the `MOON_HOME` directory links are (re)created
+/// alongside the post-install steps: `install` does, because it may have just
+/// created a new pinned install directory; `update` does not, because it only
+/// swaps content in place under an unchanged directory name, leaving the
+/// existing links valid.
+pub(crate) fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
+    let Some(staged) = atomic::recover(spec)? else {
+        return Ok(false);
+    };
+
+    let recipe = staged.into_recipe(spec);
+    post_install(&recipe)?;
+    if link {
+        link_dirs(&recipe)?;
+    }
+    atomic::acknowledge(&recipe.spec);
+    Ok(true)
+}
+
+/// Perform the install pipeline for a fully resolved recipe: download and
+/// extract the components, swap the staging directory into the live location,
+/// run the post-install steps, and acknowledge the promotion.
+///
+/// `link` follows the same rule as [`heal_recovered`].
+pub(crate) async fn install_recipe(
+    recipe: &InstallRecipe,
+    link: bool,
+) -> miette::Result<()> {
+    populate_install(recipe).await?;
+    post_install(recipe)?;
+    if link {
+        link_dirs(recipe)?;
+    }
+    atomic::acknowledge(&recipe.spec);
+    Ok(())
 }
 
 // Post installation: pour shims and build the core library
