@@ -424,6 +424,19 @@ fn moonup_update_installs_newer_release() {
         )))
         .create();
 
+    // Simulate an interrupted update that left the currently installed
+    // release staged. `update` should recover it, then still check for and
+    // install the newer release published above.
+    let install_path = ws.moonup_home().join("toolchains").join("latest");
+    let staging_root = ws.moonup_home().join("toolchains").join(".staging");
+    let staging_dir = staging_root.join("latest.new");
+    let marker = staging_root.join("latest.complete");
+    fs::create_dir_all(staging_dir.parent().expect("staging parent"))
+        .expect("should create staging directory");
+    fs::rename(&install_path, &staging_dir).expect("should stage installed toolchain");
+    fs::write(&marker, format!(r#"{{"version":"{version}"}}"#))
+        .expect("should write staging completeness marker");
+
     assert_cmd_snapshot!(
         "moonup_update_installs_newer_release",
         ws.cli()

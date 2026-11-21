@@ -128,7 +128,7 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
 
     // Heal any toolchain left in a half-swapped state by an interrupted
     // operation before doing any network work.
-    if heal_recovered(&spec, true)? {
+    if heal_recovered(&spec, true)? && first_time {
         return Ok(());
     }
 
