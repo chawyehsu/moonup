@@ -30,16 +30,51 @@ generalized layout.
   default-toolchain fallback must work without network; the literal `latest`
   remains the conventional default.
 
+## Amendment: channel-qualified pinned installs
+
+Bare version pins made "the same version in two channels" unrepresentable: a
+pinned install's identity was the version string alone, so `0.11.0` from `latest`
+and `0.11.0` from `lts` would share one install directory. Pinned installs are
+therefore channel-qualified:
+
+- A pinned spec is a `(channel, key)` pair, the key being the release's build
+  date for dated releases, otherwise its version. Input accepts
+  `{channel}<sep>{key}` with `<sep>` one of `/`, `-`, `@` (`lts/0.11.0`,
+  `lts-0.11.0`, `lts@0.11.0`); channel
+  names conventionally contain no separator (moonup logs at debug level if one
+  does). The canonical string form is bare `{key}` for `latest`-channel pins and
+  `{channel}-{key}` otherwise (so legacy `nightly-<date>` pins keep their
+  familiar display form).
+- **`latest` is a must-have, fixed-name default channel** of any dist server
+  (amending the "derive default from index" rejection above: the default channel
+  is the fixed name `latest`, not index position). Bare versions are pins in
+  `latest`. This keeps spec parsing fully offline.
+- Install directories stay flat: floating channels at `toolchains/{channel}`,
+  `latest`-channel pins at `toolchains/{key}` (unchanged), other channels' pins
+  at `toolchains/{channel}-{key}` (which reproduces the existing
+  `nightly-2026-01-01` dir naming). No migration or renaming of existing
+  installs. Nesting pins under their channel's floating directory was rejected:
+  updating a floating channel renames its directory during the atomic swap,
+  which would sweep nested installs away.
+- The `version` stub becomes a JSON metadata file (same filename) written for
+  every install: `{"channel": "...", "key": "..."}`. Floating-ness is derived
+  (install dir name equals the channel name), not stored. Legacy plain-text
+  `version` files parse as floating and are left as-is on read paths — they are
+  rewritten in the JSON format whenever the toolchain is reinstalled or updated.
+  Legacy pinned dirs (no stub) keep the name heuristics.
+- The completeness marker records the spec's channel so crash recovery works
+  offline for qualified pins; old markers stay readable.
+- `moonup list` orders a pinned install by its key's position in its own
+  channel's cached channel index, falling back to numeric ordering.
+
 ## Consequences
 
 - Spec interpretation moves to resolve time: a user string matching an index
-  channel name is a channel, otherwise a version selector; unresolvable input
-  errors with the list of available channels. Bare version selectors always
-  search the `latest` channel; other channels are floating-only.
+  channel name is a channel, otherwise it is parsed as a qualified or bare
+  version pin; unresolvable input errors with the list of available channels.
+  Bare version pins always search the `latest` channel.
 - `moonup list` ranks channels by their position in the cached main index
   (best-effort offline); unranked channels sort last.
-- Shell completions resolve channel names from the cached index only — never a
-  network call.
 - `bleeding` is removed: install/update error with available channels, offline
   uninstall of existing on-disk installs still works, stale `moonbit-version`
   pins error clearly.

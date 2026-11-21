@@ -19,6 +19,12 @@ The user-facing install selector: either a channel name (floating: "newest of
 that channel") or a pinned version.
 _Avoid_: toolchain reference, spec string
 
+**Default channel**:
+The fixed-name channel `latest` that every dist server must advertise. Bare
+version pins always resolve within it; the shim's network-free toolchain
+fallback is also its name. It is a constant, not derived from index position.
+_Avoid_: default toolchain (that term means something else), primary channel
+
 **Channel**:
 A named distribution line advertised by the dist server's main index (e.g. `latest`,
 `nightly`). A channel has no fixed identity in Moonup: whatever names the index
@@ -26,11 +32,19 @@ lists are the channels that exist. Moonup attaches no semantics to any particula
 name.
 _Avoid_: branch, track
 
+**Qualified pin**:
+A pinned version that names its channel explicitly, written
+`{channel}<sep>{key}` with `<sep>` one of `/`, `-`, `@` (e.g. `lts/0.11.0`),
+canonicalized with `-`. It exists so
+the same release version can be pinned from different channels without the
+installs colliding.
+_Avoid_: channel-qualified version, namespaced pin
+
 **Pinned version**:
-A concrete release identified within its channel, written `<channel-prefix>-<date>`
-for dated releases (e.g. `nightly-2026-11-19`) or as a plain compiler version for
-versioned releases. The `nightly-` prefix is a pinned-format convention, not
-per-channel machinery.
+A concrete release identified by its channel and release key: bare (e.g.
+`0.11.0`, meaning the `latest` channel) or qualified (e.g. `lts/0.11.0`). Dated
+builds use the build date as the key (e.g. `nightly-2026-11-19`, written
+`nightly-2026-11-19` in canonical form).
 _Avoid_: dated spec, versioned channel
 
 **Stable selector**:
@@ -47,7 +61,8 @@ toolchain's installation identity.
 
 **Default toolchain**:
 The toolchain used when nothing is pinned; stored in `$MOONUP_HOME/default`. When
-unset, the literal name `latest` is the conventional fallback.
+unset, the literal name `latest` is the conventional fallback (also the default
+channel's name).
 _Avoid_: global toolchain
 
 ### Distribution server artifacts
