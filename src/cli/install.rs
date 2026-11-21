@@ -188,10 +188,7 @@ pub(crate) fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result
 /// run the post-install steps, and acknowledge the promotion.
 ///
 /// `link` follows the same rule as [`heal_recovered`].
-pub(crate) async fn install_recipe(
-    recipe: &InstallRecipe,
-    link: bool,
-) -> miette::Result<()> {
+pub(crate) async fn install_recipe(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
     populate_install(recipe).await?;
     post_install(recipe)?;
     if link {
