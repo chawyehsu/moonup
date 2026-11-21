@@ -8,7 +8,7 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-latest toolchain is not installed, run 'moonup install latest' to install
-nightly toolchain is not installed, run 'moonup install nightly' to install
+No channel toolchains installed
+Run 'moonup install <toolchain>' to install one, or check 'moonup install --list-available' for available channels
 
 ----- stderr -----
