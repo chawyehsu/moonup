@@ -1,0 +1,14 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - update
+---
+success: true
+exit_code: 0
+----- stdout -----
+The latest toolchain is up to date
+nightly toolchain is not installed, run 'moonup install nightly' to install
+
+----- stderr -----
