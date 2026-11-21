@@ -15,13 +15,15 @@ Usage: moonup install [OPTIONS] [TOOLCHAIN]
 
 Arguments:
   [TOOLCHAIN]
-          Toolchain version tag or channel name [latest, nightly, bleeding]
+          Toolchain version or channel name
+          
+          Channels are data: whatever the dist server advertises is installable. See `moonup install --list-available` for the available channels.
 
 Options:
   -l, --list-available
           List available channels or versions
           
-          If `toolchain` is not specified, this will list all available channels. If `toolchain` is specified as `latest`, `nightly`, this will list all available versions for that channel.
+          If `toolchain` is not specified, this will list all available channels. If `toolchain` is specified, this will list all available versions for that toolchain's channel.
 
   -v, --verbose...
           Increase logging verbosity

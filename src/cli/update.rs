@@ -1,5 +1,4 @@
 use clap::Parser;
-use std::path::PathBuf;
 
 use crate::cli::install::{heal_recovered, install_recipe};
 use crate::toolchain::ToolchainSpec;
@@ -10,48 +9,38 @@ use crate::toolchain::index::build_installrecipe;
 pub struct Args {}
 
 pub async fn execute(_: Args) -> miette::Result<()> {
-    let mut path = crate::moonup_home();
-    path.push("toolchains");
-
-    update_toolchain(&mut path, &ToolchainSpec::Latest).await?;
-    update_toolchain(&mut path, &ToolchainSpec::Nightly).await?;
+    update_toolchain(&ToolchainSpec::Channel(
+        crate::constant::DEFAULT_CHANNEL.to_owned(),
+    ))
+    .await?;
+    update_toolchain(&ToolchainSpec::Channel("nightly".to_owned())).await?;
 
     Ok(())
 }
 
-async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::Result<()> {
-    // Heal a crash state before its version is read, so a half-swapped
+async fn update_toolchain(spec: &ToolchainSpec) -> miette::Result<()> {
+    // Heal a crash state before its metadata is read, so a half-swapped
     // toolchain is not reported as "not installed" and skipped. A promoted
     // toolchain is finalized immediately, before any fallible network
     // resolution, so an interrupted update never leaves it without its
     // post-install steps; the pending marker is acknowledged once done.
     heal_recovered(spec, false)?;
 
-    let name = spec.as_str();
-    path.push(name);
-    path.push("version");
+    let name = spec.to_string();
 
-    let result = match tokio::fs::read_to_string(&path).await {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+    match spec.install_meta() {
+        None => {
             println!("{name} toolchain is not installed, run 'moonup install {name}' to install");
             Ok(())
         }
-        Err(e) => Err(miette::miette!(e).wrap_err("failed to read version file")),
-        Ok(local_ver) => {
+        Some(meta) => {
             let recipe = build_installrecipe(spec)
                 .await?
                 .expect("should have recipe");
 
-            let should_update = match (spec, local_ver.trim()) {
-                (ToolchainSpec::Bleeding, _) => true,
-                (ToolchainSpec::Latest, local) => local != recipe.release.version.as_str(),
-                (ToolchainSpec::Nightly, local) => {
-                    local != recipe.release.date.as_deref().expect("should have date")
-                }
-                _ => false,
-            };
-
-            if should_update {
+            // toolchain is considered upgradable if the local release key
+            // differs from the channel's current release key
+            if meta.key != recipe.release.key() {
                 println!("Updating the {} toolchain", name);
                 install_recipe(&recipe, false).await?;
             } else {
@@ -59,9 +48,5 @@ async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::R
             }
             Ok(())
         }
-    };
-
-    path.pop();
-    path.pop();
-    result
+    }
 }

@@ -60,7 +60,7 @@ impl Index {
 #[derive(Debug, Deserialize)]
 pub struct Channel {
     /// The channel name
-    pub name: ChannelName,
+    pub name: String,
     /// The (compiler) version number of the latest release in the channel
     pub version: String,
     /// (Optional) The (nightly) build date of the latest release in the channel
@@ -69,50 +69,9 @@ pub struct Channel {
 
 impl std::fmt::Display for Channel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.name {
-            ChannelName::Bleeding | ChannelName::Latest => {
-                write!(f, "{} ({})", self.name, self.version)
-            }
-            ChannelName::Nightly => {
-                write!(
-                    f,
-                    "{} ({}, {})",
-                    self.name,
-                    self.version,
-                    self.date.as_deref().unwrap_or("unknown")
-                )
-            }
-            ChannelName::Unknown(_) => Ok(()),
-        }
-    }
-}
-
-/// Channel names
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-#[non_exhaustive]
-pub enum ChannelName {
-    /// The bleeding channel
-    Bleeding,
-
-    /// The latest/stable channel
-    Latest,
-
-    /// The nightly channel
-    Nightly,
-
-    /// All other channel unsupported (yet) are treated as unknown
-    #[serde(untagged)]
-    Unknown(String),
-}
-
-impl std::fmt::Display for ChannelName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ChannelName::Bleeding => write!(f, "bleeding"),
-            ChannelName::Latest => write!(f, "latest"),
-            ChannelName::Nightly => write!(f, "nightly"),
-            ChannelName::Unknown(c) => write!(f, "{c}"),
+        match self.date.as_deref() {
+            Some(date) => write!(f, "{} ({}, {})", self.name, self.version, date),
+            None => write!(f, "{} ({})", self.name, self.version),
         }
     }
 }
@@ -276,6 +235,12 @@ impl Release {
             date: None,
             targets: None,
         }
+    }
+
+    /// The path segment identifying this release within its channel: the
+    /// build date when present, otherwise the version.
+    pub fn key(&self) -> &str {
+        self.date.as_deref().unwrap_or(&self.version)
     }
 
     /// Check if the current host is supported by this release

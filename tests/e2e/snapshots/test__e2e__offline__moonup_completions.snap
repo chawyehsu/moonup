@@ -62,7 +62,7 @@ _arguments "${_arguments_options[@]}" : \
 '(-v --verbose)*--quiet[Decrease logging verbosity]' \
 '-h[Print help]' \
 '--help[Print help]' \
-'::toolchain -- Toolchain version tag or channel name \[latest, nightly, bleeding\]:_default' \
+'::toolchain -- Toolchain version or channel name:_default' \
 && ret=0
 ;;
 (install)
@@ -75,7 +75,7 @@ _arguments "${_arguments_options[@]}" : \
 '(-v --verbose)*--quiet[Decrease logging verbosity]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'::toolchain -- Toolchain version tag or channel name \[latest, nightly, bleeding\]:_default' \
+'::toolchain -- Toolchain version or channel name:_default' \
 && ret=0
 ;;
 (i)
@@ -88,7 +88,7 @@ _arguments "${_arguments_options[@]}" : \
 '(-v --verbose)*--quiet[Decrease logging verbosity]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'::toolchain -- Toolchain version tag or channel name \[latest, nightly, bleeding\]:_default' \
+'::toolchain -- Toolchain version or channel name:_default' \
 && ret=0
 ;;
 (list)
@@ -119,7 +119,7 @@ _arguments "${_arguments_options[@]}" : \
 '(-v --verbose)*--quiet[Decrease logging verbosity]' \
 '-h[Print help]' \
 '--help[Print help]' \
-'::toolchain -- Toolchain version tag or channel name \[latest, nightly, bleeding\]:_default' \
+'::toolchain -- Toolchain version or channel name:_default' \
 && ret=0
 ;;
 (run)

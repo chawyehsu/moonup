@@ -13,7 +13,7 @@ Pin the MoonBit toolchain to a specific version
 Usage: moonup [TOOLCHAIN]
 
 Arguments:
-  [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
+  [TOOLCHAIN]  Toolchain version or channel name
 
 Options:
   -h, --help  Print help

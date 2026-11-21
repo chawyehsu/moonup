@@ -9,7 +9,7 @@ use super::ToolchainSpecValueParser;
 /// Set the default toolchain
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Toolchain version tag or channel name [latest, nightly, bleeding]
+    /// Toolchain version or channel name
     #[clap(value_parser = ToolchainSpecValueParser::new())]
     toolchain: Option<ToolchainSpec>,
 }

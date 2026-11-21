@@ -5,9 +5,7 @@ use miette::{Context, IntoDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::constant;
-use crate::dist_server::schema::{
-    ChannelIndex, ChannelName, Component, ComponentIndex, Index, Release, Target,
-};
+use crate::dist_server::schema::{ChannelIndex, Component, ComponentIndex, Index, Release, Target};
 use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
 
 use super::{ToolchainSpec, version};
@@ -17,7 +15,8 @@ use super::{ToolchainSpec, version};
 pub struct InstallRecipe {
     /// The effective toolchain spec used for installation and filesystem identity.
     ///
-    /// This may be a channel name (`latest`, `nightly`, `bleeding`) or a concrete version.
+    /// This may be a floating channel spec (`latest`, `nightly`, or any other
+    /// index-advertised channel name) or a pinned version.
     pub spec: ToolchainSpec,
     /// The original user-requested spec, retained for diagnostics.
     pub requested_spec: ToolchainSpec,
@@ -71,8 +70,8 @@ pub async fn read_index() -> miette::Result<Index> {
 }
 
 /// Read the channel index
-pub async fn read_channel_index(channel: &ChannelName) -> miette::Result<ChannelIndex> {
-    let channel_index_filename = format!("channel-{}.json", channel);
+pub async fn read_channel_index(channel: &str) -> miette::Result<ChannelIndex> {
+    let channel_index_filename = format!("channel-{channel}.json");
 
     let mut channel_index_file = crate::moonup_home();
     channel_index_file.push("downloads");
@@ -117,7 +116,7 @@ pub async fn read_channel_index(channel: &ChannelName) -> miette::Result<Channel
 
 /// Read the component index
 pub async fn read_component_index(
-    channel: &ChannelName,
+    channel: &str,
     release: &Release,
 ) -> miette::Result<ComponentIndex> {
     let host_target = Target::from_host()?;
@@ -125,25 +124,8 @@ pub async fn read_component_index(
 
     let mut component_index_local = crate::moonup_home();
     component_index_local.push("downloads");
-
-    match channel {
-        ChannelName::Bleeding => component_index_local.push("bleeding"),
-        ChannelName::Latest => {
-            component_index_local.push("latest");
-            component_index_local.push(&release.version);
-        }
-        ChannelName::Nightly => {
-            component_index_local.push("nightly");
-            component_index_local.push(
-                release
-                    .date
-                    .as_deref()
-                    .expect("nightly release should have build date"),
-            );
-        }
-        _ => return Err(miette::miette!("unsupported channel: {}", channel)),
-    }
-
+    component_index_local.push(channel);
+    component_index_local.push(release.key());
     component_index_local.push(&filename);
 
     let (cache_valid, mut content) = match read_json_with_lock(&component_index_local).await {
@@ -154,8 +136,7 @@ pub async fn read_component_index(
         }
     };
 
-    // For bleeding channel, the component index is always fetched from remote
-    if cache_valid && channel != &ChannelName::Bleeding {
+    if cache_valid {
         return serde_json::from_str(&content)
             .into_diagnostic()
             .inspect_err(|e| {
@@ -164,16 +145,7 @@ pub async fn read_component_index(
             });
     }
 
-    let component_index_urlpath = match channel {
-        ChannelName::Bleeding => format!("/bleeding/{}", filename),
-        ChannelName::Latest => format!("/latest/{}/{}", release.version, filename),
-        ChannelName::Nightly => format!(
-            "/nightly/{}/{}",
-            (release.date.as_deref()).expect("nightly release should have build date"),
-            filename
-        ),
-        _ => return Err(miette::miette!("unsupported channel: {}", channel)),
-    };
+    let component_index_urlpath = format!("/{}/{}/{}", channel, release.key(), filename);
 
     let component_index_url = build_dist_server_api(&component_index_urlpath)?;
 
@@ -270,50 +242,79 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
     }
 }
 
+/// Interpret a user-supplied toolchain string into a [`ToolchainSpec`].
+///
+/// Interpretation is index-driven at resolve time: a string exactly matching a
+/// channel name advertised by the (cached) main index is a floating channel
+/// spec — the channel-name match wins over any other interpretation; anything
+/// else is parsed syntactically as a qualified or bare version pin. If the
+/// main index cannot be read, interpretation falls back to the syntactic
+/// classification of [`ToolchainSpec::from`].
+pub async fn interpret_spec(raw: &str) -> miette::Result<ToolchainSpec> {
+    match read_index().await {
+        Ok(index) => {
+            let is_channel = index.channels().iter().any(|c| c.name == raw);
+            Ok(if is_channel {
+                ToolchainSpec::Channel(raw.to_owned())
+            } else {
+                ToolchainSpec::from(raw.to_owned())
+            })
+        }
+        Err(e) => {
+            tracing::debug!(
+                "failed to read main index for spec interpretation: {}; falling back to syntactic interpretation",
+                e
+            );
+            Ok(ToolchainSpec::from(raw.to_owned()))
+        }
+    }
+}
+
+/// The channels advertised by the main index, best-effort.
+///
+/// An empty list means the index could not be read; callers should let the
+/// channel index fetch produce its own error in that case.
+pub async fn available_channels() -> Vec<String> {
+    match read_index().await {
+        Ok(index) => index.channels().iter().map(|c| c.name.clone()).collect(),
+        Err(e) => {
+            tracing::debug!("failed to read main index for available channels: {}", e);
+            Vec::new()
+        }
+    }
+}
+
+/// Resolve a toolchain spec against its channel index into an install recipe.
+///
+/// Returns `None` when the channel is not advertised by the main index, or no
+/// host-supported release matches the spec.
 pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
-    let channel = ChannelName::from(spec);
+    let channel = spec.channel().to_owned();
+
+    // Validate the channel against the main index so an unknown channel
+    // resolves to no recipe (the caller reports it with the available
+    // channels) instead of a bare download failure. Best-effort offline: if
+    // the main index cannot be read, let the channel index fetch produce
+    // its own error.
+    let channels = available_channels().await;
+    if !channels.is_empty() && !channels.contains(&channel) {
+        return Ok(None);
+    }
+
     let index = read_channel_index(&channel).await?;
     let mut releases = index.releases().iter().filter(|r| r.is_host_supported());
 
     let release = match spec {
-        ToolchainSpec::Bleeding | ToolchainSpec::Latest | ToolchainSpec::Nightly => {
-            releases.next_back().cloned().or(None)
+        ToolchainSpec::Channel(_) => releases.next_back().cloned(),
+        ToolchainSpec::Version { key, .. } if version::is_stable_selector(key) => {
+            version::resolve_stable_selector(key, releases).cloned()
         }
-        ToolchainSpec::Version(s) if !s.starts_with("nightly") => {
-            version::resolve_stable_selector(s, releases).cloned()
-        }
-        ToolchainSpec::Version(s) => {
-            let is_nightly = s.starts_with("nightly");
-
-            let req_version = if is_nightly {
-                s.trim_start_matches("nightly-")
-            } else {
-                s
-            };
-
-            releases
-                .find(|&release| {
-                    if is_nightly {
-                        release
-                            .date
-                            .as_deref()
-                            .map(|d| d == req_version)
-                            .unwrap_or(false)
-                    } else {
-                        release.version.as_str() == req_version
-                    }
-                })
-                .cloned()
-                .or(None)
-        }
+        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key).cloned(),
     };
 
-    let release = match release {
-        Some(r) => r,
-        None => {
-            tracing::debug!("no release available for requested spec: {}", spec);
-            return Ok(None);
-        }
+    let Some(release) = release else {
+        tracing::debug!("no release available for requested spec: {}", spec);
+        return Ok(None);
     };
 
     let components = read_component_index(&channel, &release)
@@ -321,8 +322,11 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
         .components()
         .to_vec();
     let effective_spec = match spec {
-        ToolchainSpec::Version(s) if version::is_stable_selector(s) => {
-            ToolchainSpec::Version(release.version.clone())
+        ToolchainSpec::Version { channel, key } if version::is_stable_selector(key) => {
+            ToolchainSpec::Version {
+                channel: channel.clone(),
+                key: release.version.clone(),
+            }
         }
         _ => spec.clone(),
     };

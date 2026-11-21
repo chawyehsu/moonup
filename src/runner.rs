@@ -84,10 +84,10 @@ pub fn build_command<S: AsRef<OsStr>>(
     // toolchain spec to the child shim processes without requiring upstream
     // changes in MoonBit build system... All of these are because of and for
     // the weak isolation of the MoonBit toolchain...
-    let spec = std::ffi::OsStr::new(toolchain.as_str());
+    let spec = std::ffi::OsString::from(toolchain.canonical());
     cmd.env(
         "MOONUP_TOOLCHAIN_SPEC",
-        env::var_os("MOONUP_TOOLCHAIN_SPEC").unwrap_or(spec.into()),
+        env::var_os("MOONUP_TOOLCHAIN_SPEC").unwrap_or(spec),
     );
 
     if exe_name == "moon" {
