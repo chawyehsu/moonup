@@ -68,7 +68,7 @@ fn run() -> Result<ExitStatus> {
         println!("toolchain version '{spec}' not installed");
 
         let mut cmd = Command::new("moonup");
-        cmd.args(["install", spec.as_str()]);
+        cmd.args(["install", &spec.canonical()]);
 
         match cmd.status() {
             Err(e) => return Err(anyhow::anyhow!("Failed to run moonup install: {}", e)),

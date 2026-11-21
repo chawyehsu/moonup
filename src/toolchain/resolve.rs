@@ -1,7 +1,11 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
-use crate::{constant::TOOLCHAIN_FILE, toolchain::ToolchainSpec, utils::trimmed_or_none};
+use crate::{
+    constant::{DEFAULT_CHANNEL, TOOLCHAIN_FILE},
+    toolchain::ToolchainSpec,
+    utils::trimmed_or_none,
+};
 
 /// Iterates over the current directory and all its parent directories to find
 /// if there is a [`TOOLCHAIN_FILE`].
@@ -59,7 +63,7 @@ pub fn detect_default_toolchain() -> Option<String> {
 pub fn detect_active_toolchain() -> ToolchainSpec {
     let active = detect_pinned_toolchain()
         .or(detect_default_toolchain())
-        .unwrap_or("latest".to_string());
+        .unwrap_or(DEFAULT_CHANNEL.to_string());
     ToolchainSpec::from(active)
 }
 

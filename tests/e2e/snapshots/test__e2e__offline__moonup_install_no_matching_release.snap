@@ -11,4 +11,4 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-No toolchain available for requested spec '9.9.9'. Available channel(s): latest, nightly, bleeding
+No toolchain available for requested spec '9.9.9'

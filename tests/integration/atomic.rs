@@ -43,7 +43,7 @@ fn test_recover_promotes_complete_staging() {
 
             let staged = atomic::recover(&spec).expect("recovery should not fail");
             assert!(staged.is_some(), "complete staging should be promoted");
-            assert_eq!(staged.unwrap().version, "0.1.0");
+            assert_eq!(staged.unwrap().release.version, "0.1.0");
 
             assert!(
                 live_dir.join("bin").join("moon").exists(),
@@ -70,16 +70,22 @@ fn test_recover_promotes_complete_staging() {
 #[test]
 fn test_recovery_recipe_uses_concrete_spec_for_stable_selector() {
     let staged = atomic::StagedRelease {
-        version: "0.10.1+build".to_string(),
-        ..Default::default()
+        channel: None,
+        release: Release::new("0.10.1+build"),
     };
-    let requested = ToolchainSpec::Version("0.10".to_string());
+    let requested = ToolchainSpec::Version {
+        channel: "latest".to_string(),
+        key: "0.10".to_string(),
+    };
 
     let recipe = staged.into_recipe(&requested);
 
     assert_eq!(
         recipe.spec,
-        ToolchainSpec::Version("0.10.1+build".to_string())
+        ToolchainSpec::Version {
+            channel: "latest".to_string(),
+            key: "0.10.1+build".to_string()
+        }
     );
     assert_eq!(recipe.requested_spec, requested);
 }
@@ -131,7 +137,7 @@ fn test_recover_retries_pending_finalization() {
 
             let staged = atomic::recover(&spec).expect("recovery should not fail");
             assert!(staged.is_some(), "pending finalization should be retried");
-            assert_eq!(staged.unwrap().version, "0.1.0");
+            assert_eq!(staged.unwrap().release.version, "0.1.0");
 
             assert!(
                 live_dir.join("bin").join("moon").exists(),
@@ -533,7 +539,7 @@ fn test_swap_shunts_locked_retired() {
 
 fn has_retired_leftover(spec: &ToolchainSpec) -> bool {
     let staging_dir = atomic::staging_dir_for(spec);
-    let prefix = format!("{}.old", spec.as_str());
+    let prefix = format!("{}.old", spec.install_name());
     let Ok(read_dir) = staging_dir
         .parent()
         .expect("staging dir should have a parent")

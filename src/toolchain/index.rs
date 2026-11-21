@@ -248,24 +248,20 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
 
 /// Interpret a user-supplied toolchain string into a [`ToolchainSpec`].
 ///
-/// Interpretation is index-driven at resolve time: a string matching a channel
-/// name advertised by the (cached) main index is a floating channel spec; a
-/// pinned dated build (`nightly-YYYY-MM-DD`) is always a version; anything
-/// else is treated as a version selector. If the main index cannot be read,
-/// interpretation falls back to the syntactic classification of
-/// [`ToolchainSpec::from`].
+/// Interpretation is index-driven at resolve time: a string exactly matching a
+/// channel name advertised by the (cached) main index is a floating channel
+/// spec — the channel-name match wins over any other interpretation; anything
+/// else is parsed syntactically as a qualified or bare version pin. If the
+/// main index cannot be read, interpretation falls back to the syntactic
+/// classification of [`ToolchainSpec::from`].
 pub async fn interpret_spec(raw: &str) -> miette::Result<ToolchainSpec> {
-    if raw.starts_with("nightly-") {
-        return Ok(ToolchainSpec::Version(raw.to_owned()));
-    }
-
     match read_index().await {
         Ok(index) => {
             let is_channel = index.channels().iter().any(|c| c.name == raw);
             Ok(if is_channel {
                 ToolchainSpec::Channel(raw.to_owned())
             } else {
-                ToolchainSpec::Version(raw.to_owned())
+                ToolchainSpec::from(raw.to_owned())
             })
         }
         Err(e) => {
@@ -313,23 +309,10 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
 
     let release = match spec {
         ToolchainSpec::Channel(_) => releases.next_back().cloned().or(None),
-        ToolchainSpec::Version(s) if !s.starts_with("nightly-") => {
-            version::resolve_stable_selector(s, releases).cloned()
+        ToolchainSpec::Version { key, .. } if version::is_stable_selector(key) => {
+            version::resolve_stable_selector(key, releases).cloned()
         }
-        ToolchainSpec::Version(s) => {
-            let req_version = s.trim_start_matches("nightly-");
-
-            releases
-                .find(|&release| {
-                    release
-                        .date
-                        .as_deref()
-                        .map(|d| d == req_version)
-                        .unwrap_or(false)
-                })
-                .cloned()
-                .or(None)
-        }
+        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key).cloned().or(None),
     };
 
     let release = match release {
@@ -345,8 +328,11 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
         .components()
         .to_vec();
     let effective_spec = match spec {
-        ToolchainSpec::Version(s) if version::is_stable_selector(s) => {
-            ToolchainSpec::Version(release.version.clone())
+        ToolchainSpec::Version { channel, key } if version::is_stable_selector(key) => {
+            ToolchainSpec::Version {
+                channel: channel.clone(),
+                key: release.version.clone(),
+            }
         }
         _ => spec.clone(),
     };

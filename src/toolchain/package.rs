@@ -5,7 +5,6 @@ use crate::{
     archive::{extract_tar_gz, extract_zip},
     fs::{compute_file_sha256, save_file},
     reporter::{ProgressReporter, Reporter},
-    toolchain::ToolchainSpec,
     utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
 };
 
@@ -186,15 +185,18 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         }
     }
 
-    // Floating channel installs record the installed release in a stub so
-    // updates and listings can compare against the remote release key; pinned
-    // installs are their own identity and need no stub.
-    if matches!(recipe.spec, ToolchainSpec::Channel(_)) {
-        let version_file = staging_dir.join("version");
-        tokio::fs::write(&version_file, format!("{release_key}\n"))
-            .await
-            .into_diagnostic()?;
-    }
+    // Every install records its identity in a metadata stub
+    let meta = super::InstallMeta {
+        channel: recipe.spec.channel().to_owned(),
+        key: release_key.clone(),
+    };
+    let meta_file = staging_dir.join(super::METADATA_FILENAME);
+    let meta_json = serde_json::to_string(&meta)
+        .into_diagnostic()
+        .wrap_err("failed to serialize install metadata")?;
+    tokio::fs::write(&meta_file, meta_json)
+        .await
+        .into_diagnostic()?;
 
     // mark the staging directory as fully assembled, recording the release
     // identity, so that recovery never promotes a partial extraction and can

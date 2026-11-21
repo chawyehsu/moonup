@@ -1,11 +1,11 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use crate::cli::install::{heal_recovered, install_recipe};
+use crate::cli::install::post_install;
 use crate::toolchain::ToolchainSpec;
 use crate::toolchain::atomic;
 use crate::toolchain::index::build_installrecipe;
-use crate::toolchain::package::populate_install;
+use crate::cli::install::{heal_recovered, install_recipe};
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
@@ -89,41 +89,45 @@ fn crash_state_channel_specs() -> Vec<ToolchainSpec> {
 }
 
 async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::Result<()> {
-    // Heal a crash state before its version is read, so a half-swapped
+    // Heal a crash state before its metadata is read, so a half-swapped
     // toolchain is not reported as "not installed" and skipped. A promoted
     // toolchain is finalized immediately, before any fallible network
     // resolution, so an interrupted update never leaves it without its
     // post-install steps; the pending marker is acknowledged once done.
     heal_recovered(spec, false)?;
 
-    let name = spec.as_str();
-    path.push(name);
-    path.push("version");
+    let name = spec.install_name();
+    path.push(&name);
+    path.push(crate::toolchain::METADATA_FILENAME);
 
     let result = match tokio::fs::read_to_string(&path).await {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             println!("{name} toolchain is not installed, run 'moonup install {name}' to install");
             Ok(())
         }
-        Err(e) => Err(miette::miette!(e).wrap_err("failed to read version file")),
-        Ok(local_ver) => {
+        Err(e) => Err(miette::miette!(e).wrap_err("failed to read metadata file")),
+        Ok(content) => {
             let recipe = match build_installrecipe(spec).await? {
                 Some(recipe) => recipe,
                 None => {
-                    println!("No release available for the {} toolchain", name);
+                    println!("No release available for the {} toolchain", spec);
                     return Ok(());
                 }
             };
 
-            // The local version stub records the installed release key (the
-            // build date when present, otherwise the version).
-            let should_update = local_ver.trim() != recipe.release.key();
+            // The metadata stub records the installed release key (the build
+            // date when present, otherwise the version). Legacy stubs hold
+            // the key as plain text.
+            let local_key = crate::toolchain::install_meta_from_content(&content, spec)
+                .map(|meta| meta.key)
+                .unwrap_or_else(|| content.trim().to_owned());
+            let should_update = local_key != recipe.release.key();
 
             if should_update {
-                println!("Updating the {} toolchain", name);
+                println!("Updating the {} toolchain", spec);
                 install_recipe(&recipe, false).await?;
             } else {
-                println!("The {} toolchain is up to date", name);
+                println!("The {} toolchain is up to date", spec);
             }
             Ok(())
         }

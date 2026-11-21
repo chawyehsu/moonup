@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::{
     dist_server::schema::{ChannelIndex, Index},
-    toolchain::{InstalledToolchain, ToolchainSpec},
+    toolchain::ToolchainSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,9 +92,14 @@ pub enum ReleaseOrder {
 }
 
 /// Derive the [`ReleaseOrder`] sort key for an installed toolchain.
+///
+/// `channel_positions` maps a channel name to its cached channel index's
+/// release positions; a pinned install orders by its key's position there,
+/// falling back to numeric version ordering when the cache is missing or
+/// incomplete.
 pub fn release_order(
     spec: &ToolchainSpec,
-    latest_positions: &HashMap<String, usize>,
+    channel_positions: &HashMap<String, HashMap<String, usize>>,
     channel_ranks: &HashMap<String, usize>,
 ) -> ReleaseOrder {
     match spec {
@@ -102,34 +107,33 @@ pub fn release_order(
             channel_ranks.get(c).copied().unwrap_or(usize::MAX),
             c.clone(),
         ),
-        ToolchainSpec::Version(v) if v.starts_with("nightly-") => {
-            ReleaseOrder::Dated(v.trim_start_matches("nightly-").to_owned())
-        }
-        ToolchainSpec::Version(v) => ReleaseOrder::Versioned(
-            latest_positions.get(v).copied(),
-            NumericVersion::parse(v).unwrap_or_default(),
-        ),
+        ToolchainSpec::Version { channel, key } => match NumericVersion::parse(key) {
+            Ok(num) => ReleaseOrder::Versioned(
+                channel_positions
+                    .get(channel)
+                    .and_then(|positions| positions.get(key))
+                    .copied(),
+                num,
+            ),
+            // Non-numeric keys are dated builds (YYYY-MM-DD); order them by
+            // their date string
+            Err(_) => ReleaseOrder::Dated(key.clone()),
+        },
     }
 }
 
-/// Positions of latest releases in the cached `latest` channel index, used to
-/// order latest-channel installs. Offline and best-effort: on any read or
-/// parse error the installs fall back to numeric version ordering.
-pub fn read_latest_channel_positions(installs: &[InstalledToolchain]) -> HashMap<String, usize> {
-    let latest_versions = installs
-        .iter()
-        .filter_map(|t| match &t.name {
-            ToolchainSpec::Version(v) if !v.starts_with("nightly-") => Some(v.clone()),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    if latest_versions.is_empty() {
+/// Positions of releases in a channel's cached channel index.
+///
+/// Offline and best-effort: on any read or parse error the installs
+/// fall back to numeric version ordering.
+pub fn read_channel_positions(channel: &str, keys: &[String]) -> HashMap<String, usize> {
+    if keys.is_empty() {
         return HashMap::new();
     }
 
     let path = crate::moonup_home()
         .join("downloads")
-        .join("channel-latest.json");
+        .join(format!("channel-{channel}.json"));
     let Ok(content) = std::fs::read_to_string(&path) else {
         return HashMap::new();
     };
@@ -141,23 +145,21 @@ pub fn read_latest_channel_positions(installs: &[InstalledToolchain]) -> HashMap
         .releases()
         .iter()
         .enumerate()
-        .map(|(i, r)| (r.version.clone(), i))
+        .map(|(i, r)| (r.key().to_owned(), i))
         .collect::<HashMap<_, _>>();
 
-    // A stale cache that lacks one of the installed releases would otherwise
-    // sort that release (as `None`) below older releases that are present in
-    // the index, breaking oldest-to-newest order. If the cache is incomplete,
-    // fall back to pure numeric version ordering for the whole group.
-    if latest_versions.iter().any(|v| !positions.contains_key(v)) {
+    if keys.iter().any(|key| !positions.contains_key(key)) {
         return HashMap::new();
     }
 
     positions
 }
 
-/// Ranks of channels in the cached main index, used to order floating channel
-/// installs. Offline and best-effort: on any read or parse error no channel
-/// is ranked, and unranked channels sort last, by name.
+/// Ranks of channels in the cached main index, used to order floating
+/// channel installs.
+///
+/// Offline and best-effort: on any read or parse error no channel is
+/// ranked, and unranked channels sort last, by name.
 pub fn read_channel_ranks() -> HashMap<String, usize> {
     let path = crate::moonup_home().join("downloads").join("index.json");
     let Ok(content) = std::fs::read_to_string(&path) else {

@@ -1,3 +1,9 @@
+/// The fixed name of the default channel every dist server must advertise.
+///
+/// Bare version pins resolve within this channel, and the shim's
+/// network-free default-toolchain fallback uses the same name.
+pub const DEFAULT_CHANNEL: &str = "latest";
+
 /// The default Moon home directory is `~/.moon`
 pub const MOON_DIR: &str = ".moon";
 
