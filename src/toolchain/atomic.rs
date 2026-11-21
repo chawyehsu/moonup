@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::dist_server::schema::Release;
 
 use super::ToolchainSpec;
-use super::index::InstallRecipe;
+use super::install::InstallRecipe;
 
 const STAGING_DIR: &str = ".staging";
 const STAGING_SUFFIX: &str = ".new";

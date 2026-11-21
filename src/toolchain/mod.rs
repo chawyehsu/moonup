@@ -9,6 +9,7 @@ use crate::toolchain::ordering::{
 
 pub mod atomic;
 pub mod index;
+pub mod install;
 pub mod ordering;
 pub mod package;
 pub mod resolve;
@@ -111,6 +112,19 @@ impl ToolchainSpec {
         let mut path = crate::moonup_home().join("toolchains");
         path.push(self.install_name());
         path
+    }
+
+    /// Get the install metadata for this toolchain, if available.
+    ///
+    /// Returns `None` if the metadata file is not present or cannot be parsed.
+    pub fn install_meta(&self) -> Option<InstallMeta> {
+        let meta_path = self.install_path().join(METADATA_FILENAME);
+        if meta_path.is_file() {
+            let content = std::fs::read_to_string(&meta_path).ok()?;
+            parse_meta(&content, self.install_name())
+        } else {
+            None
+        }
     }
 }
 

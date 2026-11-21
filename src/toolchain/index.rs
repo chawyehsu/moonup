@@ -8,23 +8,7 @@ use crate::constant;
 use crate::dist_server::schema::{ChannelIndex, ComponentIndex, Index, Release, Target};
 use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
 
-use super::{ToolchainSpec, version};
-
-/// The install recipe for performing a toolchain installation
-#[derive(Debug)]
-pub struct InstallRecipe {
-    /// The effective toolchain spec used for installation and filesystem identity.
-    ///
-    /// This may be a floating channel spec (`latest`, `nightly`, or any other
-    /// index-advertised channel name) or a pinned version.
-    pub spec: ToolchainSpec,
-    /// The original user-requested spec, retained for diagnostics.
-    pub requested_spec: ToolchainSpec,
-    /// The release information associated with this install recipe.
-    pub release: Release,
-    /// The components to install
-    pub components: Vec<Component>,
-}
+use super::ToolchainSpec;
 
 /// Read the main index
 pub async fn read_index() -> miette::Result<Index> {
@@ -286,62 +270,4 @@ pub async fn available_channels() -> Vec<String> {
             Vec::new()
         }
     }
-}
-
-pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
-    let channel = spec.channel().to_owned();
-
-    // Validate the channel against the main index so an unknown channel
-    // errors with the available ones instead of a bare download failure.
-    // Best-effort offline: if the main index cannot be read, let the channel
-    // index fetch produce its own error.
-    let channels = available_channels().await;
-    if !channels.is_empty() && !channels.contains(&channel) {
-        return Err(miette::miette!(
-            "unknown channel '{}'. Available channel(s): {}",
-            channel,
-            channels.join(", ")
-        ));
-    }
-
-    let index = read_channel_index(&channel).await?;
-    let mut releases = index.releases().iter().filter(|r| r.is_host_supported());
-
-    let release = match spec {
-        ToolchainSpec::Channel(_) => releases.next_back().cloned().or(None),
-        ToolchainSpec::Version { key, .. } if version::is_stable_selector(key) => {
-            version::resolve_stable_selector(key, releases).cloned()
-        }
-        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key).cloned().or(None),
-    };
-
-    let release = match release {
-        Some(r) => r,
-        None => {
-            tracing::debug!("no release available for requested spec: {}", spec);
-            return Ok(None);
-        }
-    };
-
-    let components = read_component_index(&channel, &release)
-        .await?
-        .components()
-        .to_vec();
-    let effective_spec = match spec {
-        ToolchainSpec::Version { channel, key } if version::is_stable_selector(key) => {
-            ToolchainSpec::Version {
-                channel: channel.clone(),
-                key: release.version.clone(),
-            }
-        }
-        _ => spec.clone(),
-    };
-    let recipe = InstallRecipe {
-        spec: effective_spec,
-        requested_spec: spec.clone(),
-        release,
-        components,
-    };
-
-    Ok(Some(recipe))
 }
