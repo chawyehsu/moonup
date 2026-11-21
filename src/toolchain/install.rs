@@ -258,7 +258,7 @@ fn post_install(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
 
     // Link the directories if requested
     if link {
-        link_dirs(&recipe)?;
+        link_dirs(recipe)?;
     }
 
     Ok(())

@@ -1,0 +1,13 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - update
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+✖  Failed to update the latest toolchain: channel 'latest' no longer available. Available channel(s): nightly, bleeding
