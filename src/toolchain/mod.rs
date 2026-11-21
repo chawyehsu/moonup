@@ -9,6 +9,7 @@ use crate::toolchain::ordering::{
 
 pub mod atomic;
 pub mod index;
+pub mod install;
 pub mod ordering;
 pub mod package;
 pub mod resolve;

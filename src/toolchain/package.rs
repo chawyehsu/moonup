@@ -8,7 +8,7 @@ use crate::{
     utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
 };
 
-use super::{atomic, index::InstallRecipe};
+use super::{atomic, install::InstallRecipe};
 
 pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let live_dir = recipe.spec.install_path();

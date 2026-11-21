@@ -1,52 +1,79 @@
+use crate::toolchain::{ToolchainSpec, install::sync_toolchain};
 use clap::Parser;
-
-use crate::cli::install::{heal_recovered, install_recipe};
-use crate::toolchain::ToolchainSpec;
-use crate::toolchain::index::build_installrecipe;
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 
 pub async fn execute(_: Args) -> miette::Result<()> {
-    update_toolchain(&ToolchainSpec::Channel(
-        crate::constant::DEFAULT_CHANNEL.to_owned(),
-    ))
-    .await?;
-    update_toolchain(&ToolchainSpec::Channel("nightly".to_owned())).await?;
+    let mut specs = installed_channel_specs();
+    for spec in crash_state_channel_specs() {
+        if !specs.contains(&spec) {
+            specs.push(spec);
+        }
+    }
+
+    if specs.is_empty() {
+        println!("No channel toolchains installed");
+        println!(
+            "Run 'moonup install <toolchain>' to install one, \
+             or check 'moonup install --list-available' for available channels"
+        );
+        return Ok(());
+    }
+
+    let mut path = crate::moonup_home();
+    path.push("toolchains");
+
+    let mut failed = false;
+    for spec in &specs {
+        // A failed channel must not abort the remaining updates; the exit
+        // code reports the overall outcome.
+        if let Err(e) = sync_toolchain(spec, false).await {
+            eprintln!(
+                "{} Failed to update the {} toolchain: {}",
+                console::style(console::Emoji("✖ ", "")).red(),
+                spec,
+                e
+            );
+            failed = true;
+        }
+    }
+
+    if failed {
+        return Err(crate::status::exit_with(1));
+    }
 
     Ok(())
 }
 
-async fn update_toolchain(spec: &ToolchainSpec) -> miette::Result<()> {
-    // Heal a crash state before its metadata is read, so a half-swapped
-    // toolchain is not reported as "not installed" and skipped. A promoted
-    // toolchain is finalized immediately, before any fallible network
-    // resolution, so an interrupted update never leaves it without its
-    // post-install steps; the pending marker is acknowledged once done.
-    heal_recovered(spec, false)?;
+/// The floating-channel toolchains currently installed (they carry a version
+/// stub; pinned installs do not).
+fn installed_channel_specs() -> Vec<ToolchainSpec> {
+    crate::toolchain::installed_toolchains()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|t| matches!(t.name, ToolchainSpec::Channel(_)))
+        .map(|t| t.name)
+        .collect()
+}
 
-    let name = spec.to_string();
+/// The floating channels with a staging directory left behind by an
+/// interrupted swap (`<name>.new`), which the next update should recover.
+fn crash_state_channel_specs() -> Vec<ToolchainSpec> {
+    let staging_root = crate::moonup_home().join("toolchains").join(".staging");
+    let Ok(entries) = std::fs::read_dir(staging_root) else {
+        return vec![];
+    };
 
-    match spec.install_meta() {
-        None => {
-            println!("{name} toolchain is not installed, run 'moonup install {name}' to install");
-            Ok(())
-        }
-        Some(meta) => {
-            let recipe = build_installrecipe(spec)
-                .await?
-                .expect("should have recipe");
-
-            // toolchain is considered upgradable if the local release key
-            // differs from the channel's current release key
-            if meta.key != recipe.release.key() {
-                println!("Updating the {} toolchain", name);
-                install_recipe(&recipe, false).await?;
-            } else {
-                println!("The {} toolchain is up to date", name);
-            }
-            Ok(())
-        }
-    }
+    entries
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_str()?.to_owned();
+            name.strip_suffix(".new").map(str::to_owned)
+        })
+        // Pinned-version staging leftovers are not updated by `moonup update`
+        .filter(|name| matches!(ToolchainSpec::from(name.clone()), ToolchainSpec::Channel(_)))
+        .map(ToolchainSpec::Channel)
+        .collect()
 }

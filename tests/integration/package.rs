@@ -1,7 +1,7 @@
 use moonup::{
     constant,
     dist_server::schema::{Component, Release},
-    toolchain::{ToolchainSpec, index::InstallRecipe, package::populate_install},
+    toolchain::{ToolchainSpec, install::InstallRecipe, package::populate_install},
 };
 
 #[test]
