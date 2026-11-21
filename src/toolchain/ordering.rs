@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::{
-    dist_server::schema::ChannelIndex,
+    dist_server::schema::{ChannelIndex, Index},
     toolchain::{InstalledToolchain, ToolchainSpec},
 };
 
@@ -74,34 +74,38 @@ pub fn compare<'a>(
 
 /// The release order of an installed toolchain, oldest first.
 ///
-/// Versioned installs precede the floating channel aliases, grouped by channel
-/// and ordered by release date. The aliases sort `bleeding` < `nightly` <
-/// `latest`.
+/// Pinned installs precede floating channel installs, grouped by channel
+/// and ordered by release date / index position. Floating channels follow
+/// their order in the cached main index; channels absent from the cached
+/// index sort last, by name.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ReleaseOrder {
-    /// A versioned nightly install, ordered by its build date (YYYY-MM-DD)
-    Nightly(String),
-    /// A versioned latest install, ordered by its position in the cached
+    /// A pinned dated build, ordered by its build date (YYYY-MM-DD)
+    Dated(String),
+    /// A pinned versioned build, ordered by its position in the cached
     /// `latest` channel index. A release absent from the index triggers
     /// a fallback to numeric version ordering for the whole group
-    Latest(Option<usize>, NumericVersion),
-    /// A floating channel alias: `bleeding` < `nightly` < `latest`
-    Channel(u8),
+    Versioned(Option<usize>, NumericVersion),
+    /// A floating channel install, ordered by its rank in the cached main
+    /// index, then by name
+    Channel(usize, String),
 }
 
 /// Derive the [`ReleaseOrder`] sort key for an installed toolchain.
 pub fn release_order(
     spec: &ToolchainSpec,
     latest_positions: &HashMap<String, usize>,
+    channel_ranks: &HashMap<String, usize>,
 ) -> ReleaseOrder {
     match spec {
-        ToolchainSpec::Bleeding => ReleaseOrder::Channel(0),
-        ToolchainSpec::Nightly => ReleaseOrder::Channel(1),
-        ToolchainSpec::Latest => ReleaseOrder::Channel(2),
-        ToolchainSpec::Version(v) if v.starts_with("nightly") => {
-            ReleaseOrder::Nightly(v.trim_start_matches("nightly-").to_owned())
+        ToolchainSpec::Channel(c) => ReleaseOrder::Channel(
+            channel_ranks.get(c).copied().unwrap_or(usize::MAX),
+            c.clone(),
+        ),
+        ToolchainSpec::Version(v) if v.starts_with("nightly-") => {
+            ReleaseOrder::Dated(v.trim_start_matches("nightly-").to_owned())
         }
-        ToolchainSpec::Version(v) => ReleaseOrder::Latest(
+        ToolchainSpec::Version(v) => ReleaseOrder::Versioned(
             latest_positions.get(v).copied(),
             NumericVersion::parse(v).unwrap_or_default(),
         ),
@@ -115,7 +119,7 @@ pub fn read_latest_channel_positions(installs: &[InstalledToolchain]) -> HashMap
     let latest_versions = installs
         .iter()
         .filter_map(|t| match &t.name {
-            ToolchainSpec::Version(v) if !v.starts_with("nightly") => Some(v.clone()),
+            ToolchainSpec::Version(v) if !v.starts_with("nightly-") => Some(v.clone()),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -149,6 +153,26 @@ pub fn read_latest_channel_positions(installs: &[InstalledToolchain]) -> HashMap
     }
 
     positions
+}
+
+/// Ranks of channels in the cached main index, used to order floating channel
+/// installs. Offline and best-effort: on any read or parse error no channel
+/// is ranked, and unranked channels sort last, by name.
+pub fn read_channel_ranks() -> HashMap<String, usize> {
+    let path = crate::moonup_home().join("downloads").join("index.json");
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return HashMap::new();
+    };
+    let Ok(index) = serde_json::from_str::<Index>(&content) else {
+        return HashMap::new();
+    };
+
+    index
+        .channels()
+        .iter()
+        .enumerate()
+        .map(|(i, c)| (c.name.clone(), i))
+        .collect()
 }
 
 #[cfg(test)]

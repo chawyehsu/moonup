@@ -12,4 +12,4 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-No available toolchain versions to select
+No available toolchain versions in the nightly channel

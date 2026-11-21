@@ -3,20 +3,89 @@ use std::path::PathBuf;
 
 use crate::cli::install::{heal_recovered, install_recipe};
 use crate::toolchain::ToolchainSpec;
+use crate::toolchain::atomic;
 use crate::toolchain::index::build_installrecipe;
+use crate::toolchain::package::populate_install;
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 
 pub async fn execute(_: Args) -> miette::Result<()> {
+    // Update every installed floating-channel toolchain. Channels are data:
+    // whatever channel installs exist is what gets updated. A channel left in
+    // a crash state (its live directory moved into a complete staging) is
+    // discovered from the staging leftovers so the next update heals it.
+    let mut specs = installed_channel_specs();
+    for spec in crash_state_channel_specs() {
+        if !specs.contains(&spec) {
+            specs.push(spec);
+        }
+    }
+
+    if specs.is_empty() {
+        println!("No channel toolchains installed");
+        println!(
+            "Run 'moonup install <toolchain>' to install one, \
+             or check 'moonup install --list-available' for available channels"
+        );
+        return Ok(());
+    }
+
     let mut path = crate::moonup_home();
     path.push("toolchains");
 
-    update_toolchain(&mut path, &ToolchainSpec::Latest).await?;
-    update_toolchain(&mut path, &ToolchainSpec::Nightly).await?;
+    let mut failed = false;
+    for spec in &specs {
+        // A failed channel must not abort the remaining updates; the exit
+        // code reports the overall outcome.
+        if let Err(e) = update_toolchain(&mut path, spec).await {
+            eprintln!(
+                "{} Failed to update the {} toolchain: {}",
+                console::style(console::Emoji("✖ ", "")).red(),
+                spec,
+                e
+            );
+            failed = true;
+        }
+    }
+
+    if failed {
+        return Err(crate::status::exit_with(1));
+    }
 
     Ok(())
+}
+
+/// The floating-channel toolchains currently installed (they carry a version
+/// stub; pinned installs do not).
+fn installed_channel_specs() -> Vec<ToolchainSpec> {
+    crate::toolchain::installed_toolchains()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|t| matches!(t.name, ToolchainSpec::Channel(_)))
+        .map(|t| t.name)
+        .collect()
+}
+
+/// The floating channels with a staging directory left behind by an
+/// interrupted swap (`<name>.new`), which the next update should recover.
+fn crash_state_channel_specs() -> Vec<ToolchainSpec> {
+    let staging_root = crate::moonup_home().join("toolchains").join(".staging");
+    let Ok(entries) = std::fs::read_dir(staging_root) else {
+        return vec![];
+    };
+
+    entries
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_str()?.to_owned();
+            name.strip_suffix(".new").map(str::to_owned)
+        })
+        // Pinned-version staging leftovers are not updated by `moonup update`
+        .filter(|name| matches!(ToolchainSpec::from(name.clone()), ToolchainSpec::Channel(_)))
+        .map(ToolchainSpec::Channel)
+        .collect()
 }
 
 async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::Result<()> {
@@ -38,18 +107,17 @@ async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::R
         }
         Err(e) => Err(miette::miette!(e).wrap_err("failed to read version file")),
         Ok(local_ver) => {
-            let recipe = build_installrecipe(spec)
-                .await?
-                .expect("should have recipe");
-
-            let should_update = match (spec, local_ver.trim()) {
-                (ToolchainSpec::Bleeding, _) => true,
-                (ToolchainSpec::Latest, local) => local != recipe.release.version.as_str(),
-                (ToolchainSpec::Nightly, local) => {
-                    local != recipe.release.date.as_deref().expect("should have date")
+            let recipe = match build_installrecipe(spec).await? {
+                Some(recipe) => recipe,
+                None => {
+                    println!("No release available for the {} toolchain", name);
+                    return Ok(());
                 }
-                _ => false,
             };
+
+            // The local version stub records the installed release key (the
+            // build date when present, otherwise the version).
+            let should_update = local_ver.trim() != recipe.release.key();
 
             if should_update {
                 println!("Updating the {} toolchain", name);

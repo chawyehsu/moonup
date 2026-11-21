@@ -15,45 +15,20 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let mut download_dir = crate::moonup_home();
     download_dir.push("downloads");
 
-    // GitHub release tag
-    let tag = match recipe.spec {
-        ToolchainSpec::Bleeding => {
-            download_dir.push("bleeding");
+    let channel = recipe.spec.channel();
+    // The release key segments the channel: the build date when present,
+    // otherwise the version.
+    let release_key = recipe.release.key().to_owned();
 
-            "bleeding".to_string()
-        }
-        ToolchainSpec::Nightly => {
-            let date = recipe.release.date.as_deref().expect("should have date");
-
-            download_dir.push("nightly");
-            download_dir.push(date);
-
-            format!("nightly-{date}")
-        }
-        ToolchainSpec::Latest => {
-            let version = recipe.release.version.as_str();
-
-            download_dir.push("latest");
-            download_dir.push(version);
-
-            format!("v{}", version)
-        }
-        ToolchainSpec::Version(ref v) => {
-            if v.starts_with("nightly-") {
-                let date = recipe.release.date.as_deref().expect("should have date");
-
-                download_dir.push("nightly");
-                download_dir.push(date);
-
-                v.to_owned()
-            } else {
-                download_dir.push("latest");
-                download_dir.push(v);
-
-                format!("v{}", v)
-            }
-        }
+    // GitHub release tag: dated releases publish as `{channel}-{date}`,
+    // versioned releases as `v{version}`.
+    let tag = match recipe.release.date.as_deref() {
+        Some(date) => format!("{channel}-{date}"),
+        None => format!("v{}", recipe.release.version),
     };
+
+    download_dir.push(channel);
+    download_dir.push(&release_key);
 
     let live_dir = recipe.spec.install_path();
     let staging_dir = atomic::staging_dir_for(&recipe.spec);
@@ -80,8 +55,6 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         ))?;
     let _ = std::fs::remove_file(atomic::completeness_marker_for(&recipe.spec));
 
-    let is_bleeding = recipe.spec.is_bleeding();
-
     // ensure all components are downloaded in the first loop
     for component in recipe.components.iter() {
         let name = component.name.as_str();
@@ -91,7 +64,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         let local_file = download_dir.join(file);
 
         let mut use_cache = false;
-        if !is_bleeding && local_file.exists() {
+        if local_file.exists() {
             match compute_file_sha256(&local_file).await {
                 Ok(sha256) => {
                     let sha256_actual = hex::encode(sha256);
@@ -123,7 +96,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             }
         }
 
-        if is_bleeding || !use_cache {
+        if !use_cache {
             tracing::debug!("downloading {} to {}", name, local_file.display());
 
             let client = build_http_client_with_retry();
@@ -213,17 +186,12 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         }
     }
 
-    // create a stub to store the actual version when the spec is latest or nightly
-    if recipe.spec.is_latest() || recipe.spec.is_bleeding() {
-        let actual_version = recipe.release.version.as_str();
+    // Floating channel installs record the installed release in a stub so
+    // updates and listings can compare against the remote release key; pinned
+    // installs are their own identity and need no stub.
+    if matches!(recipe.spec, ToolchainSpec::Channel(_)) {
         let version_file = staging_dir.join("version");
-        tokio::fs::write(&version_file, format!("{}\n", actual_version))
-            .await
-            .into_diagnostic()?;
-    } else if recipe.spec.is_nightly() {
-        let actual_date = recipe.release.date.as_ref().expect("should have a date");
-        let version_file = staging_dir.join("version");
-        tokio::fs::write(&version_file, format!("{}\n", actual_date))
+        tokio::fs::write(&version_file, format!("{release_key}\n"))
             .await
             .into_diagnostic()?;
     }

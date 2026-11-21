@@ -1,6 +1,6 @@
 use moonup::dist_server::schema::{
-    Channel, ChannelIndex, ChannelName, ComponentIndex, Index, Release, Target,
-    VersionedChannelIndex, VersionedIndex,
+    Channel, ChannelIndex, ComponentIndex, Index, Release, Target, VersionedChannelIndex,
+    VersionedIndex,
 };
 
 #[test]
@@ -13,7 +13,8 @@ fn test_handle_future_channel() {
 
     let channel = serde_json::from_str::<Channel>(json).expect("should parse channel successfully");
 
-    assert_eq!(channel.name, ChannelName::Unknown("lts".to_string()));
+    // Channels are data: any name is accepted as-is
+    assert_eq!(channel.name, "lts");
 }
 
 #[test]

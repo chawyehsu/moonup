@@ -86,32 +86,28 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             let mut download_dir = crate::moonup_home().join("downloads");
 
             match &toolchain {
-                ToolchainSpec::Bleeding => download_dir.push("bleeding"),
-                ToolchainSpec::Version(v) => {
-                    if v.starts_with("nightly") {
-                        download_dir.push("nightly");
-                        let date = v
-                            .split_once('-')
-                            .expect("should split nightly version str")
-                            .1;
-                        download_dir.push(date);
-                    } else {
-                        download_dir.push("latest");
-                        download_dir.push(v);
-                    }
-                }
-                _ => {
-                    if toolchain.is_nightly() {
-                        download_dir.push("nightly");
-                    } else {
-                        download_dir.push("latest");
-                    }
-
+                ToolchainSpec::Channel(c) => {
+                    // The version stub records the installed release key
+                    // (build date when present, otherwise the version).
                     let version_file = toolchain_dir.join("version");
-                    let version = tokio::fs::read_to_string(version_file)
+                    let key = tokio::fs::read_to_string(version_file)
                         .await
                         .into_diagnostic()?;
-                    download_dir.push(version.trim());
+                    download_dir.push(c);
+                    download_dir.push(key.trim());
+                }
+                ToolchainSpec::Version(v) if v.starts_with("nightly-") => {
+                    download_dir.push("nightly");
+                    let date = v
+                        .split_once('-')
+                        .expect("should split nightly version str")
+                        .1;
+                    download_dir.push(date);
+                }
+                ToolchainSpec::Version(v) => {
+                    // Pinned versions always search the `latest` channel.
+                    download_dir.push("latest");
+                    download_dir.push(v);
                 }
             }
 

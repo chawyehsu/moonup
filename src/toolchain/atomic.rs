@@ -79,14 +79,7 @@ pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> bool {
         return false;
     };
 
-    match spec {
-        ToolchainSpec::Latest | ToolchainSpec::Bleeding => staged.version == recipe.release.version,
-        ToolchainSpec::Nightly => staged.date.as_deref() == recipe.release.date.as_deref(),
-        ToolchainSpec::Version(v) if v.starts_with("nightly") => {
-            staged.date.as_deref() == recipe.release.date.as_deref()
-        }
-        ToolchainSpec::Version(_) => staged.version == recipe.release.version,
-    }
+    staged.key() == recipe.release.key()
 }
 
 /// Swap a fully-assembled staging directory into the live install location

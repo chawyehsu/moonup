@@ -9,7 +9,6 @@ use std::{env, process::Command};
 
 #[cfg(target_os = "windows")]
 use crate::constant::ALLOWED_EXTENSIONS;
-use crate::dist_server::schema::ChannelName;
 use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::resolve::detect_pinned_toolchain;
 use crate::toolchain::{ToolchainSpec, atomic, index};
@@ -21,15 +20,18 @@ use super::ToolchainSpecValueParser;
 /// Install or update a MoonBit toolchain
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Toolchain version tag or channel name [latest, nightly, bleeding]
+    /// Toolchain version or channel name
+    ///
+    /// Channels are data: whatever the dist server advertises is installable.
+    /// See `moonup install --list-available` for the available channels.
     #[clap(value_parser = ToolchainSpecValueParser::new())]
     toolchain: Option<ToolchainSpec>,
 
     /// List available channels or versions
     ///
     /// If `toolchain` is not specified, this will list all available channels.
-    /// If `toolchain` is specified as `latest`, `nightly`, this will list all
-    /// available versions for that channel.
+    /// If `toolchain` is specified, this will list all available versions for
+    /// that toolchain's channel.
     #[clap(long, short = 'l')]
     list_available: bool,
 }
@@ -52,43 +54,11 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     let spec = match args.toolchain {
         Some(s) => {
-            if args.list_available && (s.is_latest() || s.is_nightly()) {
-                let channel = ChannelName::from(&s);
-                let channel_index = index::read_channel_index(&channel).await?;
-                let releases = channel_index.releases();
-
-                let selections = releases
-                    .iter()
-                    .filter(|r| r.is_host_supported()) // only show releases that support the current host
-                    .map(|r| {
-                        if s.is_latest() {
-                            r.version.as_str()
-                        } else {
-                            r.date.as_ref().expect("nightly release should have a date")
-                        }
-                    })
-                    .rev()
-                    .collect::<Vec<_>>();
-
-                if !selections.is_empty() {
-                    let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
-                        .with_prompt(format!("Pick a version from {} channel", channel))
-                        .items(&selections)
-                        .max_length(crate::constant::MAX_SELECT_ITEMS)
-                        .default(0)
-                        .interact()
-                        .into_diagnostic()
-                        .expect("can't select a toolchain version");
-
-                    let mut picked = selections[selection].to_owned();
-                    if s.is_nightly() {
-                        picked = format!("nightly-{}", picked);
-                    }
-
-                    ToolchainSpec::from(picked)
-                } else {
-                    eprintln!("No available toolchain versions to select");
-                    return Err(crate::status::exit_with(1));
+            if args.list_available {
+                match list_channel_versions(&s).await? {
+                    Some(picked) => picked,
+                    // A floating-only channel: the listing is the whole answer
+                    None => return Ok(()),
                 }
             } else {
                 s
@@ -104,6 +74,14 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         },
     };
 
+    // Refine the syntactic spec interpretation against the main index: a
+    // channel-name match wins over version interpretation (ADR 0007).
+    let spec = index::interpret_spec(spec.as_str()).await?;
+
+    // Heal any toolchain left in a half-swapped state by an interrupted
+    // operation before doing any network work. A promoted staging directory is
+    // a complete installation, finalized with its own persisted metadata and
+    // acknowledged once done.
     if heal_recovered(&spec, true)? {
         return Ok(());
     }
@@ -111,7 +89,16 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     let recipe = match build_installrecipe(&spec).await? {
         Some(recipe) => recipe,
         None => {
-            eprintln!("No toolchain available for requested spec '{}'", spec);
+            let channels = index::available_channels().await;
+            let channels = if channels.is_empty() {
+                "unknown".to_owned()
+            } else {
+                channels.join(", ")
+            };
+            eprintln!(
+                "No toolchain available for requested spec '{}'. Available channel(s): {}",
+                spec, channels
+            );
             return Err(crate::status::exit_with(1));
         }
     };
@@ -141,21 +128,92 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 }
 
 fn toolchain_install_dirname(recipe: &InstallRecipe) -> String {
-    if let Some(date) = recipe.release.date.as_ref() {
-        if recipe.spec.is_nightly() {
-            "nightly".to_owned()
-        } else {
-            format!("nightly-{}", date)
+    // The effective spec is its own directory name: floating channel specs
+    // install under the channel name, pinned versions under the version.
+    recipe.spec.as_str().to_owned()
+}
+
+/// List the releases of the channel the given spec resolves within, and
+/// interactively pick one to install when the channel has a pin format.
+///
+/// A picked release must be expressible as a pinned spec that resolves within
+/// the same channel: bare versions for the `latest` channel and `nightly-<date>`
+/// builds for the `nightly` channel. Any other channel is floating-only
+/// (ADR 0007) and lists without picking.
+async fn list_channel_versions(spec: &ToolchainSpec) -> miette::Result<Option<ToolchainSpec>> {
+    let channel = spec.channel();
+
+    // Validate against the main index so an unknown channel errors with the
+    // available ones instead of a bare download failure.
+    let channels = index::available_channels().await;
+    if !channels.is_empty() && !channels.iter().any(|c| c == channel) {
+        return Err(miette::miette!(
+            "unknown channel '{}'. Available channel(s): {}",
+            channel,
+            channels.join(", ")
+        ));
+    }
+
+    let channel_index = index::read_channel_index(channel).await?;
+    let releases = channel_index
+        .releases()
+        .iter()
+        .filter(|r| r.is_host_supported()) // only show releases that support the current host
+        .rev()
+        .collect::<Vec<_>>();
+
+    if releases.is_empty() {
+        eprintln!("No available toolchain versions in the {channel} channel");
+        return Err(crate::status::exit_with(1));
+    }
+
+    let pickable = matches!(spec, ToolchainSpec::Channel(c) if c == "latest" || c == "nightly");
+
+    if !pickable {
+        println!("Available version(s) in the {channel} channel:");
+        for release in releases {
+            println!("  {}", release_label(release));
         }
-    } else if recipe.spec.is_latest() {
-        "latest".to_owned()
-    } else if recipe.spec.is_bleeding() {
-        "bleeding".to_owned()
+        return Ok(None);
+    }
+
+    let selections = releases
+        .iter()
+        .map(|r| release_label(r))
+        .collect::<Vec<_>>();
+
+    let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!("Pick a version from {channel} channel"))
+        .items(&selections)
+        .max_length(crate::constant::MAX_SELECT_ITEMS)
+        .default(0)
+        .interact()
+        .into_diagnostic()?;
+
+    let picked_release = releases[selection];
+    let picked = if channel == "nightly" {
+        // The `nightly-<date>` pinned format resolves within the nightly channel
+        let date = picked_release
+            .date
+            .as_deref()
+            .expect("nightly release should have a date");
+        format!("nightly-{date}")
     } else {
-        recipe.release.version.clone()
+        // Bare version pins always search the `latest` channel
+        picked_release.version.clone()
+    };
+
+    Ok(Some(ToolchainSpec::from(picked)))
+}
+
+fn release_label(release: &crate::dist_server::schema::Release) -> String {
+    match release.date.as_deref() {
+        Some(date) => format!("{} ({})", release.version, date),
+        None => release.version.clone(),
     }
 }
 
+// Post installation: pour shims and build the core library
 /// Heal a toolchain left in a half-swapped state by an interrupted operation:
 /// promote a complete staging directory, run the post-install steps, and
 /// acknowledge the promotion.
@@ -198,7 +256,6 @@ pub(crate) async fn install_recipe(recipe: &InstallRecipe, link: bool) -> miette
     Ok(())
 }
 
-// Post installation: pour shims and build the core library
 pub(super) fn post_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));

@@ -12,4 +12,5 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-No toolchain available for requested spec 'nonexistent'
+  × unknown channel 'nonexistent'. Available channel(s): latest, nightly,
+  │ bleeding

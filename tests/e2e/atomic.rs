@@ -115,7 +115,7 @@ fn test_install_recovers_interrupted_swap() {
 fn test_update_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
     let s = mock_dist_server();
-    let spec = ToolchainSpec::Latest;
+    let spec = ToolchainSpec::from("latest");
 
     temp_env::with_var(
         constant::ENVNAME_MOONUP_HOME,

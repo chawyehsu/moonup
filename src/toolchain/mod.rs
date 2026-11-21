@@ -1,9 +1,8 @@
 use miette::IntoDiagnostic;
 use std::path::{Path, PathBuf};
 
-use crate::{
-    dist_server::schema::ChannelName,
-    toolchain::ordering::{read_latest_channel_positions, release_order},
+use crate::toolchain::ordering::{
+    read_channel_ranks, read_latest_channel_positions, release_order,
 };
 
 pub mod atomic;
@@ -15,71 +14,54 @@ pub mod version;
 
 /// Install specification for a toolchain
 ///
-/// This can be a specific version, or one of the special values:
-/// - `latest`: the latest stable release
-/// - `nightly`: the latest nightly build
-/// - `bleeding`: the latest build from the main branch
+/// Any channel name advertised by the dist server's main index is a valid spec
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolchainSpec {
-    /// `latest` toolchain
-    Latest,
+    /// A floating channel spec: the newest release of the named channel
+    Channel(String),
 
-    /// `nightly` toolchain
-    Nightly,
-
-    /// `bleeding` toolchain
-    Bleeding,
-
-    /// A specific version of the toolchain
-    /// This can be a version number (e.g., "1.0.0") or a nightly
-    /// build (e.g., "nightly-2025-01-01")
+    /// A concrete toolchain version
+    ///
+    /// This can be a version number (e.g., "0.10.1+abc") or a dated build
+    /// (e.g., "nightly-2026-01-01")
     Version(String),
 }
 
 impl ToolchainSpec {
-    /// Check if the spec is set to 'latest'
+    /// The install name of the toolchain, also its toolchains directory name
     #[inline]
-    pub fn is_latest(&self) -> bool {
-        matches!(self, ToolchainSpec::Latest)
+    pub fn as_str(&self) -> &str {
+        match self {
+            ToolchainSpec::Channel(c) => c,
+            ToolchainSpec::Version(v) => v,
+        }
     }
 
-    /// Check if the spec is set to 'nightly'
+    /// The dist server channel this spec resolves within.
+    ///
+    /// A floating channel spec resolves within its own channel. Pinned dated
+    /// builds (`nightly-YYYY-MM-DD`) belong to the `nightly` channel; every
+    /// other pinned version searches the `latest` channel.
     #[inline]
-    pub fn is_nightly(&self) -> bool {
-        matches!(self, ToolchainSpec::Nightly)
-    }
-
-    /// Check if the spec is set to 'bleeding'
-    #[inline]
-    pub fn is_bleeding(&self) -> bool {
-        matches!(self, ToolchainSpec::Bleeding)
+    pub fn channel(&self) -> &str {
+        match self {
+            ToolchainSpec::Channel(c) => c,
+            ToolchainSpec::Version(v) if v.starts_with("nightly-") => "nightly",
+            ToolchainSpec::Version(_) => "latest",
+        }
     }
 
     //// Get the install dir root for the toolchain
     pub fn install_path(&self) -> PathBuf {
         let mut path = crate::moonup_home().join("toolchains");
-        path.push(self.to_string());
+        path.push(self.as_str());
         path
-    }
-
-    pub fn as_str(&self) -> &str {
-        match self {
-            ToolchainSpec::Latest => "latest",
-            ToolchainSpec::Nightly => "nightly",
-            ToolchainSpec::Bleeding => "bleeding",
-            ToolchainSpec::Version(v) => v.as_str(),
-        }
     }
 }
 
 impl std::fmt::Display for ToolchainSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ToolchainSpec::Latest => write!(f, "latest"),
-            ToolchainSpec::Nightly => write!(f, "nightly"),
-            ToolchainSpec::Bleeding => write!(f, "bleeding"),
-            ToolchainSpec::Version(v) => write!(f, "{}", v),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -91,29 +73,14 @@ impl From<&str> for ToolchainSpec {
 
 impl From<String> for ToolchainSpec {
     fn from(s: String) -> Self {
-        match s.as_str() {
-            "latest" => ToolchainSpec::Latest,
-            "nightly" => ToolchainSpec::Nightly,
-            "bleeding" => ToolchainSpec::Bleeding,
-            _ => ToolchainSpec::Version(s),
-        }
-    }
-}
-
-/// Derives a `ChannelName` from a `ToolchainSpec`.
-impl From<&ToolchainSpec> for ChannelName {
-    fn from(spec: &ToolchainSpec) -> Self {
-        match spec {
-            ToolchainSpec::Latest => ChannelName::Latest,
-            ToolchainSpec::Nightly => ChannelName::Nightly,
-            ToolchainSpec::Bleeding => ChannelName::Bleeding,
-            ToolchainSpec::Version(v) => {
-                if v.starts_with("nightly") {
-                    ChannelName::Nightly
-                } else {
-                    ChannelName::Latest
-                }
-            }
+        // Syntactic classification, refined against the main index at resolve
+        // time (`toolchain::index::interpret_spec`): pinned dated builds and
+        // version-shaped strings are versions; any other string is a channel
+        // name.
+        if s.starts_with("nightly-") || s.contains('+') || version::is_stable_selector(&s) {
+            ToolchainSpec::Version(s)
+        } else {
+            ToolchainSpec::Channel(s)
         }
     }
 }
@@ -136,8 +103,14 @@ impl InstalledToolchain {
             .map(|n| n.to_ascii_lowercase().to_string_lossy().to_string())
             .ok_or_else(|| miette::miette!("failed to read toolchain install name"))?;
 
-        let name = ToolchainSpec::from(n);
-        Ok(name.into())
+        // Floating channel installs carry a `version` stub recording the
+        // installed release; pinned installs do not.
+        let spec = if path.join("version").is_file() {
+            ToolchainSpec::Channel(n)
+        } else {
+            ToolchainSpec::Version(n)
+        };
+        Ok(spec.into())
     }
 }
 
@@ -145,7 +118,7 @@ impl From<ToolchainSpec> for InstalledToolchain {
     fn from(spec: ToolchainSpec) -> Self {
         let tag = match &spec {
             ToolchainSpec::Version(_) => None,
-            _ => Some(
+            ToolchainSpec::Channel(_) => Some(
                 std::fs::read_to_string(spec.install_path().join("version"))
                     .map(|s| s.trim().to_owned())
                     .into_diagnostic()
@@ -172,12 +145,13 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
                 .filter_map(|e| InstalledToolchain::from_path(&e.path()).ok())
                 .collect::<Vec<_>>();
 
-            // List in release order: versioned installs grouped by channel
-            // (nightly builds by build date, latest releases by their position
-            // in the cached `latest` channel index), followed by the channel
-            // aliases `bleeding` < `nightly` < `latest`.
+            // List in release order: pinned installs precede floating channel
+            // installs, grouped by channel (dated builds by build date, latest
+            // releases by their position in the cached `latest` channel index);
+            // floating channels follow their order in the cached main index.
             let latest_positions = read_latest_channel_positions(&t);
-            t.sort_by_key(|it| release_order(&it.name, &latest_positions));
+            let channel_ranks = read_channel_ranks();
+            t.sort_by_key(|it| release_order(&it.name, &latest_positions, &channel_ranks));
             t
         }
     };
