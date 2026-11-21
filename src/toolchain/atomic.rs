@@ -6,10 +6,14 @@ use crate::dist_server::schema::Release;
 use super::ToolchainSpec;
 use super::install::InstallRecipe;
 
-const STAGING_DIR: &str = ".staging";
-const STAGING_SUFFIX: &str = ".new";
+pub const STAGING_DIR: &str = ".staging";
+pub const STAGING_SUFFIX: &str = ".new";
 const RETIRED_SUFFIX: &str = ".old";
 const COMPLETE_SUFFIX: &str = ".complete";
+
+pub fn staging_dir() -> PathBuf {
+    toolchains_root().join(STAGING_DIR)
+}
 
 /// The directory where a new toolchain is fully assembled before it is swapped
 /// into the live install location.

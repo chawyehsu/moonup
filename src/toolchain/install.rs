@@ -122,11 +122,7 @@ async fn build_recipe(spec: &ToolchainSpec, first_time: bool) -> miette::Result<
 /// `first_time` indicates whether this is the first time the toolchain
 /// is being installed.
 pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::Result<()> {
-    // Heal any toolchain left in a half-swapped state by an interrupted
-    // operation before resolving channel names through the main index. The
-    // supplied spec has the same install name as its canonical form, so it is
-    // sufficient to locate and finalize local recovery state.
-    if heal_recovered(spec, true)? && first_time {
+    if heal_recovered(spec, first_time)? && first_time {
         return Ok(());
     }
 

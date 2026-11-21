@@ -1,4 +1,4 @@
-use crate::toolchain::{ToolchainSpec, install::sync_toolchain};
+use crate::toolchain::{ToolchainSpec, atomic, install::sync_toolchain};
 use clap::Parser;
 
 /// Update MoonBit toolchains
@@ -6,8 +6,8 @@ use clap::Parser;
 pub struct Args {}
 
 pub async fn execute(_: Args) -> miette::Result<()> {
-    let mut specs = installed_channel_specs();
-    for spec in crash_state_channel_specs() {
+    let mut specs = installed_channels()?;
+    for spec in incomplete_channels() {
         if !specs.contains(&spec) {
             specs.push(spec);
         }
@@ -21,9 +21,6 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         );
         return Ok(());
     }
-
-    let mut path = crate::moonup_home();
-    path.push("toolchains");
 
     let mut failed = false;
     for spec in &specs {
@@ -47,22 +44,23 @@ pub async fn execute(_: Args) -> miette::Result<()> {
     Ok(())
 }
 
-/// The floating-channel toolchains currently installed (they carry a version
-/// stub; pinned installs do not).
-fn installed_channel_specs() -> Vec<ToolchainSpec> {
-    crate::toolchain::installed_toolchains()
-        .unwrap_or_default()
+/// The floating-channel toolchains currently installed
+fn installed_channels() -> miette::Result<Vec<ToolchainSpec>> {
+    let installed = crate::toolchain::installed_toolchains()?
         .into_iter()
         .filter(|t| matches!(t.name, ToolchainSpec::Channel(_)))
         .map(|t| t.name)
-        .collect()
+        .collect();
+    Ok(installed)
 }
 
-/// The floating channels with a staging directory left behind by an
-/// interrupted swap (`<name>.new`), which the next update should recover.
-fn crash_state_channel_specs() -> Vec<ToolchainSpec> {
-    let staging_root = crate::moonup_home().join("toolchains").join(".staging");
-    let Ok(entries) = std::fs::read_dir(staging_root) else {
+/// The floating-channel toolchains in incomplete staging state, which
+/// the next update should recover.
+fn incomplete_channels() -> Vec<ToolchainSpec> {
+    let staging_dir = atomic::staging_dir();
+    let Ok(entries) = std::fs::read_dir(staging_dir).inspect_err(|e| {
+        tracing::warn!("Failed to read toolchain staging directory: {}", e);
+    }) else {
         return vec![];
     };
 
@@ -70,7 +68,7 @@ fn crash_state_channel_specs() -> Vec<ToolchainSpec> {
         .flatten()
         .filter_map(|e| {
             let name = e.file_name().to_str()?.to_owned();
-            name.strip_suffix(".new").map(str::to_owned)
+            name.strip_suffix(atomic::STAGING_SUFFIX).map(str::to_owned)
         })
         // Pinned-version staging leftovers are not updated by `moonup update`
         .filter(|name| matches!(ToolchainSpec::from(name.clone()), ToolchainSpec::Channel(_)))
