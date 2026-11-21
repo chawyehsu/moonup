@@ -13,7 +13,7 @@ Install or update a MoonBit toolchain
 Usage: moonup [OPTIONS] [TOOLCHAIN]
 
 Arguments:
-  [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
+  [TOOLCHAIN]  Toolchain version or channel name
 
 Options:
   -l, --list-available  List available channels or versions

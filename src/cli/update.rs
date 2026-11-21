@@ -1,67 +1,79 @@
+use crate::toolchain::{ToolchainSpec, install::sync_toolchain};
 use clap::Parser;
-use std::path::PathBuf;
-
-use crate::cli::install::{heal_recovered, install_recipe};
-use crate::toolchain::ToolchainSpec;
-use crate::toolchain::index::build_installrecipe;
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 
 pub async fn execute(_: Args) -> miette::Result<()> {
+    let mut specs = installed_channel_specs();
+    for spec in crash_state_channel_specs() {
+        if !specs.contains(&spec) {
+            specs.push(spec);
+        }
+    }
+
+    if specs.is_empty() {
+        println!("No channel toolchains installed");
+        println!(
+            "Run 'moonup install <toolchain>' to install one, \
+             or check 'moonup install --list-available' for available channels"
+        );
+        return Ok(());
+    }
+
     let mut path = crate::moonup_home();
     path.push("toolchains");
 
-    update_toolchain(&mut path, &ToolchainSpec::Latest).await?;
-    update_toolchain(&mut path, &ToolchainSpec::Nightly).await?;
+    let mut failed = false;
+    for spec in &specs {
+        // A failed channel must not abort the remaining updates; the exit
+        // code reports the overall outcome.
+        if let Err(e) = sync_toolchain(spec, false).await {
+            eprintln!(
+                "{} Failed to update the {} toolchain: {}",
+                console::style(console::Emoji("✖ ", "")).red(),
+                spec,
+                e
+            );
+            failed = true;
+        }
+    }
+
+    if failed {
+        return Err(crate::status::exit_with(1));
+    }
 
     Ok(())
 }
 
-async fn update_toolchain(path: &mut PathBuf, spec: &ToolchainSpec) -> miette::Result<()> {
-    // Heal a crash state before its version is read, so a half-swapped
-    // toolchain is not reported as "not installed" and skipped. A promoted
-    // toolchain is finalized immediately, before any fallible network
-    // resolution, so an interrupted update never leaves it without its
-    // post-install steps; the pending marker is acknowledged once done.
-    heal_recovered(spec, false)?;
+/// The floating-channel toolchains currently installed (they carry a version
+/// stub; pinned installs do not).
+fn installed_channel_specs() -> Vec<ToolchainSpec> {
+    crate::toolchain::installed_toolchains()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|t| matches!(t.name, ToolchainSpec::Channel(_)))
+        .map(|t| t.name)
+        .collect()
+}
 
-    let name = spec.as_str();
-    path.push(name);
-    path.push("version");
-
-    let result = match tokio::fs::read_to_string(&path).await {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            println!("{name} toolchain is not installed, run 'moonup install {name}' to install");
-            Ok(())
-        }
-        Err(e) => Err(miette::miette!(e).wrap_err("failed to read version file")),
-        Ok(local_ver) => {
-            let recipe = build_installrecipe(spec)
-                .await?
-                .expect("should have recipe");
-
-            let should_update = match (spec, local_ver.trim()) {
-                (ToolchainSpec::Bleeding, _) => true,
-                (ToolchainSpec::Latest, local) => local != recipe.release.version.as_str(),
-                (ToolchainSpec::Nightly, local) => {
-                    local != recipe.release.date.as_deref().expect("should have date")
-                }
-                _ => false,
-            };
-
-            if should_update {
-                println!("Updating the {} toolchain", name);
-                install_recipe(&recipe, false).await?;
-            } else {
-                println!("The {} toolchain is up to date", name);
-            }
-            Ok(())
-        }
+/// The floating channels with a staging directory left behind by an
+/// interrupted swap (`<name>.new`), which the next update should recover.
+fn crash_state_channel_specs() -> Vec<ToolchainSpec> {
+    let staging_root = crate::moonup_home().join("toolchains").join(".staging");
+    let Ok(entries) = std::fs::read_dir(staging_root) else {
+        return vec![];
     };
 
-    path.pop();
-    path.pop();
-    result
+    entries
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_str()?.to_owned();
+            name.strip_suffix(".new").map(str::to_owned)
+        })
+        // Pinned-version staging leftovers are not updated by `moonup update`
+        .filter(|name| matches!(ToolchainSpec::from(name.clone()), ToolchainSpec::Channel(_)))
+        .map(ToolchainSpec::Channel)
+        .collect()
 }

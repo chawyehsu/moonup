@@ -9,6 +9,5 @@ success: true
 exit_code: 0
 ----- stdout -----
 Updating the latest toolchain
-nightly toolchain is not installed, run 'moonup install nightly' to install
 
 ----- stderr -----

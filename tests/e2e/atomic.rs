@@ -115,7 +115,7 @@ fn test_install_recovers_interrupted_swap() {
 fn test_update_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
     let s = mock_dist_server();
-    let spec = ToolchainSpec::Latest;
+    let spec = ToolchainSpec::from("latest");
 
     temp_env::with_var(
         constant::ENVNAME_MOONUP_HOME,
@@ -134,9 +134,11 @@ fn test_update_recovers_interrupted_swap() {
                 .expect("should run moonup install");
 
             let actual_version = std::fs::read_to_string(install_path.join("version"))
-                .expect("should read version stub")
-                .trim()
-                .to_string();
+                .expect("should read metadata stub");
+            let actual_version =
+                serde_json::from_str::<moonup::toolchain::InstallMeta>(actual_version.trim())
+                    .expect("should parse metadata stub")
+                    .key;
 
             // simulate a crash that left a complete staging directory
             simulate_crash_state(&ws, "latest", &actual_version);
