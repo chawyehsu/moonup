@@ -184,14 +184,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     }
 
     // Every install records its identity in a metadata stub
-    let meta = super::InstallMeta::from(recipe);
-    let meta_file = staging_dir.join(super::METADATA_FILENAME);
-    let meta_json = serde_json::to_string(&meta)
-        .into_diagnostic()
-        .wrap_err("failed to serialize install metadata")?;
-    tokio::fs::write(&meta_file, meta_json)
-        .await
-        .into_diagnostic()?;
+    super::InstallMeta::from(recipe).save(&staging_dir).await?;
 
     // mark the staging directory as fully assembled, recording the release
     // identity, so that recovery never promotes a partial extraction and can

@@ -45,6 +45,57 @@ fn moonup_default() {
 }
 
 #[test]
+fn moonup_list() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let s = util::mock_dist_server();
+    let version = crate::constant::E2E_TEST_MOCK_INSTALL_VERSION;
+
+    // Install the latest toolchain (floating)
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should install latest toolchain successfully");
+    assert!(output.status.success());
+    // Install the pinned toolchain
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg(version)
+        .output()
+        .expect("should install pinned toolchain successfully");
+    assert!(output.status.success());
+
+    assert_cmd_snapshot!("moonup_list_1", ws.cli().arg("list"));
+
+    // Set default toolchain to latest (floating)
+    let output = ws
+        .cli()
+        .arg("default")
+        .arg("latest")
+        .output()
+        .expect("should set default toolchain successfully");
+    assert!(output.status.success());
+
+    assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+
+    // Set default toolchain to pinned
+    let output = ws
+        .cli()
+        .arg("default")
+        .arg(version)
+        .output()
+        .expect("should set default toolchain successfully");
+    assert!(output.status.success());
+
+    assert_cmd_snapshot!("moonup_list_3", ws.cli().arg("list"));
+}
+
+#[test]
 fn moonup_others() {
     util::apply_common_filters!();
     let ws = TestWorkspace::new();

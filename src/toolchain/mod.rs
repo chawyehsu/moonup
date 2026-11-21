@@ -38,6 +38,18 @@ pub struct InstallMeta {
     pub floating: bool,
 }
 
+impl InstallMeta {
+    /// Save the install metadata to the given install directory.
+    pub async fn save(&self, install_dir: &Path) -> miette::Result<()> {
+        let meta_file = install_dir.join(METADATA_FILENAME);
+        let content = serde_json::to_string(self).into_diagnostic()?;
+        tokio::fs::write(&meta_file, content)
+            .await
+            .into_diagnostic()?;
+        Ok(())
+    }
+}
+
 impl From<&InstallRecipe> for InstallMeta {
     fn from(recipe: &InstallRecipe) -> Self {
         InstallMeta {
