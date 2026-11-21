@@ -591,3 +591,116 @@ fn moonup_install_moonx_unavailable_and_internal_shims() {
         "the internal binary should be poured into MOON_HOME/bin/internal"
     );
 }
+
+#[test]
+fn moonup_install_qualified_pin() {
+    use moonup::dist_server::schema::Target;
+
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let version = crate::constant::E2E_TEST_MOCK_INSTALL_VERSION;
+    let host = Target::from_host().expect("supported host").to_string();
+
+    // A second channel (`lts`) publishing the same release as `latest`; the
+    // component index is the committed `latest` fixture served under the lts
+    // path. The server is reset and republished with both channels in the
+    // index, since the committed fixture index only advertises the defaults.
+    let mut server = util::mock_dist_server();
+    server.reset();
+    server
+        .mock("GET", "/index.json")
+        .with_body(format!(
+            r#"{{"version":3,"lastModified":"20261121T0000000000Z","channels":[{{"name":"latest","version":"{version}"}},{{"name":"lts","version":"{version}"}}]}}"#
+        ))
+        .create();
+    server
+        .mock("GET", "/channel-latest.json")
+        .with_body_from_file(util::fixture_path("channel-latest.json"))
+        .create();
+    server
+        .mock("GET", format!("/latest/{version}/{host}.json").as_str())
+        .with_body_from_file(util::fixture_path(&format!("latest/{version}/{host}.json")))
+        .create();
+    server
+        .mock("GET", "/channel-lts.json")
+        .with_body(format!(
+            r#"{{"version":3,"lastModified":"20261121T0000000000Z","releases":[{{"version":"{version}","targets":["aarch64-apple-darwin","aarch64-unknown-linux","x86_64-unknown-linux","x86_64-pc-windows"]}}]}}"#
+        ))
+        .create();
+    server
+        .mock("GET", format!("/lts/{version}/{host}.json").as_str())
+        .with_body_from_file(util::fixture_path(&format!("latest/{version}/{host}.json")))
+        .create();
+    let archive_file = if host == "x86_64-pc-windows" {
+        format!("moonbit-v{version}-{host}.zip")
+    } else {
+        format!("moonbit-v{version}-{host}.tar.gz")
+    };
+    server
+        .mock(
+            "GET",
+            format!("/download/v{version}/{archive_file}").as_str(),
+        )
+        .with_body_from_file(util::fixture_path(&format!(
+            "download/v{version}/{archive_file}"
+        )))
+        .create();
+
+    let cli = || {
+        let mut cmd = ws.cli();
+        cmd.env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url());
+        cmd
+    };
+
+    // A channel-qualified pin installs under its own directory, distinct
+    // from the same version pinned from the default channel
+    assert_cmd_snapshot!(
+        "moonup_install_qualified_pin",
+        cli().arg("install").arg(format!("lts/{version}"))
+    );
+
+    let qualified_dir = ws
+        .moonup_home()
+        .join("toolchains")
+        .join(format!("lts-{version}"));
+    assert!(qualified_dir.exists(), "qualified pin should be installed");
+    let meta = fs::read_to_string(qualified_dir.join("version")).expect("should read stub");
+    assert_eq!(
+        meta.trim(),
+        format!(r#"{{"channel":"lts","key":"{version}"}}"#),
+        "the metadata stub should record the channel and release key"
+    );
+
+    // The same version pinned from the default channel does not collide
+    let output = cli()
+        .arg("install")
+        .arg(version)
+        .output()
+        .expect("should run moonup install");
+    assert!(
+        output.status.success(),
+        "default-channel pin install should succeed"
+    );
+    assert!(ws.moonup_home().join("toolchains").join(version).exists());
+
+    // Uninstalling the qualified pin removes its directory and channel-scoped
+    // cache, leaving the default-channel pin intact
+    let _ = cli()
+        .arg("uninstall")
+        .arg(format!("lts/{version}"))
+        .output()
+        .expect("should uninstall qualified pin");
+    assert!(!qualified_dir.exists(), "qualified pin should be removed");
+    assert!(
+        !ws.moonup_home()
+            .join("downloads")
+            .join("lts")
+            .join(version)
+            .exists(),
+        "the lts cache for the release key should be removed"
+    );
+    assert!(
+        ws.moonup_home().join("toolchains").join(version).exists(),
+        "the default-channel pin should survive"
+    );
+}

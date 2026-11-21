@@ -83,42 +83,19 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         tracing::info!("uninstalling toolchain {}", toolchain);
 
         if !args.keep_cache {
-            let mut download_dir = crate::moonup_home().join("downloads");
+            match toolchain.install_meta() {
+                None => {}
+                Some(meta) => {
+                    let mut download_dir = crate::moonup_home().join("downloads");
+                    download_dir.push(toolchain.channel());
+                    download_dir.push(&meta.key);
 
-            match &toolchain {
-                ToolchainSpec::Bleeding => download_dir.push("bleeding"),
-                ToolchainSpec::Version(v) => {
-                    if v.starts_with("nightly") {
-                        download_dir.push("nightly");
-                        let date = v
-                            .split_once('-')
-                            .expect("should split nightly version str")
-                            .1;
-                        download_dir.push(date);
-                    } else {
-                        download_dir.push("latest");
-                        download_dir.push(v);
-                    }
-                }
-                _ => {
-                    if toolchain.is_nightly() {
-                        download_dir.push("nightly");
-                    } else {
-                        download_dir.push("latest");
-                    }
-
-                    let version_file = toolchain_dir.join("version");
-                    let version = tokio::fs::read_to_string(version_file)
-                        .await
-                        .into_diagnostic()?;
-                    download_dir.push(version.trim());
+                    tracing::info!("removing cached downloads {}", download_dir.display());
+                    let _ = crate::fs::remove_dir_all(download_dir).inspect_err(|e| {
+                        tracing::warn!("failed to remove cached downloads: {}", e);
+                    });
                 }
             }
-
-            tracing::info!("removing cached downloads {}", download_dir.display());
-            let _ = crate::fs::remove_dir_all(download_dir).inspect_err(|e| {
-                tracing::warn!("failed to remove cached downloads: {}", e);
-            });
         }
 
         tracing::debug!("removing toolchain from {}", toolchain_dir.display());

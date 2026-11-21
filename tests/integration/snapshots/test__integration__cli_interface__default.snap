@@ -14,7 +14,7 @@ Set the default toolchain
 Usage: moonup default [OPTIONS] [TOOLCHAIN]
 
 Arguments:
-  [TOOLCHAIN]  Toolchain version tag or channel name [latest, nightly, bleeding]
+  [TOOLCHAIN]  Toolchain version or channel name
 
 Options:
   -v, --verbose...  Increase logging verbosity

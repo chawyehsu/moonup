@@ -16,7 +16,7 @@ const COMPLETE_SUFFIX: &str = ".complete";
 pub fn staging_dir_for(spec: &ToolchainSpec) -> PathBuf {
     toolchains_root()
         .join(STAGING_DIR)
-        .join(format!("{}{}", spec.as_str(), STAGING_SUFFIX))
+        .join(format!("{}{}", spec.install_name(), STAGING_SUFFIX))
 }
 
 /// The directory where the previous live toolchain is parked during a swap
@@ -28,13 +28,14 @@ pub fn retired_dir_for(spec: &ToolchainSpec) -> PathBuf {
 /// The marker written only after a staging directory is fully assembled and
 /// verified, distinguishing a complete staging from one cut short by a crash.
 ///
-/// It records the release identity so a staging can be matched against a
-/// freshly resolved recipe before it is promoted, and so the post-install
-/// steps can be finalized from the promoted release's own metadata.
+/// It records the spec's channel and the release identity so a staging can be
+/// matched against a freshly resolved recipe before it is promoted, and so the
+/// post-install steps can be finalized from the promoted release's own
+/// metadata.
 pub fn completeness_marker_for(spec: &ToolchainSpec) -> PathBuf {
     toolchains_root()
         .join(STAGING_DIR)
-        .join(format!("{}{}", spec.as_str(), COMPLETE_SUFFIX))
+        .join(format!("{}{}", spec.install_name(), COMPLETE_SUFFIX))
 }
 
 /// Whether a staging directory is complete enough to be promoted.
@@ -43,12 +44,25 @@ pub fn is_complete(spec: &ToolchainSpec) -> bool {
 }
 
 /// The release identity persisted in a completeness marker.
-pub type StagedRelease = Release;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StagedRelease {
+    /// The channel of the spec being staged. Absent in markers written by
+    /// older moonup versions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+
+    /// The staged release
+    #[serde(flatten)]
+    pub release: Release,
+}
 
 impl StagedRelease {
     /// Persist the release identity of the recipe being assembled.
     pub fn from_recipe(recipe: &InstallRecipe) -> Self {
-        recipe.release.clone()
+        Self {
+            channel: Some(recipe.spec.channel().to_owned()),
+            release: recipe.release.clone(),
+        }
     }
 
     /// Build a recipe carrying the staged release metadata, enough to run the
@@ -57,8 +71,11 @@ impl StagedRelease {
     pub fn into_recipe(self, spec: &ToolchainSpec) -> InstallRecipe {
         let requested_spec = spec.clone();
         let effective_spec = match spec {
-            ToolchainSpec::Version(value) if super::version::is_stable_selector(value) => {
-                ToolchainSpec::Version(self.version.clone())
+            ToolchainSpec::Version { channel, key } if super::version::is_stable_selector(key) => {
+                ToolchainSpec::Version {
+                    channel: channel.clone(),
+                    key: self.release.version.clone(),
+                }
             }
             _ => requested_spec.clone(),
         };
@@ -66,7 +83,7 @@ impl StagedRelease {
         InstallRecipe {
             spec: effective_spec,
             requested_spec,
-            release: self,
+            release: self.release,
             components: Vec::new(),
         }
     }
@@ -79,14 +96,7 @@ pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> bool {
         return false;
     };
 
-    match spec {
-        ToolchainSpec::Latest | ToolchainSpec::Bleeding => staged.version == recipe.release.version,
-        ToolchainSpec::Nightly => staged.date.as_deref() == recipe.release.date.as_deref(),
-        ToolchainSpec::Version(v) if v.starts_with("nightly") => {
-            staged.date.as_deref() == recipe.release.date.as_deref()
-        }
-        ToolchainSpec::Version(_) => staged.version == recipe.release.version,
-    }
+    staged.release.key() == recipe.release.key()
 }
 
 /// Swap a fully-assembled staging directory into the live install location

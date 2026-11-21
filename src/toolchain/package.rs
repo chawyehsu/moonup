@@ -5,56 +5,12 @@ use crate::{
     archive::{extract_tar_gz, extract_zip},
     fs::{compute_file_sha256, save_file},
     reporter::{ProgressReporter, Reporter},
-    toolchain::ToolchainSpec,
     utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
 };
 
 use super::{atomic, index::InstallRecipe};
 
 pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
-    let mut download_dir = crate::moonup_home();
-    download_dir.push("downloads");
-
-    // GitHub release tag
-    let tag = match recipe.spec {
-        ToolchainSpec::Bleeding => {
-            download_dir.push("bleeding");
-
-            "bleeding".to_string()
-        }
-        ToolchainSpec::Nightly => {
-            let date = recipe.release.date.as_deref().expect("should have date");
-
-            download_dir.push("nightly");
-            download_dir.push(date);
-
-            format!("nightly-{date}")
-        }
-        ToolchainSpec::Latest => {
-            let version = recipe.release.version.as_str();
-
-            download_dir.push("latest");
-            download_dir.push(version);
-
-            format!("v{}", version)
-        }
-        ToolchainSpec::Version(ref v) => {
-            if v.starts_with("nightly-") {
-                let date = recipe.release.date.as_deref().expect("should have date");
-
-                download_dir.push("nightly");
-                download_dir.push(date);
-
-                v.to_owned()
-            } else {
-                download_dir.push("latest");
-                download_dir.push(v);
-
-                format!("v{}", v)
-            }
-        }
-    };
-
     let live_dir = recipe.spec.install_path();
     let staging_dir = atomic::staging_dir_for(&recipe.spec);
 
@@ -80,7 +36,14 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         ))?;
     let _ = std::fs::remove_file(atomic::completeness_marker_for(&recipe.spec));
 
-    let is_bleeding = recipe.spec.is_bleeding();
+    let mut download_dir = crate::moonup_home();
+    download_dir.push("downloads");
+
+    let channel = recipe.spec.channel();
+    let release_key = recipe.release.key().to_owned();
+
+    download_dir.push(channel);
+    download_dir.push(&release_key);
 
     // ensure all components are downloaded in the first loop
     for component in recipe.components.iter() {
@@ -91,7 +54,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         let local_file = download_dir.join(file);
 
         let mut use_cache = false;
-        if !is_bleeding && local_file.exists() {
+        if local_file.exists() {
             match compute_file_sha256(&local_file).await {
                 Ok(sha256) => {
                     let sha256_actual = hex::encode(sha256);
@@ -123,8 +86,15 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             }
         }
 
-        if is_bleeding || !use_cache {
+        if !use_cache {
             tracing::debug!("downloading {} to {}", name, local_file.display());
+
+            // GitHub release tag: dated releases publish as `{channel}-{date}`,
+            // versioned releases as `v{version}`.
+            let tag = match recipe.release.date.as_deref() {
+                Some(date) => format!("{channel}-{date}"),
+                None => format!("v{}", recipe.release.version),
+            };
 
             let client = build_http_client_with_retry();
 
@@ -213,20 +183,18 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         }
     }
 
-    // create a stub to store the actual version when the spec is latest or nightly
-    if recipe.spec.is_latest() || recipe.spec.is_bleeding() {
-        let actual_version = recipe.release.version.as_str();
-        let version_file = staging_dir.join("version");
-        tokio::fs::write(&version_file, format!("{}\n", actual_version))
-            .await
-            .into_diagnostic()?;
-    } else if recipe.spec.is_nightly() {
-        let actual_date = recipe.release.date.as_ref().expect("should have a date");
-        let version_file = staging_dir.join("version");
-        tokio::fs::write(&version_file, format!("{}\n", actual_date))
-            .await
-            .into_diagnostic()?;
-    }
+    // Every install records its identity in a metadata stub
+    let meta = super::InstallMeta {
+        channel: recipe.spec.channel().to_owned(),
+        key: release_key.clone(),
+    };
+    let meta_file = staging_dir.join(super::METADATA_FILENAME);
+    let meta_json = serde_json::to_string(&meta)
+        .into_diagnostic()
+        .wrap_err("failed to serialize install metadata")?;
+    tokio::fs::write(&meta_file, meta_json)
+        .await
+        .into_diagnostic()?;
 
     // mark the staging directory as fully assembled, recording the release
     // identity, so that recovery never promotes a partial extraction and can
