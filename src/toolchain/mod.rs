@@ -606,5 +606,15 @@ mod tests {
                 key: "2025-06-01".to_owned(),
             }
         );
+
+        // bad metadata stub: should fail to classify
+        let bad_metadata = tempdir.path().join("bad-metadata");
+        std::fs::create_dir_all(&bad_metadata).expect("should create dir");
+        std::fs::write(bad_metadata.join(METADATA_FILENAME), "").expect("should write bad stub");
+        assert!(InstalledToolchain::from_path(&bad_metadata).is_err());
+
+        // broken install
+        let broken = tempdir.path().join("broken");
+        assert!(InstalledToolchain::from_path(&broken).is_err());
     }
 }

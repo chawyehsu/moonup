@@ -342,6 +342,21 @@ fn offline_flow_interactive() {
 }
 
 #[test]
+fn moonup_install_invalid_channel() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let s = util::mock_dist_server();
+
+    assert_cmd_snapshot!(
+        "moonup_install_invalid_channel",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg("bad%channel")
+    );
+}
+
+#[test]
 fn moonup_install_unknown_channel() {
     util::apply_common_filters!();
     let ws = TestWorkspace::new();

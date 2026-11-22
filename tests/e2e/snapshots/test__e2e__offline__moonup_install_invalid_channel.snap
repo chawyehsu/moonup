@@ -1,0 +1,14 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - install
+    - bad%channel
+---
+success: false
+exit_code: 2
+----- stdout -----
+
+----- stderr -----
+error: invalid channel name 'bad%channel'
