@@ -28,9 +28,10 @@ pub async fn execute(_: Args) -> miette::Result<()> {
 
 async fn update_toolchain(t: InstalledToolchain) -> miette::Result<()> {
     let spec = &t.spec;
-    let recipe = build_installrecipe(spec)
-        .await?
-        .expect("should have recipe");
+    let Some(recipe) = build_installrecipe(spec).await? else {
+        println!("The '{}' toolchain is unavailable to update", spec);
+        return Ok(());
+    };
 
     // toolchain is considered upgradable if the local release key
     // differs from the channel's current release key

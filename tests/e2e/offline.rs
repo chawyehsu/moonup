@@ -427,6 +427,51 @@ fn moonup_update_up_to_date() {
 }
 
 #[test]
+fn moonup_update_no_host_supported_release() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let mut server = util::mock_dist_server();
+
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should install latest toolchain");
+    assert!(output.status.success(), "install should succeed");
+
+    // Clear the cached index so update sees a channel with no host-supported
+    // release.
+    let _ = ws
+        .cli()
+        .arg("uninstall")
+        .arg("--clear")
+        .output()
+        .expect("should clear cached downloads");
+
+    server.reset();
+    server
+        .mock("GET", "/index.json")
+        .with_body_from_file(util::fixture_path("index.json"))
+        .create();
+    server
+        .mock("GET", "/channel-latest.json")
+        .with_body(
+            r#"{"version":3,"lastModified":"20261121T0000000000Z","releases":[
+                {"version":"0.10.17+unsupported","targets":[]}] }"#,
+        )
+        .create();
+
+    assert_cmd_snapshot!(
+        "moonup_update_no_host_supported_release",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url())
+            .arg("update")
+    );
+}
+
+#[test]
 fn moonup_update_installs_newer_release() {
     use moonup::dist_server::schema::Target;
 
