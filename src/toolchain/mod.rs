@@ -76,13 +76,15 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
     match std::fs::read_to_string(&meta_file) {
         Ok(content) => {
             // JSON-formatted install metadata, for all new installs
-            if let Ok(meta) = serde_json::from_str::<InstallMeta>(&content).inspect_err(|e| {
-                tracing::warn!(
-                    "failed to parse install metadata file: {}, {e}",
-                    meta_file.display()
-                );
-            }) {
-                return Ok(meta);
+            if content.starts_with('{') {
+                if let Ok(meta) = serde_json::from_str::<InstallMeta>(&content).inspect_err(|e| {
+                    tracing::warn!(
+                        "failed to parse install metadata file: {}, {e}",
+                        meta_file.display()
+                    );
+                }) {
+                    return Ok(meta);
+                }
             }
 
             // Legacy plain-text stub, for old floating installs,
