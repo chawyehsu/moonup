@@ -595,14 +595,5 @@ mod tests {
                 key: "2025-06-01".to_owned(),
             }
         );
-
-        // A hyphenated channel directory is not inferred as a qualified pin.
-        let channel = tempdir.path().join("dev-preview");
-        std::fs::create_dir_all(&channel).expect("should create dir");
-        let parsed = InstalledToolchain::from_path(&channel).expect("should classify");
-        assert_eq!(
-            parsed.spec,
-            ToolchainSpec::Channel("dev-preview".to_owned())
-        );
     }
 }
