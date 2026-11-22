@@ -19,6 +19,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         .repo_name("moonup")
         .bin_name(env!("CARGO_PKG_NAME"))
         .current_version(current_version)
+        .auth_token_from_env()
         .build_async()
         .into_diagnostic()?
         .get_latest_release_async()
