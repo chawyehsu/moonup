@@ -52,14 +52,14 @@ fn run() -> Result<ExitStatus> {
     // - Otherwise, detect the active toolchain.
     let spec = if args_1_is_toolchain {
         let version = args_1.expect("has arg version").strip_prefix('+').unwrap();
-        ToolchainSpec::from(version)
+        ToolchainSpec::try_from(version)?
     } else if let Some(s) = env::var_os("MOONUP_TOOLCHAIN_SPEC") {
         let version = s
             .to_str()
             .expect("MOONUP_TOOLCHAIN_SPEC should be valid UTF-8");
-        ToolchainSpec::from(version)
+        ToolchainSpec::try_from(version)?
     } else {
-        detect_active_toolchain()
+        detect_active_toolchain()?
     };
 
     // If the active toolchain is not installed, call `moonup install`

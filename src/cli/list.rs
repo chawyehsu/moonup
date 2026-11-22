@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::toolchain::{InstalledToolchain, ToolchainSpec, installed_toolchains, resolve};
+use crate::toolchain::{ToolchainSpec, installed_toolchains, resolve};
 
 /// List installed and active toolchains
 #[derive(Parser, Debug)]
@@ -13,16 +13,16 @@ pub async fn execute(_: Args) -> miette::Result<()> {
     if installs.is_empty() {
         println!("No toolchains installed");
     } else {
-        let default = resolve::detect_default_toolchain();
+        let default = resolve::detect_default_toolchain()
+            .map(|value| ToolchainSpec::try_from(value.as_str()))
+            .transpose()
+            .map_err(|error| miette::miette!(error))?;
 
         println!("Installed toolchains:");
         for i in installs {
-            let is_default = default
-                .as_deref()
-                .map(|d| i.name == ToolchainSpec::from(d))
-                .unwrap_or(false);
+            let is_default = default.as_ref().is_some_and(|d| &i.spec == d);
 
-            let tags = match (is_default, i.tag.as_deref()) {
+            let tags = match (is_default, i.release_key.as_deref()) {
                 (true, Some(tag)) => {
                     Some(format!(" ({}, {})", console::style("default").cyan(), tag))
                 }
@@ -31,12 +31,11 @@ pub async fn execute(_: Args) -> miette::Result<()> {
                 (false, None) => None,
             };
 
-            println!("  {}{}", i.name, tags.unwrap_or_default());
+            println!("  {}{}", i.spec, tags.unwrap_or_default());
         }
 
-        let active = resolve::detect_active_toolchain();
-        let t = InstalledToolchain::from(active);
-        println!("\nActive toolchain: {}", console::style(t.name).green());
+        let active = resolve::detect_active_toolchain().map_err(|error| miette::miette!(error))?;
+        println!("\nActive toolchain: {}", console::style(active).green());
     }
 
     Ok(())

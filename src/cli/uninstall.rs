@@ -52,7 +52,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
         let selections = installed
             .iter()
-            .map(|t| t.name.to_owned())
+            .map(|t| t.spec.to_owned())
             .collect::<Vec<_>>();
 
         let selected = MultiSelect::with_theme(&theme::ColorfulTheme::default())

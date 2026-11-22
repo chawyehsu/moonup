@@ -16,6 +16,10 @@ use crate::{
     util::{TestWorkspace, mock_dist_server},
 };
 
+fn spec(value: &str) -> ToolchainSpec {
+    ToolchainSpec::try_from(value).expect("test spec should be valid")
+}
+
 /// The staging leftovers a recovery is expected to consume.
 fn staging_leftovers(spec: &ToolchainSpec) -> (PathBuf, PathBuf) {
     (
@@ -27,7 +31,7 @@ fn staging_leftovers(spec: &ToolchainSpec) -> (PathBuf, PathBuf) {
 /// Simulate a crash that left a fully assembled staging directory: move the
 /// live toolchain into the staging location and write the completeness marker.
 fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
-    let spec = ToolchainSpec::from(name);
+    let spec = spec(name);
 
     // the path helpers resolve `MOONUP_HOME` from the process environment, so
     // point it at the test workspace while computing the crash state
@@ -54,7 +58,7 @@ fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
 fn test_install_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
     let s = mock_dist_server();
-    let spec = ToolchainSpec::from(E2E_TEST_MOCK_INSTALL_VERSION);
+    let spec = spec(E2E_TEST_MOCK_INSTALL_VERSION);
 
     temp_env::with_var(
         constant::ENVNAME_MOONUP_HOME,
@@ -115,7 +119,7 @@ fn test_install_recovers_interrupted_swap() {
 fn test_update_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
     let s = mock_dist_server();
-    let spec = ToolchainSpec::from("latest");
+    let spec = spec("latest");
 
     temp_env::with_var(
         constant::ENVNAME_MOONUP_HOME,

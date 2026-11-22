@@ -245,19 +245,25 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
 /// Interpret a user-supplied toolchain string into a [`ToolchainSpec`].
 ///
 /// Interpretation is index-driven at resolve time: a string exactly matching a
-/// channel name advertised by the (cached) main index is a floating channel
-/// spec — the channel-name match wins over any other interpretation; anything
-/// else is parsed syntactically as a qualified or bare version pin. If the
-/// main index cannot be read, interpretation falls back to the syntactic
-/// classification of [`ToolchainSpec::from`].
+/// valid channel name advertised by the (cached) main index is a floating
+/// channel spec, except that the reserved legacy nightly-date spelling is
+/// interpreted as a pin first. Other strings use the syntactic spec parser.
 pub async fn interpret_spec(raw: &str) -> miette::Result<ToolchainSpec> {
+    let parsed = ToolchainSpec::try_from(raw).map_err(|error| miette::miette!(error))?;
+
+    // The compatibility spelling is reserved even if a server advertises a
+    // channel with the same literal name.
+    if super::legacy_nightly_key(raw).is_some() {
+        return Ok(parsed);
+    }
+
     match read_index().await {
         Ok(index) => {
             let is_channel = index.channels().iter().any(|c| c.name == raw);
             Ok(if is_channel {
                 ToolchainSpec::Channel(raw.to_owned())
             } else {
-                ToolchainSpec::from(raw.to_owned())
+                parsed
             })
         }
         Err(e) => {
@@ -265,21 +271,28 @@ pub async fn interpret_spec(raw: &str) -> miette::Result<ToolchainSpec> {
                 "failed to read main index for spec interpretation: {}; falling back to syntactic interpretation",
                 e
             );
-            Ok(ToolchainSpec::from(raw.to_owned()))
+            Ok(parsed)
         }
     }
 }
 
-/// The channels advertised by the main index, best-effort.
+/// The valid channels advertised by a readable main-index catalog.
 ///
-/// An empty list means the index could not be read; callers should let the
-/// channel index fetch produce its own error in that case.
-pub async fn available_channels() -> Vec<String> {
+/// `None` means no usable channel catalog was available. `Some(vec![])` means
+/// a catalog was read but contained no valid channel names.
+pub async fn available_channels() -> Option<Vec<String>> {
     match read_index().await {
-        Ok(index) => index.channels().iter().map(|c| c.name.clone()).collect(),
+        Ok(index) if index.has_channel_catalog() => Some(
+            index
+                .channels()
+                .iter()
+                .map(|channel| channel.name.clone())
+                .collect(),
+        ),
+        Ok(_) => None,
         Err(e) => {
             tracing::debug!("failed to read main index for available channels: {}", e);
-            Vec::new()
+            None
         }
     }
 }
@@ -288,7 +301,9 @@ pub async fn available_channels() -> Vec<String> {
 ///
 /// Returns `None` when the channel is not advertised by the main index, or no
 /// host-supported release matches the spec.
-pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
+pub(crate) async fn build_installrecipe(
+    spec: &ToolchainSpec,
+) -> miette::Result<Option<InstallRecipe>> {
     let channel = spec.channel().to_owned();
 
     // Validate the channel against the main index so an unknown channel
@@ -296,8 +311,9 @@ pub async fn build_installrecipe(spec: &ToolchainSpec) -> miette::Result<Option<
     // channels) instead of a bare download failure. Best-effort offline: if
     // the main index cannot be read, let the channel index fetch produce
     // its own error.
-    let channels = available_channels().await;
-    if !channels.is_empty() && !channels.contains(&channel) {
+    if let Some(channels) = available_channels().await
+        && !channels.contains(&channel)
+    {
         return Ok(None);
     }
 

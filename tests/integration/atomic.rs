@@ -6,6 +6,10 @@ use moonup::{
     toolchain::{ToolchainSpec, atomic, index::InstallRecipe, installed_toolchains},
 };
 
+fn spec(value: &str) -> ToolchainSpec {
+    ToolchainSpec::try_from(value).expect("test spec should be valid")
+}
+
 fn staged_marker(spec: &ToolchainSpec, json: &str) {
     let marker = atomic::completeness_marker_for(spec);
     std::fs::create_dir_all(marker.parent().unwrap()).expect("should create .staging dir");
@@ -29,7 +33,7 @@ fn test_recover_promotes_complete_staging() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let live_dir = spec.install_path();
             let staging_dir = atomic::staging_dir_for(&spec);
 
@@ -99,7 +103,7 @@ fn test_recover_does_not_promote_incomplete_staging() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
 
             // a staging dir without the completeness marker was cut short
             let staging_dir = atomic::staging_dir_for(&spec);
@@ -124,7 +128,7 @@ fn test_recover_retries_pending_finalization() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let live_dir = spec.install_path();
 
             // the live toolchain is already promoted but its finalization
@@ -156,7 +160,7 @@ fn test_swap_promotes_and_retires() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
 
             std::fs::create_dir_all(live_dir.join("bin")).expect("should create live dir");
@@ -199,7 +203,7 @@ fn test_swap_restores_retired_on_promotion_failure() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
 
             // crash state: the previous live toolchain was moved to `.old`,
@@ -240,7 +244,7 @@ fn test_staged_matches_requires_same_release() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             std::fs::create_dir_all(atomic::staging_dir_for(&spec))
                 .expect("should create staging dir");
             staged_marker(&spec, r#"{"version":"0.1.0"}"#);
@@ -278,12 +282,12 @@ fn test_installed_toolchains_excludes_staging() {
                 .expect("should create toolchain dir");
             std::fs::write(toolchains_dir.join("latest").join("version"), "0.1.0\n")
                 .expect("should write version stub");
-            std::fs::create_dir_all(atomic::staging_dir_for(&ToolchainSpec::from("latest")))
+            std::fs::create_dir_all(atomic::staging_dir_for(&spec("latest")))
                 .expect("should create staging dir");
 
             let installed = installed_toolchains().expect("should list installed toolchains");
             assert_eq!(installed.len(), 1);
-            assert_eq!(installed[0].name, ToolchainSpec::from("latest"));
+            assert_eq!(installed[0].spec, spec("latest"));
         },
     );
 }
@@ -317,7 +321,7 @@ fn test_installed_toolchains_stale_latest_cache_falls_back_to_numeric() {
             let installed = installed_toolchains().expect("should list installed toolchains");
             let names = installed
                 .iter()
-                .map(|t| t.name.to_string())
+                .map(|t| t.spec.to_string())
                 .collect::<Vec<_>>();
             assert_eq!(names, vec!["0.10.0", "0.11.0"]);
         },
@@ -333,7 +337,7 @@ fn test_swap_sweeps_deletable_stale_retired() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
 
             // a stale retired dir from a previous swap, now deletable
@@ -380,7 +384,7 @@ fn test_swap_sweeps_stale_tombstone() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
 
             // a stale retired dir and an even older shunted tombstone from a
@@ -429,7 +433,7 @@ fn test_sweep_staging_is_scoped_to_spec() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let staging_dir = atomic::staging_dir_for(&spec);
             std::fs::create_dir_all(&staging_dir).expect("should create staging dir");
 
@@ -490,7 +494,7 @@ fn test_swap_shunts_locked_retired() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            let spec = ToolchainSpec::from("latest");
+            let spec = spec("latest");
             let (live_dir, staging_dir, retired_dir) = swap_paths(&spec);
 
             let exe = std::env::current_exe().expect("should resolve current exe");
