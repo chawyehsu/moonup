@@ -13,13 +13,8 @@ moonup install nightly
 moonup install 0.1.20241231+ba15a9a4e
 
 # Specific nightly by date
-moonup install nightly@2026-01-01
-
-# Legacy pin-file spelling remains accepted
 moonup install nightly-2026-01-01
 ```
-
-Qualified pins accept `/` or `@`; Moonup displays and writes them with `@`.
 
 Aliases: `moonup i`
 
