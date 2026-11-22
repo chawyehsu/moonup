@@ -376,7 +376,7 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
             let release_positions = pinned_keys
                 .into_iter()
                 .map(|(channel, keys)| {
-                    let positions = read_release_positions(&channel, &keys, &channel_ranks);
+                    let positions = read_release_positions(&channel, &keys);
                     (channel, positions)
                 })
                 .collect();

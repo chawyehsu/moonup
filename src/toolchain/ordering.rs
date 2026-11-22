@@ -80,15 +80,28 @@ pub fn compare<'a>(
 /// last, by name.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ReleaseOrder {
-    /// A pinned dated build, ordered by its build date (YYYY-MM-DD)
-    Dated(String),
-    /// A pinned versioned build, ordered by its position in the channel
-    /// index. A release absent from the index triggers a fallback to
-    /// numeric version ordering for the whole group
-    Versioned(Option<usize>, NumericVersion),
+    /// A pinned build, grouped by channel before comparing its release order.
+    Pinned {
+        /// Rank in the main index; unranked channels sort last.
+        channel_rank: usize,
+        /// Name breaks ties between unranked channels.
+        channel: String,
+        /// Release ordering within this channel.
+        order: PinnedReleaseOrder,
+    },
     /// A floating channel install, ordered by its rank in the main
     /// index, then by name
     Channel(usize, String),
+}
+
+/// Ordering of a pinned release within its channel.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PinnedReleaseOrder {
+    /// A dated build, ordered by its build date (YYYY-MM-DD).
+    Dated(String),
+    /// A versioned build, ordered by its position in the channel index.
+    /// A release absent from the index triggers numeric version ordering.
+    Versioned(Option<usize>, NumericVersion),
 }
 
 /// Derive the [`ReleaseOrder`] sort key for an installed toolchain.
@@ -102,17 +115,21 @@ pub fn release_order(
             channel_ranks.get(c).copied().unwrap_or(usize::MAX),
             c.clone(),
         ),
-        ToolchainSpec::Version { channel, key } => match NumericVersion::parse(key) {
-            Ok(num) => ReleaseOrder::Versioned(
-                release_positions
-                    .get(channel)
-                    .and_then(|positions| positions.get(key))
-                    .copied(),
-                num,
-            ),
-            // Non-numeric keys are dated builds (YYYY-MM-DD); order them by
-            // their date string
-            Err(_) => ReleaseOrder::Dated(key.clone()),
+        ToolchainSpec::Version { channel, key } => ReleaseOrder::Pinned {
+            channel_rank: channel_ranks.get(channel).copied().unwrap_or(usize::MAX),
+            channel: channel.clone(),
+            order: match NumericVersion::parse(key) {
+                Ok(num) => PinnedReleaseOrder::Versioned(
+                    release_positions
+                        .get(channel)
+                        .and_then(|positions| positions.get(key))
+                        .copied(),
+                    num,
+                ),
+                // Non-numeric keys are dated builds (YYYY-MM-DD); order them
+                // by their date string within the channel.
+                Err(_) => PinnedReleaseOrder::Dated(key.clone()),
+            },
         },
     }
 }
@@ -121,11 +138,7 @@ pub fn release_order(
 ///
 /// Offline and best-effort: on any read or parse error the installs
 /// fall back to numeric version ordering.
-pub fn read_release_positions(
-    channel: &str,
-    keys: &[String],
-    channel_ranks: &HashMap<String, usize>,
-) -> HashMap<String, usize> {
+pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String, usize> {
     if keys.is_empty() {
         return HashMap::new();
     }
@@ -140,14 +153,11 @@ pub fn read_release_positions(
         return HashMap::new();
     };
 
-    // add the channel rank to the release positions so all releases from the
-    // same channel are grouped together according to the channel rank.
-    let channel_rank = channel_ranks.get(channel).copied().unwrap_or(0);
     let positions = index
         .releases()
         .iter()
         .enumerate()
-        .map(|(i, r)| (r.key().to_owned(), i + channel_rank))
+        .map(|(i, r)| (r.key().to_owned(), i))
         .collect::<HashMap<_, _>>();
 
     // A stale cache that lacks one of the installed releases would otherwise
@@ -205,5 +215,61 @@ mod tests {
             Err(CompareError::ReleaseNotFound(_))
         ));
         assert_eq!(compare([], "0.1", "0.2"), Err(CompareError::EmptySequence));
+    }
+
+    #[test]
+    fn groups_pinned_installs_by_channel_before_release_order() {
+        let channel_ranks = HashMap::from([("first".to_owned(), 0), ("second".to_owned(), 1)]);
+        let release_positions = HashMap::from([(
+            "first".to_owned(),
+            HashMap::from([("0.1.0".to_owned(), 10)]),
+        )]);
+        let first = ToolchainSpec::Version {
+            channel: "first".to_owned(),
+            key: "0.1.0".to_owned(),
+        };
+        let second = ToolchainSpec::Version {
+            channel: "second".to_owned(),
+            key: "99.0.0".to_owned(),
+        };
+
+        assert!(
+            release_order(&first, &release_positions, &channel_ranks)
+                < release_order(&second, &release_positions, &channel_ranks),
+            "channel rank must dominate release position and numeric version"
+        );
+
+        // Pinned release kinds are also compared only after the channel, so a
+        // ranked versioned channel precedes a later-ranked dated channel.
+        let dated = ToolchainSpec::Version {
+            channel: "second".to_owned(),
+            key: "2026-01-01".to_owned(),
+        };
+        assert!(
+            release_order(&first, &release_positions, &channel_ranks)
+                < release_order(&dated, &release_positions, &channel_ranks)
+        );
+    }
+
+    #[test]
+    fn orders_pinned_release_positions_within_a_channel() {
+        let channel_ranks = HashMap::from([("latest".to_owned(), 0)]);
+        let release_positions = HashMap::from([(
+            "latest".to_owned(),
+            HashMap::from([("0.9.0".to_owned(), 1), ("0.10.0".to_owned(), 0)]),
+        )]);
+        let older_index_position = ToolchainSpec::Version {
+            channel: "latest".to_owned(),
+            key: "0.10.0".to_owned(),
+        };
+        let newer_index_position = ToolchainSpec::Version {
+            channel: "latest".to_owned(),
+            key: "0.9.0".to_owned(),
+        };
+
+        assert!(
+            release_order(&older_index_position, &release_positions, &channel_ranks)
+                < release_order(&newer_index_position, &release_positions, &channel_ranks)
+        );
     }
 }
