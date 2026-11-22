@@ -61,10 +61,15 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
         .ok_or_else(|| miette::miette!("failed to read toolchain install name"))?;
 
     let meta_file = install_dir.join(METADATA_FILENAME);
-    match std::fs::read_to_string(meta_file) {
+    match std::fs::read_to_string(&meta_file) {
         Ok(content) => {
             // JSON-formatted install metadata, for all new installs
-            if let Ok(meta) = serde_json::from_str::<InstallMeta>(&content) {
+            if let Ok(meta) = serde_json::from_str::<InstallMeta>(&content).inspect_err(|e| {
+                tracing::warn!(
+                    "failed to parse install metadata file: {}, {e}",
+                    meta_file.display()
+                );
+            }) {
                 return Ok(meta);
             }
 
@@ -81,6 +86,7 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
                 });
             }
 
+            // invalid metadata content
             return Err(miette::miette!(
                 "failed to derive install meta from content"
             ));
@@ -104,7 +110,7 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
                 });
             }
 
-            // otherwise, it's a broken install
+            // otherwise, it's not an install or a broken install
             return Err(miette::miette!(
                 "failed to derive install meta from filename"
             ));
@@ -238,13 +244,6 @@ impl ToolchainSpec {
         let mut path = crate::moonup_home().join("toolchains");
         path.push(self.install_name());
         path
-    }
-
-    /// Get the install metadata for this toolchain, if available.
-    ///
-    /// Returns `None` if the metadata file is not present or cannot be parsed.
-    pub fn install_meta(&self) -> Option<InstallMeta> {
-        read_install_meta(&self.install_path()).ok()
     }
 }
 

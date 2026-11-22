@@ -5,7 +5,7 @@ use tracing::instrument;
 
 use crate::{
     constant,
-    toolchain::{ToolchainSpec, atomic, installed_toolchains},
+    toolchain::{InstalledToolchain, ToolchainSpec, atomic, installed_toolchains},
 };
 
 /// Uninstall a MoonBit toolchain.
@@ -83,18 +83,20 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         tracing::info!("uninstalling toolchain {}", toolchain);
 
         if !args.keep_cache {
-            match toolchain.install_meta() {
-                None => {}
-                Some(meta) => {
-                    let mut download_dir = crate::moonup_home().join("downloads");
-                    download_dir.push(toolchain.channel());
-                    download_dir.push(&meta.key);
+            if let Ok(installed) = InstalledToolchain::from_path(&toolchain_dir) {
+                let mut download_dir = crate::moonup_home().join("downloads");
+                download_dir.push(toolchain.channel());
+                download_dir.push(&installed.key());
 
-                    tracing::info!("removing cached downloads {}", download_dir.display());
-                    let _ = crate::fs::remove_dir_all(download_dir).inspect_err(|e| {
-                        tracing::warn!("failed to remove cached downloads: {}", e);
-                    });
-                }
+                tracing::info!("removing cached downloads {}", download_dir.display());
+                let _ = crate::fs::remove_dir_all(download_dir).inspect_err(|e| {
+                    tracing::warn!("failed to remove cached downloads: {}", e);
+                });
+            } else {
+                tracing::warn!(
+                    "failed to read installed toolchain from path: {}",
+                    toolchain_dir.display()
+                );
             }
         }
 
