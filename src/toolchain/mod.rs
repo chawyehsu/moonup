@@ -230,7 +230,7 @@ impl ToolchainSpec {
         }
 
         // Bare, version-shaped string: a pin in the default channel.
-        if value.contains('+') || version::is_stable_selector(value) {
+        if version::is_semver_version(value) || version::is_stable_selector(value) {
             return ToolchainSpec::Version {
                 channel: DEFAULT_CHANNEL.to_owned(),
                 key: value.to_owned(),
@@ -468,6 +468,13 @@ mod tests {
                 key: "0.11.0+abc".to_owned(),
             }
         );
+        assert_eq!(
+            spec("1.0.0-preview"),
+            ToolchainSpec::Version {
+                channel: DEFAULT_CHANNEL.to_owned(),
+                key: "1.0.0-preview".to_owned(),
+            }
+        );
     }
 
     #[test]
@@ -483,6 +490,9 @@ mod tests {
     fn canonicalizes_default_channel_pins_to_bare_keys() {
         assert_eq!(spec("latest/0.11.0").canonical(), "0.11.0");
         assert_eq!(spec("0.11.0").canonical(), "0.11.0");
+        let prerelease = spec("latest@1.0.0-preview");
+        assert_eq!(prerelease.canonical(), "1.0.0-preview");
+        assert_eq!(spec(&prerelease.canonical()), prerelease);
         assert_eq!(spec("lts/0.11.0").canonical(), "lts@0.11.0");
         assert_eq!(spec("lts@0.11.0").canonical(), "lts@0.11.0");
         // Legacy dashed nightly pins canonicalize to the new form.

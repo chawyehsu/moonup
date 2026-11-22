@@ -12,6 +12,11 @@ pub fn is_stable_selector(value: &str) -> bool {
     }
 }
 
+/// Whether a value is a concrete SemVer version, rather than a partial selector.
+pub fn is_semver_version(value: &str) -> bool {
+    semver::Version::parse(value).is_ok()
+}
+
 /// Resolve a numeric stable-version selector against an oldest-first release list.
 pub fn resolve_stable_selector<'a>(
     selector: &str,
@@ -100,5 +105,18 @@ mod tests {
         );
         assert!(resolve_stable_selector("v0.10", releases.iter()).is_none());
         assert!(resolve_stable_selector("0.10.1.2", releases.iter()).is_none());
+    }
+
+    #[test]
+    fn recognizes_concrete_semver_versions() {
+        assert!(is_semver_version("1.0.0"));
+        assert!(is_semver_version("1.0.0+build.1"));
+        assert!(is_semver_version("1.0.0-preview"));
+        assert!(is_semver_version("1.0.0-rc.1"));
+        assert!(is_semver_version("1.0.0-preview+build.1"));
+        assert!(!is_semver_version("1.0"));
+        assert!(!is_semver_version("1.0.0-"));
+        assert!(!is_semver_version("1.0.0-pre_view"));
+        assert!(!is_semver_version("1.0.0-01"));
     }
 }

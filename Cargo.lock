@@ -1777,6 +1777,7 @@ dependencies = [
  "reqwest-middleware",
  "reqwest-retry",
  "self_update",
+ "semver",
  "serde",
  "serde_json",
  "serial_test",
