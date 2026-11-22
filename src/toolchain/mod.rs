@@ -513,7 +513,7 @@ mod tests {
         std::fs::create_dir_all(&floating).expect("should create dir");
         std::fs::write(
             floating.join(METADATA_FILENAME),
-            r#"{"channel":"lts","key":"1.0.0"}"#,
+            r#"{"channel":"lts","key":"1.0.0","floating":true}"#,
         )
         .expect("should write stub");
         let parsed = InstalledToolchain::from_path(&floating).expect("should classify");
@@ -525,7 +525,7 @@ mod tests {
         std::fs::create_dir_all(&pinned).expect("should create dir");
         std::fs::write(
             pinned.join(METADATA_FILENAME),
-            r#"{"channel":"lts","key":"1.0.0"}"#,
+            r#"{"channel":"lts","key":"1.0.0","floating":false}"#,
         )
         .expect("should write stub");
         let parsed = InstalledToolchain::from_path(&pinned).expect("should classify");
@@ -544,7 +544,7 @@ mod tests {
         std::fs::create_dir_all(&prerelease).expect("should create dir");
         std::fs::write(
             prerelease.join(METADATA_FILENAME),
-            r#"{"channel":"dev-preview","key":"1.0.0-preview"}"#,
+            r#"{"channel":"dev-preview","key":"1.0.0-preview","floating":false}"#,
         )
         .expect("should write stub");
         let parsed = InstalledToolchain::from_path(&prerelease).expect("should classify");

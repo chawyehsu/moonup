@@ -667,8 +667,8 @@ fn moonup_install_qualified_pin() {
     let meta = fs::read_to_string(qualified_dir.join("version")).expect("should read stub");
     assert_eq!(
         meta.trim(),
-        format!(r#"{{"channel":"lts","key":"{version}"}}"#),
-        "the metadata stub should record the channel and release key"
+        format!(r#"{{"channel":"lts","key":"{version}","floating":false}}"#),
+        "the metadata file should record the metadata correctly"
     );
 
     // The same version pinned from the default channel does not collide
