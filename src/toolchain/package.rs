@@ -11,18 +11,18 @@ use crate::{
 use super::{atomic, index::InstallRecipe};
 
 pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
-    let live_dir = recipe.spec.install_path();
-    let staging_dir = atomic::staging_dir_for(&recipe.spec);
+    atomic::ensure_install_path_available(&recipe.spec)?;
 
     // A previous run may have finished assembling the staging directory but
     // failed while swapping it into place; retry the swap rather than
     // discarding the fully-assembled toolchain, as long as it holds the same
     // release the recipe resolves to.
-    if atomic::is_complete(&recipe.spec) && atomic::staged_matches(&recipe.spec, recipe) {
-        atomic::swap(&live_dir, &staging_dir)?;
+    if atomic::is_complete(&recipe.spec) && atomic::staged_matches(&recipe.spec, recipe)? {
+        atomic::swap(&recipe.spec)?;
         return Ok(());
     }
 
+    let staging_dir = atomic::staging_dir_for(&recipe.spec);
     // Assemble the new toolchain in a staging directory and swap it into the
     // live location only once it is fully assembled. A failed run leaves a
     // discarded staging directory, never a damaged live toolchain. A stale
@@ -198,7 +198,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         .await
         .into_diagnostic()?;
 
-    atomic::swap(&live_dir, &staging_dir)?;
+    atomic::swap(&recipe.spec)?;
 
     Ok(())
 }
