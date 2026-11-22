@@ -17,7 +17,7 @@ fn format_command(cmd: &std::process::Command) -> String {
 }
 
 pub async fn execute(args: Args) -> miette::Result<()> {
-    let spec = detect_active_toolchain();
+    let spec = detect_active_toolchain().map_err(|error| miette::miette!(error))?;
 
     match runner::build_command(spec, vec![args.command.as_str()]) {
         Ok(cmd) => println!("{}", format_command(&cmd)),

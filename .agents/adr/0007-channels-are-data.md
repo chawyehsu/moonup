@@ -81,3 +81,37 @@ therefore channel-qualified:
 - Old component-index cache directories (`downloads/bleeding`,
   `downloads/latest/{version}`, `downloads/nightly/{date}`) are orphaned; they
   expire by timestamp and never matter beyond the 1-hour cache window.
+
+## Amendment: channel validation and unambiguous pin syntax
+
+This amendment supersedes the earlier amendment's separator and canonical-form
+decisions.
+
+Channel names are data, but they must still be addressable by Moonup. A channel
+name must be non-empty and contain only lowercase ASCII letters, digits, and
+hyphens. Invalid channel entries from the main index are ignored with a warning;
+invalid user-provided channel names are rejected.
+
+Qualified pin input uses `/` or `@`, with `@` as the canonical spelling and the
+form shown by `list` and `pin`. `-` is no longer a general separator, since it is
+valid within a channel name. The exact legacy form `nightly-YYYY-MM-DD` remains
+accepted everywhere a toolchain spec is consumed, provided the suffix is a real
+calendar date. That shape is reserved for the legacy nightly pin. Latest-channel
+pins remain bare release keys, including keys with build metadata.
+
+Reading a legacy dashed pin file does not rewrite it. An explicit `moonup pin`
+write uses the canonical spelling. Install-directory names remain unchanged:
+latest pins use their bare key, and other-channel pins use
+`{channel}-{key}`. The per-install metadata records channel and key separately
+and takes precedence over directory-name inference. Metadata-free legacy
+directory inference retains only the nightly-date compatibility form, alongside
+the existing latest-key recognition for numeric and `+` build-metadata names.
+Future prerelease keys containing hyphens rely on per-install metadata, which
+every new install writes before promotion into the live toolchains directory.
+
+The toolchains directory remains the source of truth for installed-toolchain
+inventory. A global manifest is not introduced: it would duplicate that state
+and could drift after manual directory changes or interrupted install/update/
+uninstall operations. A future short-lived, derived I/O cache may be considered
+if inventory scans prove costly; it must not become an independent source of
+truth.

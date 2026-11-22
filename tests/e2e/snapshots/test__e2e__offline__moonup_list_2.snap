@@ -1,0 +1,19 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - list
+---
+success: true
+exit_code: 0
+----- stdout -----
+Moonup home: [MOONUP_HOME]
+
+Installed toolchains:
+  0.10.17+d971670cd
+  latest (default, 0.10.17+d971670cd)
+
+Active toolchain: latest
+
+----- stderr -----

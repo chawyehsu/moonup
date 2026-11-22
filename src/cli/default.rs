@@ -21,7 +21,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             let selections = match crate::toolchain::installed_toolchains() {
                 Ok(toolchains) => toolchains
                     .iter()
-                    .map(|t| t.name.to_owned())
+                    .map(|t| t.spec.to_owned())
                     .rev()
                     .collect::<Vec<_>>(),
                 Err(_) => Vec::new(),

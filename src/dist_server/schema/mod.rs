@@ -46,14 +46,46 @@ pub enum Index {
 }
 
 impl Index {
-    /// Get the channels from the index if available
-    pub fn channels(&self) -> &[Channel] {
-        match self {
+    /// Whether this index format carries an explicit channel catalog.
+    pub fn has_channel_catalog(&self) -> bool {
+        matches!(
+            self,
+            Index::Versioned(VersionedIndex::V2(_) | VersionedIndex::V3(_))
+        )
+    }
+
+    /// Get valid channels from the index, ignoring entries with invalid names.
+    pub fn channels(&self) -> Vec<&Channel> {
+        let channels = match self {
             Index::Versioned(VersionedIndex::V2(i)) => i.channels.as_slice(),
             Index::Versioned(VersionedIndex::V3(i)) => i.channels.as_slice(),
             _ => &[],
-        }
+        };
+
+        channels
+            .iter()
+            .filter(|channel| {
+                if is_valid_channel_name(&channel.name) {
+                    true
+                } else {
+                    tracing::warn!(
+                        channel = %channel.name,
+                        "ignoring dist-server channel with invalid name"
+                    );
+                    false
+                }
+            })
+            .collect()
     }
+}
+
+/// Whether a channel name is a non-empty lowercase ASCII name using only
+/// letters, digits, and hyphens.
+pub fn is_valid_channel_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
 /// Represents a channel in the index
@@ -325,5 +357,48 @@ impl std::fmt::Display for Target {
             Target::Amd64Windows => write!(f, "x86_64-pc-windows"),
             Target::Unknown(t) => write!(f, "{t}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_channel_names() {
+        for name in ["latest", "dev-preview", "nightly-2", "123"] {
+            assert!(is_valid_channel_name(name), "expected {name:?} to be valid");
+        }
+
+        for name in ["", "Latest", "dev_preview", "dev/preview", "dev@preview"] {
+            assert!(
+                !is_valid_channel_name(name),
+                "expected {name:?} to be invalid"
+            );
+        }
+    }
+
+    #[test]
+    fn ignores_channels_with_invalid_names() {
+        let index: Index = serde_json::from_str(
+            r#"{
+                "version": 2,
+                "lastModified": "",
+                "channels": [
+                    {"name": "latest", "version": "1.0.0"},
+                    {"name": "dev-preview", "version": "1.0.0-preview"},
+                    {"name": "Invalid_Name", "version": "1.0.0"}
+                ],
+                "targets": []
+            }"#,
+        )
+        .expect("index should deserialize");
+
+        let names = index
+            .channels()
+            .iter()
+            .map(|channel| channel.name.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["latest", "dev-preview"]);
     }
 }
