@@ -45,6 +45,57 @@ fn moonup_default() {
 }
 
 #[test]
+fn moonup_list() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let s = util::mock_dist_server();
+    let version = crate::constant::E2E_TEST_MOCK_INSTALL_VERSION;
+
+    // Install the latest toolchain (floating)
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should install latest toolchain successfully");
+    assert!(output.status.success());
+    // Install the pinned toolchain
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg(version)
+        .output()
+        .expect("should install pinned toolchain successfully");
+    assert!(output.status.success());
+
+    assert_cmd_snapshot!("moonup_list_1", ws.cli().arg("list"));
+
+    // Set default toolchain to latest (floating)
+    let output = ws
+        .cli()
+        .arg("default")
+        .arg("latest")
+        .output()
+        .expect("should set default toolchain successfully");
+    assert!(output.status.success());
+
+    assert_cmd_snapshot!("moonup_list_2", ws.cli().arg("list"));
+
+    // Set default toolchain to pinned
+    let output = ws
+        .cli()
+        .arg("default")
+        .arg(version)
+        .output()
+        .expect("should set default toolchain successfully");
+    assert!(output.status.success());
+
+    assert_cmd_snapshot!("moonup_list_3", ws.cli().arg("list"));
+}
+
+#[test]
 fn moonup_others() {
     util::apply_common_filters!();
     let ws = TestWorkspace::new();
@@ -291,6 +342,21 @@ fn offline_flow_interactive() {
 }
 
 #[test]
+fn moonup_install_invalid_channel() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let s = util::mock_dist_server();
+
+    assert_cmd_snapshot!(
+        "moonup_install_invalid_channel",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg("bad%channel")
+    );
+}
+
+#[test]
 fn moonup_install_unknown_channel() {
     util::apply_common_filters!();
     let ws = TestWorkspace::new();
@@ -356,6 +422,51 @@ fn moonup_update_up_to_date() {
         "moonup_update_up_to_date",
         ws.cli()
             .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("update")
+    );
+}
+
+#[test]
+fn moonup_update_no_host_supported_release() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let mut server = util::mock_dist_server();
+
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should install latest toolchain");
+    assert!(output.status.success(), "install should succeed");
+
+    // Clear the cached index so update sees a channel with no host-supported
+    // release.
+    let _ = ws
+        .cli()
+        .arg("uninstall")
+        .arg("--clear")
+        .output()
+        .expect("should clear cached downloads");
+
+    server.reset();
+    server
+        .mock("GET", "/index.json")
+        .with_body_from_file(util::fixture_path("index.json"))
+        .create();
+    server
+        .mock("GET", "/channel-latest.json")
+        .with_body(
+            r#"{"version":3,"lastModified":"20261121T0000000000Z","releases":[
+                {"version":"0.10.17+unsupported","targets":[]}] }"#,
+        )
+        .create();
+
+    assert_cmd_snapshot!(
+        "moonup_update_no_host_supported_release",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url())
             .arg("update")
     );
 }
@@ -680,8 +791,8 @@ fn moonup_install_qualified_pin() {
     let meta = fs::read_to_string(qualified_dir.join("version")).expect("should read stub");
     assert_eq!(
         meta.trim(),
-        format!(r#"{{"channel":"lts","key":"{version}"}}"#),
-        "the metadata stub should record the channel and release key"
+        format!(r#"{{"channel":"lts","key":"{version}","floating":false}}"#),
+        "the metadata file should record the metadata correctly"
     );
 
     // The same version pinned from the default channel does not collide

@@ -19,6 +19,11 @@ The user-facing install selector: either a channel name (floating: "newest of
 that channel") or a pinned version.
 _Avoid_: toolchain reference, spec string
 
+**Installed toolchain**:
+An existing local toolchain installation, identified by its floating channel or
+pinned version. A floating installation may also have a known current release
+key.
+
 **Default channel**:
 The fixed-name channel `latest` that every dist server must advertise. Bare
 version pins always resolve within it; the shim's network-free toolchain
@@ -34,17 +39,18 @@ _Avoid_: branch, track
 
 **Qualified pin**:
 A pinned version that names its channel explicitly, written
-`{channel}<sep>{key}` with `<sep>` one of `/`, `-`, `@` (e.g. `lts/0.11.0`),
-canonicalized with `-`. It exists so
-the same release version can be pinned from different channels without the
+`{channel}<sep>{key}` with `<sep>` `/` or `@` (e.g. `lts/0.11.0` or
+`lts@0.11.0`), and canonically written with `@`. The legacy
+`nightly-YYYY-MM-DD` spelling remains accepted for dated nightly pins. It exists
+so the same release version can be pinned from different channels without the
 installs colliding.
 _Avoid_: channel-qualified version, namespaced pin
 
 **Pinned version**:
 A concrete release identified by its channel and release key: bare (e.g.
 `0.11.0`, meaning the `latest` channel) or qualified (e.g. `lts/0.11.0`). Dated
-builds use the build date as the key (e.g. `nightly-2026-11-19`, written
-`nightly-2026-11-19` in canonical form).
+builds use the build date as the key (e.g. `nightly@2026-11-19`; the legacy
+`nightly-2026-11-19` spelling is also accepted).
 _Avoid_: dated spec, versioned channel
 
 **Stable selector**:

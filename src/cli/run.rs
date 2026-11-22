@@ -2,11 +2,14 @@ use clap::{Parser, ValueHint};
 
 use crate::{runner, status, toolchain::ToolchainSpec};
 
+use super::ToolchainSpecValueParser;
+
 /// Run a command with a specific toolchain
 #[derive(Parser, Debug)]
 #[clap(arg_required_else_help = true, trailing_var_arg = true)]
 pub struct Args {
     /// The toolchain to use for running the command
+    #[clap(value_parser = ToolchainSpecValueParser::new())]
     toolchain: ToolchainSpec,
 
     /// The command to run, with arguments if any

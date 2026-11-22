@@ -8,7 +8,7 @@ use crate::constant;
 use crate::dist_server::schema::{ChannelIndex, ComponentIndex, Index, Release, Target};
 use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
 
-use super::ToolchainSpec;
+use super::{ToolchainSpec, install::InstallRecipe, version};
 
 /// Read the main index
 pub async fn read_index() -> miette::Result<Index> {
@@ -229,19 +229,25 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
 /// Interpret a user-supplied toolchain string into a [`ToolchainSpec`].
 ///
 /// Interpretation is index-driven at resolve time: a string exactly matching a
-/// channel name advertised by the (cached) main index is a floating channel
-/// spec — the channel-name match wins over any other interpretation; anything
-/// else is parsed syntactically as a qualified or bare version pin. If the
-/// main index cannot be read, interpretation falls back to the syntactic
-/// classification of [`ToolchainSpec::from`].
+/// valid channel name advertised by the (cached) main index is a floating
+/// channel spec, except that the reserved legacy nightly-date spelling is
+/// interpreted as a pin first. Other strings use the syntactic spec parser.
 pub async fn interpret_spec(raw: &str) -> miette::Result<ToolchainSpec> {
+    let parsed = ToolchainSpec::try_from(raw).map_err(|error| miette::miette!(error))?;
+
+    // The compatibility spelling is reserved even if a server advertises a
+    // channel with the same literal name.
+    if super::legacy_nightly_key(raw).is_some() {
+        return Ok(parsed);
+    }
+
     match read_index().await {
         Ok(index) => {
             let is_channel = index.channels().iter().any(|c| c.name == raw);
             Ok(if is_channel {
                 ToolchainSpec::Channel(raw.to_owned())
             } else {
-                ToolchainSpec::from(raw.to_owned())
+                parsed
             })
         }
         Err(e) => {
@@ -249,21 +255,87 @@ pub async fn interpret_spec(raw: &str) -> miette::Result<ToolchainSpec> {
                 "failed to read main index for spec interpretation: {}; falling back to syntactic interpretation",
                 e
             );
-            Ok(ToolchainSpec::from(raw.to_owned()))
+            Ok(parsed)
         }
     }
 }
 
-/// The channels advertised by the main index, best-effort.
+/// The valid channels advertised by a readable main-index catalog.
 ///
-/// An empty list means the index could not be read; callers should let the
-/// channel index fetch produce its own error in that case.
-pub async fn available_channels() -> Vec<String> {
+/// `None` means no usable channel catalog was available. `Some(vec![])` means
+/// a catalog was read but contained no valid channel names.
+pub async fn available_channels() -> Option<Vec<String>> {
     match read_index().await {
-        Ok(index) => index.channels().iter().map(|c| c.name.clone()).collect(),
+        Ok(index) if index.has_channel_catalog() => Some(
+            index
+                .channels()
+                .iter()
+                .map(|channel| channel.name.clone())
+                .collect(),
+        ),
+        Ok(_) => None,
         Err(e) => {
             tracing::debug!("failed to read main index for available channels: {}", e);
-            Vec::new()
+            None
         }
     }
+}
+
+/// Resolve a toolchain spec against its channel index into an install recipe.
+///
+/// Returns `None` when the channel is not advertised by the main index, or no
+/// host-supported release matches the spec.
+pub(crate) async fn build_installrecipe(
+    spec: &ToolchainSpec,
+) -> miette::Result<Option<InstallRecipe>> {
+    let channel = spec.channel().to_owned();
+
+    // Validate the channel against the main index so an unknown channel
+    // resolves to no recipe (the caller reports it with the available
+    // channels) instead of a bare download failure. Best-effort offline: if
+    // the main index cannot be read, let the channel index fetch produce
+    // its own error.
+    if let Some(channels) = available_channels().await
+        && !channels.contains(&channel)
+    {
+        return Ok(None);
+    }
+
+    let index = read_channel_index(&channel).await?;
+    let mut releases = index.releases().iter().filter(|r| r.is_host_supported());
+
+    let release = match spec {
+        ToolchainSpec::Channel(_) => releases.next_back().cloned(),
+        ToolchainSpec::Version { key, .. } if version::is_stable_selector(key) => {
+            version::resolve_stable_selector(key, releases).cloned()
+        }
+        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key).cloned(),
+    };
+
+    let Some(release) = release else {
+        tracing::debug!("no release available for requested spec: {}", spec);
+        return Ok(None);
+    };
+
+    let components = read_component_index(&channel, &release)
+        .await?
+        .components()
+        .to_vec();
+    let effective_spec = match spec {
+        ToolchainSpec::Version { channel, key } if version::is_stable_selector(key) => {
+            ToolchainSpec::Version {
+                channel: channel.clone(),
+                key: release.version.clone(),
+            }
+        }
+        _ => spec.clone(),
+    };
+    let recipe = InstallRecipe {
+        spec: effective_spec,
+        requested_spec: spec.clone(),
+        release,
+        components,
+    };
+
+    Ok(Some(recipe))
 }

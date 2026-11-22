@@ -54,17 +54,18 @@ pub fn detect_default_toolchain() -> Option<String> {
 ///
 /// # Returns
 ///
-/// The detected active toolchain in [`ToolchainSpec`]
+/// The detected active toolchain in [`ToolchainSpec`], or a channel-name parse
+/// error if a pin/default file contains an invalid spec.
 ///
 /// # Note
 ///
-/// This function is used by the `moonup-shim`, and because we don't want to
-/// bloated the shim, miette/tracing should not be used here.
-pub fn detect_active_toolchain() -> ToolchainSpec {
+/// This function is used by the `moonup-shim`; keep it independent of
+/// `miette` and `tracing` so the shim stays small.
+pub fn detect_active_toolchain() -> Result<ToolchainSpec, super::InvalidChannelName> {
     let active = detect_pinned_toolchain()
         .or(detect_default_toolchain())
         .unwrap_or(DEFAULT_CHANNEL.to_string());
-    ToolchainSpec::from(active)
+    ToolchainSpec::try_from(active)
 }
 
 /// Resolves the executable binary in the given paths.

@@ -1,5 +1,6 @@
-use crate::toolchain::{ToolchainSpec, atomic, install::sync_toolchain};
 use clap::Parser;
+
+use crate::toolchain::{ToolchainSpec, atomic, install::sync_toolchain};
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
@@ -48,8 +49,8 @@ pub async fn execute(_: Args) -> miette::Result<()> {
 fn installed_channels() -> miette::Result<Vec<ToolchainSpec>> {
     let installed = crate::toolchain::installed_toolchains()?
         .into_iter()
-        .filter(|t| matches!(t.name, ToolchainSpec::Channel(_)))
-        .map(|t| t.name)
+        .filter(|toolchain| matches!(&toolchain.spec, ToolchainSpec::Channel(_)))
+        .map(|toolchain| toolchain.spec)
         .collect();
     Ok(installed)
 }
@@ -66,12 +67,14 @@ fn incomplete_channels() -> Vec<ToolchainSpec> {
 
     entries
         .flatten()
-        .filter_map(|e| {
-            let name = e.file_name().to_str()?.to_owned();
+        .filter_map(|entry| {
+            let name = entry.file_name().to_str()?.to_owned();
             name.strip_suffix(atomic::STAGING_SUFFIX).map(str::to_owned)
         })
-        // Pinned-version staging leftovers are not updated by `moonup update`
-        .filter(|name| matches!(ToolchainSpec::from(name.clone()), ToolchainSpec::Channel(_)))
-        .map(ToolchainSpec::Channel)
+        // Pinned-version staging leftovers are not updated by `moonup update`.
+        .filter_map(|name| {
+            let spec = ToolchainSpec::try_from(name).ok()?;
+            matches!(&spec, ToolchainSpec::Channel(_)).then_some(spec)
+        })
         .collect()
 }

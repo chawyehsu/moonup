@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use crate::dist_server::schema::Release;
 
-use super::ToolchainSpec;
 use super::install::InstallRecipe;
+use super::{InstalledToolchain, ToolchainSpec};
 
 pub const STAGING_DIR: &str = ".staging";
 pub const STAGING_SUFFIX: &str = ".new";
@@ -55,6 +55,11 @@ pub struct StagedRelease {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channel: Option<String>,
 
+    /// Whether the spec being staged is a floating channel install. Absent in
+    /// markers written before install identity was recorded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub floating: Option<bool>,
+
     /// The staged release
     #[serde(flatten)]
     pub release: Release,
@@ -65,8 +70,20 @@ impl StagedRelease {
     pub fn from_recipe(recipe: &InstallRecipe) -> Self {
         Self {
             channel: Some(recipe.spec.channel().to_owned()),
+            floating: Some(matches!(recipe.spec, ToolchainSpec::Channel(_))),
             release: recipe.release.clone(),
         }
+    }
+
+    /// Whether this staged install is compatible with the requested spec.
+    /// Missing fields are accepted for older completeness markers.
+    fn matches_spec(&self, spec: &ToolchainSpec) -> bool {
+        self.channel
+            .as_deref()
+            .is_none_or(|channel| channel == spec.channel())
+            && self
+                .floating
+                .is_none_or(|floating| floating == matches!(spec, ToolchainSpec::Channel(_)))
     }
 
     /// Build a recipe carrying the staged release metadata, enough to run the
@@ -94,13 +111,45 @@ impl StagedRelease {
 }
 
 /// Whether a complete staging directory holds the same release as the given
-/// recipe, so a stale staging is never promoted over a newer release.
-pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> bool {
+/// recipe, so a stale staging is never promoted over a newer release. Returns
+/// an error if its recorded identity belongs to a different spec; returns
+/// `false` when the marker is missing, unreadable, or records another release.
+pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> miette::Result<bool> {
     let Some(staged) = read_staged_release(spec) else {
-        return false;
+        return Ok(false);
     };
 
-    staged.release.key() == recipe.release.key()
+    ensure_staged_spec(spec, &staged)?;
+    Ok(staged.release.key() == recipe.release.key())
+}
+
+/// Verify that the live install path is either vacant or belongs to this spec.
+///
+/// An existing path whose identity cannot be read is rejected rather than
+/// replaced, since it may be a different toolchain sharing the same flat name.
+pub fn ensure_install_path_available(spec: &ToolchainSpec) -> miette::Result<()> {
+    let live = spec.install_path();
+    if !live.exists() {
+        return Ok(());
+    }
+
+    let installed = InstalledToolchain::from_path(&live).map_err(|e| {
+        miette::miette!(
+            "path '{}' is occupied and cannot be verified ({e})",
+            live.display()
+        )
+    })?;
+
+    if installed.spec != *spec {
+        return Err(miette::miette!(
+            "cannot install '{}' to path '{}' occupied by '{}', uninstall the existing toolchain first",
+            spec,
+            live.display(),
+            installed.spec,
+        ));
+    }
+
+    Ok(())
 }
 
 /// Swap a fully-assembled staging directory into the live install location
@@ -117,7 +166,25 @@ pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> bool {
 /// processes have exited. The completeness marker is retained as a
 /// pending-finalization record and is removed by [`acknowledge`] once the
 /// caller has finalized the promotion.
-pub fn swap(live: &Path, staging: &Path) -> miette::Result<()> {
+pub fn swap(spec: &ToolchainSpec) -> miette::Result<()> {
+    let live = spec.install_path();
+    let staging = staging_dir_for(spec);
+
+    ensure_install_path_available(spec)?;
+    if staging.exists() {
+        let Some(staged) = read_staged_release(spec) else {
+            return Err(miette::miette!(
+                "refusing to promote staging for '{}': its toolchain identity cannot be verified",
+                spec
+            ));
+        };
+        ensure_staged_spec(spec, &staged)?;
+    }
+
+    swap_paths(&live, &staging)
+}
+
+fn swap_paths(live: &Path, staging: &Path) -> miette::Result<()> {
     let retired = sibling_with_suffix(staging, STAGING_SUFFIX, RETIRED_SUFFIX);
 
     if live.exists() {
@@ -192,7 +259,7 @@ pub fn recover(spec: &ToolchainSpec) -> miette::Result<Option<StagedRelease>> {
         let Some(staged) = read_staged_release(spec) else {
             return Ok(None);
         };
-        swap(&live, &staging)?;
+        swap(spec)?;
         return Ok(Some(staged));
     }
 
@@ -201,10 +268,22 @@ pub fn recover(spec: &ToolchainSpec) -> miette::Result<Option<StagedRelease>> {
         && marker.is_file()
         && let Some(staged) = read_staged_release(spec)
     {
+        ensure_install_path_available(spec)?;
+        ensure_staged_spec(spec, &staged)?;
         return Ok(Some(staged));
     }
 
     Ok(None)
+}
+
+fn ensure_staged_spec(spec: &ToolchainSpec, staged: &StagedRelease) -> miette::Result<()> {
+    if !staged.matches_spec(spec) {
+        return Err(miette::miette!(
+            "interrupted install for '{}' contains a different toolchain; refusing recovery",
+            spec
+        ));
+    }
+    Ok(())
 }
 
 /// Acknowledge successful finalization of a promoted toolchain by removing its
@@ -317,6 +396,23 @@ mod tests {
         let (pid, counter) = suffix.split_once('.').expect("pid.counter suffix");
         assert_eq!(pid, std::process::id().to_string());
         assert!(counter.parse::<u64>().is_ok());
+    }
+
+    #[test]
+    fn staged_identity_distinguishes_a_channel_from_a_colliding_pin() {
+        let staged = StagedRelease {
+            channel: Some("lts-2026-01-01".to_owned()),
+            floating: Some(true),
+            release: Release::new("2026-01-01"),
+        };
+        let colliding_pin = ToolchainSpec::Version {
+            channel: "lts".to_owned(),
+            key: "2026-01-01".to_owned(),
+        };
+        let floating_channel = ToolchainSpec::Channel("lts-2026-01-01".to_owned());
+
+        assert!(!staged.matches_spec(&colliding_pin));
+        assert!(staged.matches_spec(&floating_channel));
     }
 
     #[test]

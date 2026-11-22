@@ -94,7 +94,9 @@ impl TypedValueParser for ToolchainSpecValueParser {
             .to_str()
             .ok_or_else(|| clap::Error::new(clap::error::ErrorKind::InvalidUtf8).with_cmd(cmd))?;
 
-        Ok(ToolchainSpec::from(value))
+        ToolchainSpec::try_from(value).map_err(|error| {
+            clap::Error::raw(clap::error::ErrorKind::InvalidValue, error.to_string()).with_cmd(cmd)
+        })
     }
 }
 
