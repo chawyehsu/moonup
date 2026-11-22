@@ -121,7 +121,11 @@ pub fn release_order(
 ///
 /// Offline and best-effort: on any read or parse error the installs
 /// fall back to numeric version ordering.
-pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String, usize> {
+pub fn read_release_positions(
+    channel: &str,
+    keys: &[String],
+    channel_ranks: &HashMap<String, usize>,
+) -> HashMap<String, usize> {
     if keys.is_empty() {
         return HashMap::new();
     }
@@ -136,11 +140,14 @@ pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String,
         return HashMap::new();
     };
 
+    // add the channel rank to the release positions so all releases from the
+    // same channel are grouped together according to the channel rank.
+    let channel_rank = channel_ranks.get(channel).copied().unwrap_or(0);
     let positions = index
         .releases()
         .iter()
         .enumerate()
-        .map(|(i, r)| (r.key().to_owned(), i))
+        .map(|(i, r)| (r.key().to_owned(), i + channel_rank))
         .collect::<HashMap<_, _>>();
 
     // A stale cache that lacks one of the installed releases would otherwise

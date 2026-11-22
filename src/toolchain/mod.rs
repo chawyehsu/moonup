@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::constant::DEFAULT_CHANNEL;
+use crate::toolchain::index::InstallRecipe;
 use crate::toolchain::ordering::{
     NumericVersion, read_channel_ranks, read_release_positions, release_order,
 };
@@ -32,27 +33,94 @@ pub struct InstallMeta {
     /// The installed release key: the build date for dated releases,
     /// otherwise the version
     pub key: String,
+
+    /// Indicates whether the toolchain is a floating install
+    pub floating: bool,
 }
 
-/// Parse a metadata stub's content. Legacy plain-text stubs hold only the
-/// release key (and only existed on floating installs), so the channel is
-/// supplied by the caller.
-fn parse_meta(content: &str, legacy_channel: String) -> Option<InstallMeta> {
-    if let Ok(meta) = serde_json::from_str::<InstallMeta>(content) {
-        return Some(meta);
+impl From<&InstallRecipe> for InstallMeta {
+    fn from(recipe: &InstallRecipe) -> Self {
+        InstallMeta {
+            channel: recipe.spec.channel().to_string(),
+            key: recipe.release.key().to_string(),
+            floating: matches!(recipe.spec, ToolchainSpec::Channel(_)),
+        }
     }
-    let key = content.trim();
-    (!key.is_empty()).then_some(InstallMeta {
-        channel: legacy_channel,
-        key: key.to_owned(),
-    })
 }
 
-impl From<InstallMeta> for ToolchainSpec {
-    fn from(meta: InstallMeta) -> Self {
-        ToolchainSpec::Version {
-            channel: meta.channel,
-            key: meta.key,
+/// Read the install metadata for a given toolchain directory.
+///
+/// Returns the parsed install metadata if successful, or an error if
+/// the metadata cannot be derived.
+fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
+    // name can be the `channel` for floating installs, or
+    // the `[channel<sep>]{key}` format for pinned versions
+    let name = install_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| miette::miette!("failed to read toolchain install name"))?;
+
+    let meta_file = install_dir.join(METADATA_FILENAME);
+    match std::fs::read_to_string(meta_file) {
+        Ok(content) => {
+            // JSON-formatted install metadata, for all new installs
+            if let Ok(meta) = serde_json::from_str::<InstallMeta>(&content) {
+                return Ok(meta);
+            }
+
+            // Legacy plain-text stub, for old floating installs,
+            // the content is just the release key
+            // CAVEAT: we dont validate the content here, we assume any
+            // non-empty string is a valid release key for old installs.
+            let key = content.trim();
+            if !key.is_empty() {
+                return Ok(InstallMeta {
+                    channel: name.to_owned(),
+                    key: key.to_owned(),
+                    floating: true,
+                });
+            }
+
+            return Err(miette::miette!(
+                "failed to derive install meta from content"
+            ));
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            // legacy `nightly-YYYY-MM-DD` installs
+            if let Some(key) = legacy_nightly_key(name) {
+                return Ok(InstallMeta {
+                    channel: "nightly".to_owned(),
+                    key: key.to_owned(),
+                    floating: false,
+                });
+            }
+
+            // legacy install in the default channel, version-shaped filename
+            if name.contains('+') || version::is_stable_selector(name) {
+                return Ok(InstallMeta {
+                    channel: DEFAULT_CHANNEL.to_owned(),
+                    key: name.to_owned(),
+                    floating: false,
+                });
+            }
+
+            // otherwise, it's a broken install
+            return Err(miette::miette!(
+                "failed to derive install meta from filename"
+            ));
+        }
+        Err(e) => return Err(e).into_diagnostic(),
+    }
+}
+
+impl From<&InstallMeta> for ToolchainSpec {
+    fn from(meta: &InstallMeta) -> Self {
+        match meta.floating {
+            true => ToolchainSpec::Channel(meta.channel.clone()),
+            false => ToolchainSpec::Version {
+                channel: meta.channel.clone(),
+                key: meta.key.clone(),
+            },
         }
     }
 }
@@ -176,13 +244,7 @@ impl ToolchainSpec {
     ///
     /// Returns `None` if the metadata file is not present or cannot be parsed.
     pub fn install_meta(&self) -> Option<InstallMeta> {
-        let meta_path = self.install_path().join(METADATA_FILENAME);
-        if meta_path.is_file() {
-            let content = std::fs::read_to_string(&meta_path).ok()?;
-            parse_meta(&content, self.install_name())
-        } else {
-            None
-        }
+        read_install_meta(&self.install_path()).ok()
     }
 }
 
@@ -213,56 +275,31 @@ impl TryFrom<String> for ToolchainSpec {
 /// A toolchain installation found in the local inventory.
 #[derive(Debug, Clone)]
 pub struct InstalledToolchain {
-    /// The toolchain's floating-channel or pinned-version identity.
+    /// The install spec for this installation.
     pub spec: ToolchainSpec,
 
-    /// The current release key for a floating installation, if known.
-    /// Pinned specs already contain their release key.
-    pub release_key: Option<String>,
+    /// The installation metadata for this installation.
+    meta: InstallMeta,
 }
 
 impl InstalledToolchain {
+    /// Infer an `InstalledToolchain` from the installation path.
     pub fn from_path(path: &Path) -> miette::Result<Self> {
-        let name = path
-            .file_name()
-            .map(|n| n.to_ascii_lowercase().to_string_lossy().to_string())
-            .ok_or_else(|| miette::miette!("failed to read toolchain install name"))?;
-
-        let meta_path = path.join(METADATA_FILENAME);
-        if meta_path.is_file() {
-            let content = std::fs::read_to_string(&meta_path)
-                .into_diagnostic()
-                .inspect_err(|e| tracing::warn!("failed to read toolchain metadata stub {}", e))?;
-
-            if let Some(meta) = parse_meta(&content, name.clone()) {
-                // Floating installs live at the channel's own name. Legacy
-                // plain-text stubs are left unchanged on this read path.
-                let floating = name == meta.channel;
-                let (spec, release_key) = if floating {
-                    (ToolchainSpec::Channel(meta.channel), Some(meta.key))
-                } else {
-                    (
-                        ToolchainSpec::Version {
-                            channel: meta.channel,
-                            key: meta.key,
-                        },
-                        None,
-                    )
-                };
-
-                return Ok(Self { spec, release_key });
-            }
-        }
-
-        // Metadata-free directories share the spec parser's legacy naming
-        // rules: dated nightly pins and bare latest keys are still recognized,
-        // while other channel-name hyphens are not treated as separators.
-        let spec = ToolchainSpec::parse_syntactically(&name);
-
+        let meta = read_install_meta(path)?;
         Ok(Self {
-            spec,
-            release_key: None,
+            spec: ToolchainSpec::from(&meta),
+            meta,
         })
+    }
+
+    /// Returns `true` if this toolchain is a floating installation.
+    pub fn is_floating(&self) -> bool {
+        self.meta.floating
+    }
+
+    /// Returns the key for this toolchain installation.
+    pub fn key(&self) -> &str {
+        self.meta.key.as_str()
     }
 }
 
@@ -317,23 +354,22 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
 
             let mut pinned_keys: HashMap<String, Vec<String>> = HashMap::new();
             for it in &t {
-                if let ToolchainSpec::Version { channel, key } = &it.spec
-                    && NumericVersion::parse(key).is_ok()
-                {
+                if !it.is_floating() && NumericVersion::parse(it.key()).is_ok() {
                     pinned_keys
-                        .entry(channel.clone())
+                        .entry(it.spec.channel().to_owned())
                         .or_default()
-                        .push(key.clone());
+                        .push(it.key().to_owned());
                 }
             }
+            let channel_ranks = read_channel_ranks();
             let release_positions = pinned_keys
                 .into_iter()
                 .map(|(channel, keys)| {
-                    let positions = read_release_positions(&channel, &keys);
+                    let positions = read_release_positions(&channel, &keys, &channel_ranks);
                     (channel, positions)
                 })
                 .collect();
-            let channel_ranks = read_channel_ranks();
+
             t.sort_by_key(|it| release_order(&it.spec, &release_positions, &channel_ranks));
             t
         }
@@ -482,7 +518,7 @@ mod tests {
         .expect("should write stub");
         let parsed = InstalledToolchain::from_path(&floating).expect("should classify");
         assert_eq!(parsed.spec, ToolchainSpec::Channel("lts".to_owned()));
-        assert_eq!(parsed.release_key.as_deref(), Some("1.0.0"));
+        assert_eq!(parsed.key(), "1.0.0");
 
         // qualified pinned install: dir name != channel name
         let pinned = tempdir.path().join("lts-1.0.0");
@@ -500,7 +536,7 @@ mod tests {
                 key: "1.0.0".to_owned(),
             }
         );
-        assert_eq!(parsed.release_key, None);
+        assert_eq!(parsed.key(), "1.0.0");
 
         // Metadata keeps hyphens in both the channel name and release key
         // unambiguous for new installs.
@@ -519,7 +555,7 @@ mod tests {
                 key: "1.0.0-preview".to_owned(),
             }
         );
-        assert_eq!(parsed.release_key, None);
+        assert_eq!(parsed.key(), "1.0.0-preview");
 
         // legacy plain-text stub: floating, left as-is on read paths
         let legacy = tempdir.path().join("nightly");
@@ -528,7 +564,7 @@ mod tests {
             .expect("should write legacy stub");
         let parsed = InstalledToolchain::from_path(&legacy).expect("should classify");
         assert_eq!(parsed.spec, ToolchainSpec::Channel("nightly".to_owned()));
-        assert_eq!(parsed.release_key.as_deref(), Some("2026-01-01"));
+        assert_eq!(parsed.key(), "2026-01-01");
         // read paths must not mutate the install; the stub upgrades to JSON
         // only when the toolchain is reinstalled or updated
         let stub =

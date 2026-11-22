@@ -184,10 +184,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     }
 
     // Every install records its identity in a metadata stub
-    let meta = super::InstallMeta {
-        channel: recipe.spec.channel().to_owned(),
-        key: release_key.clone(),
-    };
+    let meta = super::InstallMeta::from(recipe);
     let meta_file = staging_dir.join(super::METADATA_FILENAME);
     let meta_json = serde_json::to_string(&meta)
         .into_diagnostic()

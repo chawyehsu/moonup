@@ -22,13 +22,15 @@ pub async fn execute(_: Args) -> miette::Result<()> {
         for i in installs {
             let is_default = default.as_ref().is_some_and(|d| &i.spec == d);
 
-            let tags = match (is_default, i.release_key.as_deref()) {
-                (true, Some(tag)) => {
-                    Some(format!(" ({}, {})", console::style("default").cyan(), tag))
-                }
-                (true, None) => Some(format!(" ({})", console::style("default").cyan())),
-                (false, Some(tag)) => Some(format!(" ({})", tag)),
-                (false, None) => None,
+            let tags = match (is_default, i.is_floating()) {
+                (true, true) => Some(format!(
+                    " ({}, {})",
+                    console::style("default").cyan(),
+                    i.key()
+                )),
+                (true, false) => Some(format!(" ({})", console::style("default").cyan())),
+                (false, true) => Some(format!(" ({})", i.key())),
+                (false, false) => None,
             };
 
             println!("  {}{}", i.spec, tags.unwrap_or_default());
