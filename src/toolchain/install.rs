@@ -137,7 +137,7 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
         return Ok(());
     }
 
-    let Some(recipe) = build_recipe(&spec).await? else {
+    let Some(recipe) = build_recipe(spec).await? else {
         if first_time {
             eprintln!("No toolchain available for requested spec '{}'", spec);
             return Err(crate::status::exit_with(1));

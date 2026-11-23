@@ -77,8 +77,8 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
     match std::fs::read_to_string(&meta_file) {
         Ok(content) => {
             // JSON-formatted install metadata, for all new installs
-            if content.starts_with('{') {
-                if let Ok(meta) = serde_json::from_str::<InstallMeta>(&content).inspect_err(|e| {
+            if content.starts_with('{')
+                && let Ok(meta) = serde_json::from_str::<InstallMeta>(&content).inspect_err(|e| {
                     tracing::warn!(
                         "failed to parse install metadata file: {}, {e}",
                         meta_file.display()
@@ -86,7 +86,6 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
                 }) {
                     return Ok(meta);
                 }
-            }
 
             // Legacy plain-text stub, for old floating installs,
             // the content is just the release key
@@ -102,9 +101,9 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             }
 
             // invalid metadata content
-            return Err(miette::miette!(
+            Err(miette::miette!(
                 "failed to derive install meta from content"
-            ));
+            ))
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             // legacy `nightly-YYYY-MM-DD` installs
@@ -126,11 +125,11 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             }
 
             // otherwise, it's not an install or a broken install
-            return Err(miette::miette!(
+            Err(miette::miette!(
                 "failed to derive install meta from filename"
-            ));
+            ))
         }
-        Err(e) => return Err(e).into_diagnostic(),
+        Err(e) => Err(e).into_diagnostic(),
     }
 }
 

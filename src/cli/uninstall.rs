@@ -86,7 +86,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
             if let Ok(installed) = InstalledToolchain::from_path(&toolchain_dir) {
                 let mut download_dir = crate::moonup_home().join("downloads");
                 download_dir.push(toolchain.channel());
-                download_dir.push(&installed.key());
+                download_dir.push(installed.key());
 
                 tracing::info!("removing cached downloads {}", download_dir.display());
                 let _ = crate::fs::remove_dir_all(download_dir).inspect_err(|e| {
