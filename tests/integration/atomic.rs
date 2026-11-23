@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use moonup::{
     constant,
     dist_server::schema::Release,
-    toolchain::{ToolchainSpec, atomic, index::InstallRecipe, installed_toolchains},
+    toolchain::{ToolchainSpec, atomic, install::InstallRecipe, installed_toolchains},
 };
 
 fn spec(value: &str) -> ToolchainSpec {

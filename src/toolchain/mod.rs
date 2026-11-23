@@ -4,13 +4,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::constant::DEFAULT_CHANNEL;
-use crate::toolchain::index::InstallRecipe;
+use crate::toolchain::install::InstallRecipe;
 use crate::toolchain::ordering::{
     NumericVersion, read_channel_ranks, read_release_positions, release_order,
 };
 
 pub mod atomic;
 pub mod index;
+pub mod install;
 pub mod ordering;
 pub mod package;
 pub mod resolve;
@@ -76,15 +77,15 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
     match std::fs::read_to_string(&meta_file) {
         Ok(content) => {
             // JSON-formatted install metadata, for all new installs
-            if content.starts_with('{') {
-                if let Ok(meta) = serde_json::from_str::<InstallMeta>(&content).inspect_err(|e| {
+            if content.starts_with('{')
+                && let Ok(meta) = serde_json::from_str::<InstallMeta>(&content).inspect_err(|e| {
                     tracing::warn!(
                         "failed to parse install metadata file: {}, {e}",
                         meta_file.display()
                     );
-                }) {
-                    return Ok(meta);
-                }
+                })
+            {
+                return Ok(meta);
             }
 
             // Legacy plain-text stub, for old floating installs,
@@ -101,9 +102,9 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             }
 
             // invalid metadata content
-            return Err(miette::miette!(
+            Err(miette::miette!(
                 "failed to derive install meta from content"
-            ));
+            ))
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             // legacy `nightly-YYYY-MM-DD` installs
@@ -125,11 +126,11 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             }
 
             // otherwise, it's not an install or a broken install
-            return Err(miette::miette!(
+            Err(miette::miette!(
                 "failed to derive install meta from filename"
-            ));
+            ))
         }
-        Err(e) => return Err(e).into_diagnostic(),
+        Err(e) => Err(e).into_diagnostic(),
     }
 }
 
@@ -178,7 +179,12 @@ pub enum ToolchainSpec {
     Version {
         /// The channel the pin resolves within
         channel: String,
-        /// The release key
+        /// The key to identify the release within the channel
+        ///
+        /// Depends on how the dist server defines releases, the key can be:
+        /// - A semver string/selector, like `1`, `1.2`, `1.2.3`, `1.2.3-alpha.1`
+        /// - A nightly date string, like `YYYY-MM-DD`
+        /// - Any other format defined by the dist server
         key: String,
     },
 }

@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 
 use crate::dist_server::schema::Release;
 
-use super::index::InstallRecipe;
+use super::install::InstallRecipe;
 use super::{InstalledToolchain, ToolchainSpec};
 
-const STAGING_DIR: &str = ".staging";
-const STAGING_SUFFIX: &str = ".new";
+pub const STAGING_DIR: &str = ".staging";
+pub const STAGING_SUFFIX: &str = ".new";
 const RETIRED_SUFFIX: &str = ".old";
 const COMPLETE_SUFFIX: &str = ".complete";
 

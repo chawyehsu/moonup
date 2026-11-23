@@ -1,0 +1,14 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - update
+---
+success: true
+exit_code: 0
+----- stdout -----
+No channel toolchains installed
+Run 'moonup install <channel>' to install one
+
+----- stderr -----

@@ -5,10 +5,9 @@ info:
   args:
     - update
 ---
-success: true
-exit_code: 0
+success: false
+exit_code: 1
 ----- stdout -----
-The 'latest' toolchain is unavailable to update
-nightly toolchain is not installed, run 'moonup install nightly' to install
 
 ----- stderr -----
+The 'latest' toolchain is unavailable to update

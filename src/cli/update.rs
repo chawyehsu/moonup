@@ -1,45 +1,35 @@
 use clap::Parser;
 
-use crate::cli::install::{heal_recovered, install_recipe};
-use crate::constant::DEFAULT_CHANNEL;
-use crate::toolchain::index::build_installrecipe;
-use crate::toolchain::{InstalledToolchain, ToolchainSpec};
+use crate::toolchain::{ToolchainSpec, install::sync_toolchain, installed_toolchains};
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 
 pub async fn execute(_: Args) -> miette::Result<()> {
-    for channel in [DEFAULT_CHANNEL, "nightly"] {
-        let spec = ToolchainSpec::Channel(channel.to_owned());
-        // Heal before update
-        heal_recovered(&spec, false)?;
+    let specs = installed_toolchains()?
+        .into_iter()
+        .filter(|toolchain| matches!(&toolchain.spec, ToolchainSpec::Channel(_)))
+        .map(|toolchain| toolchain.spec)
+        .collect::<Vec<_>>();
 
-        let path = spec.install_path();
-        if !path.exists() {
-            println!("{spec} toolchain is not installed, run 'moonup install {spec}' to install");
-            continue;
-        }
-
-        update_toolchain(InstalledToolchain::from_path(&path)?).await?;
-    }
-    Ok(())
-}
-
-async fn update_toolchain(t: InstalledToolchain) -> miette::Result<()> {
-    let spec = &t.spec;
-    let Some(recipe) = build_installrecipe(spec).await? else {
-        println!("The '{}' toolchain is unavailable to update", spec);
+    if specs.is_empty() {
+        println!("No channel toolchains installed");
+        println!("Run 'moonup install <channel>' to install one");
         return Ok(());
-    };
-
-    // toolchain is considered upgradable if the local release key
-    // differs from the channel's current release key
-    if t.key() != recipe.release.key() {
-        println!("Updating the {} toolchain", spec);
-        install_recipe(&recipe, false).await?;
-    } else {
-        println!("The {} toolchain is up to date", spec);
     }
+
+    let mut failed = false;
+    for spec in &specs {
+        let _ = sync_toolchain(spec, false).await.inspect_err(|e| {
+            eprintln!("{e}");
+            failed = true;
+        });
+    }
+
+    if failed {
+        return Err(crate::status::exit_with(1));
+    }
+
     Ok(())
 }

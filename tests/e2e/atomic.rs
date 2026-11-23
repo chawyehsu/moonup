@@ -116,7 +116,76 @@ fn test_install_recovers_interrupted_swap() {
 }
 
 #[test]
-fn test_update_recovers_interrupted_swap() {
+fn test_install_repairs_shims_for_up_to_date_toolchain() {
+    let ws = TestWorkspace::new();
+    let s = mock_dist_server();
+
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should install latest toolchain");
+    assert!(output.status.success(), "initial install should succeed");
+
+    let alternate_moon_home = ws.tempdir().path().join("alternate-moon-home");
+    let alternate_moon_bin = alternate_moon_home.join("bin");
+    let moon_shim = alternate_moon_bin.join(if cfg!(windows) { "moon.exe" } else { "moon" });
+    assert!(
+        !moon_shim.exists(),
+        "alternate MOON_HOME starts without shims"
+    );
+
+    let mut command = ws.cli();
+    command
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .env(constant::ENVNAME_MOON_HOME, &alternate_moon_home);
+    let output = command
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should reinstall latest toolchain");
+    assert!(output.status.success(), "reinstall should succeed");
+    assert!(
+        moon_shim.exists(),
+        "explicit install should recreate command shims in the current MOON_HOME"
+    );
+}
+
+#[test]
+fn test_update_skips_incomplete_staging_without_index_lookup() {
+    let ws = TestWorkspace::new();
+    let mut s = mock_dist_server();
+    let staging = ws
+        .moonup_home()
+        .join("toolchains")
+        .join(".staging")
+        .join("latest.new");
+    std::fs::create_dir_all(&staging).expect("should create incomplete staging directory");
+
+    s.reset();
+    let index_request = s.mock("GET", "/index.json").expect(0).create();
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("update")
+        .output()
+        .expect("should run update");
+
+    assert!(
+        output.status.success(),
+        "uninstalled channel should be skipped"
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("No channel toolchains installed"),
+        "update should only report installed channel toolchains"
+    );
+    index_request.assert();
+}
+
+#[test]
+fn test_update_ignores_staged_toolchain_and_install_recovers_it() {
     let ws = TestWorkspace::new();
     let s = mock_dist_server();
     let spec = spec("latest");
@@ -147,13 +216,25 @@ fn test_update_recovers_interrupted_swap() {
             // simulate a crash that left a complete staging directory
             simulate_crash_state(&ws, "latest", &actual_version);
 
-            // the next update should recover the latest toolchain
             let _ = ws
                 .cli()
                 .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("update")
                 .output()
                 .expect("should run moonup update");
+            assert!(
+                !install_path.exists(),
+                "update should not recover latest toolchain"
+            );
+
+            // install explicitly resumes recovery
+            let _ = ws
+                .cli()
+                .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+                .arg("install")
+                .arg("latest")
+                .output()
+                .expect("should run moonup install");
 
             // the promoted toolchain is live again and the staging is consumed
             assert!(

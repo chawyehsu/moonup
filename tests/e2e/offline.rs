@@ -162,6 +162,28 @@ fn moonup_install() {
     );
 }
 
+#[test]
+fn moonup_install_selector_spec() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let s = util::mock_dist_server();
+    let version = crate::constant::E2E_TEST_MOCK_INSTALL_VERSION;
+
+    assert_cmd_snapshot!(
+        "moonup_install_selector_spec",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg(
+                // build selector from the full version string
+                version
+                    .split_once('.')
+                    .map(|s| s.0)
+                    .expect("should get selector")
+            )
+    );
+}
+
 #[cfg(not(windows))]
 #[test]
 fn moonup_shim_unix_sigterm() {
@@ -557,9 +579,6 @@ fn moonup_update_skips_incomplete_staging() {
     let ws = TestWorkspace::new();
     let s = util::mock_dist_server();
 
-    // An incomplete staging leftover (no completeness marker) is discovered
-    // by `update`, but cannot be promoted: the toolchain is reported as not
-    // installed instead of being skipped silently.
     std::fs::create_dir_all(
         ws.moonup_home()
             .join("toolchains")
@@ -813,5 +832,63 @@ fn moonup_install_qualified_pin() {
     assert!(
         ws.moonup_home().join("toolchains").join(version).exists(),
         "the default-channel pin should survive"
+    );
+}
+
+#[test]
+fn moonup_update_no_channel_toolchains() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+
+    assert_cmd_snapshot!(
+        "moonup_update_no_channel_toolchains",
+        ws.cli().arg("update")
+    );
+}
+
+#[test]
+fn moonup_update_channel_no_longer_available() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let mut server = util::mock_dist_server();
+
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should run moonup install");
+    assert!(output.status.success(), "install should succeed");
+
+    // Invalidate the cached index so the next update observes the new one
+    let _ = ws
+        .cli()
+        .arg("uninstall")
+        .arg("--clear")
+        .output()
+        .expect("should clear cached downloads");
+
+    // The channel the toolchain was installed from is no longer advertised
+    server.reset();
+    server
+        .mock("GET", "/index.json")
+        .with_body(
+            r#"{
+                "version": 3,
+                "lastModified": "20261121T0000000000Z",
+                "channels": [
+                    {"name": "nightly", "version": "0.10.17+1c70d827d", "date": "2026-10-24"},
+                    {"name": "bleeding", "version": "0.1.20250525+30d3f4e0d"}
+                ]
+            }"#,
+        )
+        .create();
+
+    assert_cmd_snapshot!(
+        "moonup_update_channel_no_longer_available",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url())
+            .arg("update")
     );
 }
