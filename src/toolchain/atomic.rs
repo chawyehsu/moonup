@@ -11,10 +11,6 @@ pub const STAGING_SUFFIX: &str = ".new";
 const RETIRED_SUFFIX: &str = ".old";
 const COMPLETE_SUFFIX: &str = ".complete";
 
-pub fn staging_dir() -> PathBuf {
-    toolchains_root().join(STAGING_DIR)
-}
-
 /// The directory where a new toolchain is fully assembled before it is swapped
 /// into the live install location.
 pub fn staging_dir_for(spec: &ToolchainSpec) -> PathBuf {

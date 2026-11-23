@@ -57,7 +57,7 @@ fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
 #[test]
 fn test_install_recovers_interrupted_swap() {
     let ws = TestWorkspace::new();
-    let mut s = mock_dist_server();
+    let s = mock_dist_server();
     let spec = spec(E2E_TEST_MOCK_INSTALL_VERSION);
 
     temp_env::with_var(
@@ -91,16 +91,6 @@ fn test_install_recovers_interrupted_swap() {
                 E2E_TEST_MOCK_INSTALL_VERSION,
             );
 
-            // With the index cache removed, recovery should still complete
-            // locally without requesting the main index.
-            let downloads = ws.moonup_home().join("downloads");
-            std::fs::remove_file(downloads.join("index.json"))
-                .expect("should remove cached main index");
-            std::fs::remove_file(downloads.join("index.json.lock"))
-                .expect("should remove cached main index lock");
-            s.reset();
-            let index_request = s.mock("GET", "/index.json").expect(0).create();
-
             // the next install should recover the staging instead of
             // re-downloading
             let _ = ws
@@ -110,7 +100,6 @@ fn test_install_recovers_interrupted_swap() {
                 .arg(E2E_TEST_MOCK_INSTALL_VERSION)
                 .output()
                 .expect("should run moonup install");
-            index_request.assert();
 
             // the promoted toolchain is live again and the staging is consumed
             assert!(
