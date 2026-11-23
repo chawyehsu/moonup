@@ -162,6 +162,28 @@ fn moonup_install() {
     );
 }
 
+#[test]
+fn moonup_install_selector_spec() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let s = util::mock_dist_server();
+    let version = crate::constant::E2E_TEST_MOCK_INSTALL_VERSION;
+
+    assert_cmd_snapshot!(
+        "moonup_install_selector_spec",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+            .arg(
+                // build selector from the full version string
+                version
+                    .split_once('.')
+                    .map(|s| s.0)
+                    .expect("should get selector")
+            )
+    );
+}
+
 #[cfg(not(windows))]
 #[test]
 fn moonup_shim_unix_sigterm() {
