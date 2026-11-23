@@ -1,18 +1,13 @@
 use clap::Parser;
 
-use crate::toolchain::{ToolchainSpec, atomic, install::sync_toolchain};
+use crate::toolchain::{ToolchainSpec, install::sync_toolchain};
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 
 pub async fn execute(_: Args) -> miette::Result<()> {
-    let mut specs = installed_channels()?;
-    for spec in incomplete_channels() {
-        if !specs.contains(&spec) {
-            specs.push(spec);
-        }
-    }
+    let specs = installed_channels()?;
 
     if specs.is_empty() {
         println!("No channel toolchains installed");
@@ -53,28 +48,4 @@ fn installed_channels() -> miette::Result<Vec<ToolchainSpec>> {
         .map(|toolchain| toolchain.spec)
         .collect();
     Ok(installed)
-}
-
-/// The floating-channel toolchains in incomplete staging state, which
-/// the next update should recover.
-fn incomplete_channels() -> Vec<ToolchainSpec> {
-    let staging_dir = atomic::staging_dir();
-    let Ok(entries) = std::fs::read_dir(staging_dir).inspect_err(|e| {
-        tracing::warn!("Failed to read toolchain staging directory: {}", e);
-    }) else {
-        return vec![];
-    };
-
-    entries
-        .flatten()
-        .filter_map(|entry| {
-            let name = entry.file_name().to_str()?.to_owned();
-            name.strip_suffix(atomic::STAGING_SUFFIX).map(str::to_owned)
-        })
-        // Pinned-version staging leftovers are not updated by `moonup update`.
-        .filter_map(|name| {
-            let spec = ToolchainSpec::try_from(name).ok()?;
-            matches!(&spec, ToolchainSpec::Channel(_)).then_some(spec)
-        })
-        .collect()
 }

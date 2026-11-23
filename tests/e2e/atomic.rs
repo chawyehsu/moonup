@@ -189,14 +189,14 @@ fn test_update_skips_incomplete_staging_without_index_lookup() {
         "uninstalled channel should be skipped"
     );
     assert!(
-        String::from_utf8_lossy(&output.stdout).contains("latest toolchain is not installed"),
-        "update should report that the staged channel has no live installation"
+        String::from_utf8_lossy(&output.stdout).contains("No channel toolchains installed"),
+        "update should only report installed channel toolchains"
     );
     index_request.assert();
 }
 
 #[test]
-fn test_update_recovers_interrupted_swap() {
+fn test_update_ignores_staged_toolchain_and_install_recovers_it() {
     let ws = TestWorkspace::new();
     let s = mock_dist_server();
     let spec = spec("latest");
@@ -227,13 +227,25 @@ fn test_update_recovers_interrupted_swap() {
             // simulate a crash that left a complete staging directory
             simulate_crash_state(&ws, "latest", &actual_version);
 
-            // the next update should recover the latest toolchain
             let _ = ws
                 .cli()
                 .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
                 .arg("update")
                 .output()
                 .expect("should run moonup update");
+            assert!(
+                !install_path.exists(),
+                "update should not recover latest toolchain"
+            );
+
+            // install explicitly resumes recovery
+            let _ = ws
+                .cli()
+                .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+                .arg("install")
+                .arg("latest")
+                .output()
+                .expect("should run moonup install");
 
             // the promoted toolchain is live again and the staging is consumed
             assert!(
