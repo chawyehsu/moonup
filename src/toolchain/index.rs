@@ -228,19 +228,11 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
 ///
 /// `None` means no usable channel catalog was available. `Some(vec![])` means
 /// a catalog was read but contained no channels.
-pub async fn available_channels() -> Option<Vec<ChannelName>> {
-    match read_index().await {
-        Ok(index) if index.has_channel_catalog() => Some(
-            index
-                .channels()
-                .iter()
-                .map(|channel| channel.name.clone())
-                .collect(),
-        ),
-        Ok(_) => None,
-        Err(e) => {
-            tracing::debug!("failed to read main index for available channels: {}", e);
-            None
-        }
-    }
+pub async fn available_channels() -> miette::Result<Vec<ChannelName>> {
+    let index = read_index().await?;
+    Ok(index
+        .channels()
+        .iter()
+        .map(|channel| channel.name.clone())
+        .collect::<Vec<_>>())
 }

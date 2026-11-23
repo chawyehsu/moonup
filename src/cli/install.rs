@@ -78,12 +78,9 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 /// Picking produces a channel-qualified pinned spec
 async fn list_channel_versions(spec: &ToolchainSpec) -> miette::Result<Option<ToolchainSpec>> {
     let channel = spec.channel();
+    let channels = index::available_channels().await?;
 
-    // Validate against the main index so an unknown channel errors with the
-    // available ones instead of a bare download failure.
-    if let Some(channels) = index::available_channels().await
-        && !channels.iter().any(|candidate| candidate == channel)
-    {
+    if channels.is_empty() || !channels.iter().any(|candidate| candidate == channel) {
         eprintln!("No toolchain available for requested spec '{}'", spec);
         return Err(crate::status::exit_with(1));
     }

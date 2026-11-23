@@ -59,9 +59,9 @@ fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
 /// host-supported release matches the spec.
 async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
     let channel = spec.channel().clone();
-    if let Some(channels) = available_channels().await
-        && !channels.iter().any(|candidate| candidate == &channel)
-    {
+    let channels = available_channels().await?;
+
+    if channels.is_empty() || !channels.iter().any(|candidate| candidate == &channel) {
         tracing::info!("channel '{}' is unavailable", channel);
         return Ok(None);
     }

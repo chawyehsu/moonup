@@ -150,14 +150,6 @@ impl<'de> serde::Deserialize<'de> for Index {
 }
 
 impl Index {
-    /// Whether this index format carries an explicit channel catalog.
-    pub fn has_channel_catalog(&self) -> bool {
-        matches!(
-            self,
-            Index::Versioned(VersionedIndex::V2(_) | VersionedIndex::V3(_))
-        )
-    }
-
     /// Get the channels from the index. Names are validated during deserialization.
     pub fn channels(&self) -> Vec<&Channel> {
         match self {
