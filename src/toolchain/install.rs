@@ -119,6 +119,11 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
 /// `first_time` indicates whether this is the first time the toolchain
 /// is being installed.
 pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::Result<()> {
+    // Attempt to recover previous incomplete installation if possible
+    if heal_recovered(spec, first_time)? && first_time {
+        return Ok(());
+    }
+
     let Some(recipe) = build_recipe(spec).await? else {
         if first_time {
             eprintln!("No toolchain available for requested spec '{}'", spec);
@@ -130,11 +135,6 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
             spec
         ));
     };
-
-    // Attempt to recover previous incomplete installation if possible
-    if heal_recovered(&recipe.spec, first_time)? && first_time {
-        return Ok(());
-    }
 
     if first_time {
         println!("Installing toolchain '{}'", recipe.spec);
