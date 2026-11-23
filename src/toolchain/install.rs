@@ -1,8 +1,9 @@
 #[cfg(target_os = "windows")]
 use crate::constant::ALLOWED_EXTENSIONS;
 use crate::dist_server::schema::{Component, Release};
+use crate::toolchain::index::{available_channels, read_channel_index, read_component_index};
 use crate::toolchain::package::populate_install;
-use crate::toolchain::{InstalledToolchain, ToolchainSpec, atomic, index};
+use crate::toolchain::{InstalledToolchain, ToolchainSpec, atomic, index, version};
 use crate::utils::exe_name;
 use miette::{Context, IntoDiagnostic};
 use std::env;
@@ -52,8 +53,61 @@ fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
     Ok(true)
 }
 
+/// Resolve a toolchain spec against its channel index into an install recipe.
+///
+/// Returns `None` when the channel is not advertised by the main index, or no
+/// host-supported release matches the spec.
 async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
-    index::build_installrecipe(spec).await
+    let channel = spec.channel().to_owned();
+
+    // Validate the channel against the main index so an unknown channel
+    // resolves to no recipe (the caller reports it with the available
+    // channels) instead of a bare download failure. Best-effort offline: if
+    // the main index cannot be read, let the channel index fetch produce
+    // its own error.
+    if let Some(channels) = available_channels().await
+        && !channels.contains(&channel)
+    {
+        return Ok(None);
+    }
+
+    let index = read_channel_index(&channel).await?;
+    let mut releases = index.releases().iter().filter(|r| r.is_host_supported());
+
+    let release = match spec {
+        ToolchainSpec::Channel(_) => releases.next_back().cloned(),
+        ToolchainSpec::Version { key, .. } if version::is_stable_selector(key) => {
+            version::resolve_stable_selector(key, releases).cloned()
+        }
+        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key).cloned(),
+    };
+
+    let Some(release) = release else {
+        tracing::debug!("no release available for requested spec: {}", spec);
+        return Ok(None);
+    };
+
+    let components = read_component_index(&channel, &release)
+        .await?
+        .components()
+        .to_vec();
+    let effective_spec = match spec {
+        ToolchainSpec::Version { channel, key } if version::is_stable_selector(key) => {
+            ToolchainSpec::Version {
+                channel: channel.clone(),
+                key: release.version.clone(),
+            }
+        }
+        _ => spec.clone(),
+    };
+    let recipe = InstallRecipe {
+        spec: effective_spec,
+        requested_spec: spec.clone(),
+        release,
+        components,
+    };
+
+    Ok(Some(recipe))
 }
 
 /// Synchronize the specified toolchain: heal any crash state, install
