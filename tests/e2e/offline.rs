@@ -557,8 +557,6 @@ fn moonup_update_installs_newer_release() {
         )))
         .create();
 
-    // `update` only operates on installed toolchains, so keep the live install
-    // in place while checking that it advances to the newly published release.
     assert_cmd_snapshot!(
         "moonup_update_installs_newer_release",
         ws.cli()

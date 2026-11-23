@@ -179,7 +179,12 @@ pub enum ToolchainSpec {
     Version {
         /// The channel the pin resolves within
         channel: String,
-        /// The release key
+        /// The key to identify the release within the channel
+        ///
+        /// Depends on how the dist server defines releases, the key can be:
+        /// - A semver string/selector, like `1`, `1.2`, `1.2.3`, `1.2.3-alpha.1`
+        /// - A nightly date string, like `YYYY-MM-DD`
+        /// - Any other format defined by the dist server
         key: String,
     },
 }

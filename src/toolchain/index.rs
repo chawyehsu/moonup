@@ -8,8 +8,6 @@ use crate::constant;
 use crate::dist_server::schema::{ChannelIndex, ComponentIndex, Index, Release, Target};
 use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
 
-use super::ToolchainSpec;
-
 /// Read the main index
 pub async fn read_index() -> miette::Result<Index> {
     let index_filename = "index.json";
@@ -222,40 +220,6 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
                 .into_diagnostic()
                 .wrap_err("failed to read index")?;
             Ok((true, content))
-        }
-    }
-}
-
-/// Interpret a user-supplied toolchain string into a [`ToolchainSpec`].
-///
-/// Interpretation is index-driven at resolve time: a string exactly matching a
-/// valid channel name advertised by the (cached) main index is a floating
-/// channel spec, except that the reserved legacy nightly-date spelling is
-/// interpreted as a pin first. Other strings use the syntactic spec parser.
-pub async fn interpret_spec(raw: &str) -> miette::Result<ToolchainSpec> {
-    let parsed = ToolchainSpec::try_from(raw).map_err(|error| miette::miette!(error))?;
-
-    // The compatibility spelling is reserved even if a server advertises a
-    // channel with the same literal name.
-    if super::legacy_nightly_key(raw).is_some() {
-        return Ok(parsed);
-    }
-
-    match read_index().await {
-        Ok(index) => {
-            let is_channel = index.channels().iter().any(|c| c.name == raw);
-            Ok(if is_channel {
-                ToolchainSpec::Channel(raw.to_owned())
-            } else {
-                parsed
-            })
-        }
-        Err(e) => {
-            tracing::debug!(
-                "failed to read main index for spec interpretation: {}; falling back to syntactic interpretation",
-                e
-            );
-            Ok(parsed)
         }
     }
 }

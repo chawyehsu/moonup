@@ -3,7 +3,7 @@ use crate::constant::ALLOWED_EXTENSIONS;
 use crate::dist_server::schema::{Component, Release};
 use crate::toolchain::index::{available_channels, read_channel_index, read_component_index};
 use crate::toolchain::package::populate_install;
-use crate::toolchain::{InstalledToolchain, ToolchainSpec, atomic, index, version};
+use crate::toolchain::{InstalledToolchain, ToolchainSpec, atomic, version};
 use crate::utils::exe_name;
 use miette::{Context, IntoDiagnostic};
 use std::env;
@@ -59,15 +59,10 @@ fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
 /// host-supported release matches the spec.
 async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
     let channel = spec.channel().to_owned();
-
-    // Validate the channel against the main index so an unknown channel
-    // resolves to no recipe (the caller reports it with the available
-    // channels) instead of a bare download failure. Best-effort offline: if
-    // the main index cannot be read, let the channel index fetch produce
-    // its own error.
     if let Some(channels) = available_channels().await
         && !channels.contains(&channel)
     {
+        tracing::info!("channel '{}' is unavailable", channel);
         return Ok(None);
     }
 
@@ -95,7 +90,7 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
         ToolchainSpec::Version { channel, key } if version::is_stable_selector(key) => {
             ToolchainSpec::Version {
                 channel: channel.clone(),
-                key: release.version.clone(),
+                key: release.key().to_owned(),
             }
         }
         _ => spec.clone(),
@@ -106,6 +101,14 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
         release,
         components,
     };
+
+    if recipe.requested_spec != recipe.spec {
+        tracing::info!(
+            requested = %recipe.requested_spec,
+            resolved = %recipe.spec,
+            "resolved stable version selector"
+        );
+    }
 
     Ok(Some(recipe))
 }
@@ -120,11 +123,6 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
         return Ok(());
     }
 
-    // `update` only operates on live installs. In particular, do not resolve a
-    // release for an incomplete staging directory with no live toolchain: it
-    // has nothing to update, and resolution could fail for an unavailable
-    // channel or an unreachable server. The install name is unchanged by the
-    // index-based interpretation below.
     let install_path = spec.install_path();
     let local_toolchain = if install_path.exists() {
         Some(InstalledToolchain::from_path(&install_path)?)
@@ -139,53 +137,33 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
         return Ok(());
     }
 
-    // Refine the syntactic spec interpretation against the main index: a
-    // channel-name match wins over version interpretation (ADR 0007).
-    let spec = index::interpret_spec(&spec.canonical()).await?;
     let Some(recipe) = build_recipe(&spec).await? else {
         if first_time {
             eprintln!("No toolchain available for requested spec '{}'", spec);
             return Err(crate::status::exit_with(1));
         }
 
-        if let Some(channels) = index::available_channels().await
-            && !channels.iter().any(|channel| channel == spec.channel())
-        {
-            return Err(miette::miette!(
-                "channel '{}' no longer available. Available channel(s): {}",
-                spec.channel(),
-                channels.join(", ")
-            ));
-        }
-
-        println!("The '{}' toolchain is unavailable to update", spec);
-        return Ok(());
+        return Err(miette::miette!(
+            "The '{}' toolchain is unavailable to update",
+            spec
+        ));
     };
 
-    if recipe.requested_spec != recipe.spec {
-        tracing::info!(
-            requested = %recipe.requested_spec,
-            resolved = %recipe.spec,
-            "resolved stable version selector"
-        );
-    }
+    if first_time {
+        println!("Installing toolchain '{}'", recipe.spec);
+    } else {
+        let install_path = spec.install_path();
+        let Some(local) = InstalledToolchain::from_path(&install_path).ok() else {
+            println!("The '{}' toolchain is not installed", spec);
+            return Ok(());
+        };
 
-    // toolchain is considered upgradable if the local key differs from the release key
-    if let Some(local_key) = local_toolchain.as_ref().map(InstalledToolchain::key) {
-        if local_key == recipe.release.key() {
+        if local.key() == recipe.release.key() {
             println!("The {} toolchain is up to date", spec);
-            if first_time {
-                // An explicit install also repairs shims and links outside
-                // MOONUP_HOME, which may have changed since the toolchain was
-                // originally installed.
-                repair_install(&recipe)?;
-            }
             return Ok(());
         }
 
         println!("Updating the {} toolchain", spec);
-    } else {
-        println!("Installing toolchain '{}'", recipe.spec);
     }
 
     populate_install(&recipe).await?;
@@ -218,14 +196,6 @@ fn post_install(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
     }
 
     Ok(())
-}
-
-/// Repair files outside the toolchain directory without rebuilding its core
-/// library. Used when an explicit install finds the requested release already
-/// installed.
-fn repair_install(recipe: &InstallRecipe) -> miette::Result<()> {
-    pour_shims(recipe)?;
-    link_dirs(recipe)
 }
 
 /// Ensure the toolchain executables and their shims are available in the

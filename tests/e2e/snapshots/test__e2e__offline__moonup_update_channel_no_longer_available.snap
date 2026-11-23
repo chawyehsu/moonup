@@ -10,4 +10,4 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-✖  Failed to update the latest toolchain: channel 'latest' no longer available. Available channel(s): nightly, bleeding
+The 'latest' toolchain is unavailable to update
