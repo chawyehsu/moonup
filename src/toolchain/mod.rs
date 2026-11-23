@@ -83,9 +83,10 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
                         "failed to parse install metadata file: {}, {e}",
                         meta_file.display()
                     );
-                }) {
-                    return Ok(meta);
-                }
+                })
+            {
+                return Ok(meta);
+            }
 
             // Legacy plain-text stub, for old floating installs,
             // the content is just the release key

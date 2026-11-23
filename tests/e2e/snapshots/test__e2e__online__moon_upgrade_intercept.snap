@@ -9,6 +9,6 @@ success: true
 exit_code: 0
 ----- stdout -----
 No channel toolchains installed
-Run 'moonup install <toolchain>' to install one, or check 'moonup install --list-available' for available channels
+Run 'moonup install <channel>' to install one
 
 ----- stderr -----
