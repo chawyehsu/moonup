@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Duration, Local};
+use jiff::{SignedDuration, Timestamp};
 use miette::{Context, IntoDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -169,7 +169,7 @@ async fn write_json_with_lock(path: &Path, content: &[u8]) -> miette::Result<()>
         .await
         .into_diagnostic()
         .wrap_err("failed to create lockfile")?;
-    let timestamp = chrono::Local::now().timestamp_micros();
+    let timestamp = Timestamp::now().as_microsecond();
     file.write_all(timestamp.to_string().as_bytes())
         .await
         .into_diagnostic()?;
@@ -193,12 +193,10 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
         .into_diagnostic()
         .wrap_err("failed to read lockfile")?;
 
-    let lastupdated = DateTime::<Local>::from(
-        DateTime::from_timestamp_micros(content.parse::<i64>().expect("valid timestamp"))
-            .expect("valid timestamp"),
-    );
-    let now = Local::now();
-    let duration = Duration::hours(constant::INDEX_EXPIRATION);
+    let lastupdated = Timestamp::from_microsecond(content.parse::<i64>().expect("valid timestamp"))
+        .expect("valid timestamp");
+    let now = Timestamp::now();
+    let duration = SignedDuration::from_hours(constant::INDEX_EXPIRATION);
     let cache_valid = now < lastupdated + duration;
 
     tracing::debug!("index {} cache valid '{}'", path.display(), cache_valid,);

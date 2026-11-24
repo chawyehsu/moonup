@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use miette::IntoDiagnostic;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -353,7 +353,7 @@ fn legacy_nightly_key(s: &str) -> Option<&str> {
         return None;
     }
 
-    NaiveDate::from_ymd_opt(year.parse().ok()?, month.parse().ok()?, day.parse().ok()?)?;
+    Date::new(year.parse().ok()?, month.parse().ok()?, day.parse().ok()?).ok()?;
     Some(key)
 }
 

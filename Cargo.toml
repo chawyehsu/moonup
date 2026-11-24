@@ -12,7 +12,7 @@ categories = ["development-tools"]
 
 [dependencies]
 anyhow = "1.0.102"
-chrono = "0.4.44"
+jiff = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5.65"
 clap-verbosity-flag = { version = "3.0.4", default-features = false, features = ["tracing"] }
