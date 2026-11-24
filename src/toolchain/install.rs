@@ -3,7 +3,7 @@ use crate::constant::ALLOWED_EXTENSIONS;
 use crate::dist_server::schema::{Component, Release};
 use crate::toolchain::index::{available_channels, read_channel_index, read_component_index};
 use crate::toolchain::package::populate_install;
-use crate::toolchain::{InstalledToolchain, ToolchainSpec, atomic, version};
+use crate::toolchain::{Finalization, InstalledToolchain, ToolchainSpec, atomic, version};
 use crate::utils::exe_name;
 use miette::{Context, IntoDiagnostic};
 use std::env;
@@ -43,13 +43,12 @@ pub struct InstallRecipe {
 /// swaps content in place under an unchanged directory name, leaving the
 /// existing links valid.
 fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
-    let Some(staged) = atomic::recover(spec)? else {
+    let Some(finalization) = atomic::recover(spec)? else {
         return Ok(false);
     };
 
-    let recipe = staged.into_recipe(spec);
-    post_install(&recipe, link)?;
-    atomic::acknowledge(&recipe.spec);
+    post_install(spec, &finalization, link)?;
+    atomic::acknowledge(spec);
     Ok(true)
 }
 
@@ -154,7 +153,11 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
     }
 
     populate_install(&recipe).await?;
-    post_install(&recipe, first_time)?;
+    post_install(
+        &recipe.spec,
+        &Finalization::from(&recipe.release),
+        first_time,
+    )?;
     atomic::acknowledge(&recipe.spec);
 
     if first_time {
@@ -174,12 +177,16 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
 
 /// Post installation: pour shims, build the core library, and link
 /// directories if needed
-fn post_install(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
-    pour_shims(recipe)?;
-    build_core_library(recipe)?;
+fn post_install(
+    spec: &ToolchainSpec,
+    finalization: &Finalization,
+    link: bool,
+) -> miette::Result<()> {
+    pour_shims(spec, finalization)?;
+    build_core_library(spec, finalization)?;
 
     if link {
-        link_dirs(recipe)?;
+        link_dirs(spec)?;
     }
 
     Ok(())
@@ -187,7 +194,7 @@ fn post_install(recipe: &InstallRecipe, link: bool) -> miette::Result<()> {
 
 /// Ensure the toolchain executables and their shims are available in the
 /// current `MOON_HOME`.
-fn pour_shims(recipe: &InstallRecipe) -> miette::Result<()> {
+fn pour_shims(spec: &ToolchainSpec, finalization: &Finalization) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
     let moonup_shim_name = exe_name("moonup-shim");
@@ -195,7 +202,7 @@ fn pour_shims(recipe: &InstallRecipe) -> miette::Result<()> {
 
     let mut toolchain_dir = crate::moonup_home();
     toolchain_dir.push("toolchains");
-    toolchain_dir.push(recipe.spec.install_name());
+    toolchain_dir.push(spec.install_name());
 
     let moon_home_bin = crate::moon_home().join("bin");
 
@@ -206,8 +213,7 @@ fn pour_shims(recipe: &InstallRecipe) -> miette::Result<()> {
     let moon_exe = bin_dir.join(exe_name("moon"));
 
     // moonx
-    if recipe
-        .release
+    if finalization
         .moonx
         .as_ref()
         .is_none_or(|s| s != "unavailable")
@@ -246,10 +252,10 @@ fn pour_shims(recipe: &InstallRecipe) -> miette::Result<()> {
 }
 
 /// Build the core library in the installed toolchain directory.
-fn build_core_library(recipe: &InstallRecipe) -> miette::Result<()> {
+fn build_core_library(spec: &ToolchainSpec, finalization: &Finalization) -> miette::Result<()> {
     let toolchain_dir = crate::moonup_home()
         .join("toolchains")
-        .join(recipe.spec.install_name());
+        .join(spec.install_name());
     let bin_dir = toolchain_dir.join("bin");
     let moon_exe = bin_dir.join(exe_name("moon"));
 
@@ -257,7 +263,7 @@ fn build_core_library(recipe: &InstallRecipe) -> miette::Result<()> {
     let corelib_dir = toolchain_dir.join("lib").join("core");
     let mut cmd = Command::new(moon_exe);
 
-    let bundle_dir_arg = if recipe.release.bundle_source_dir.unwrap_or(false) {
+    let bundle_dir_arg = if finalization.bundle_source_dir.unwrap_or(false) {
         "--source-dir"
     } else {
         "-C"
@@ -338,7 +344,7 @@ fn find_bins(dir: &Path) -> miette::Result<Vec<OsString>> {
 // always looks for the core library in `MOON_HOME`/lib/core.
 //
 // Discussion: https://github.com/chawyehsu/moonup/issues/7
-fn link_dirs(recipe: &InstallRecipe) -> miette::Result<()> {
+fn link_dirs(spec: &ToolchainSpec) -> miette::Result<()> {
     let dirs = ["lib", "include"];
     let toolchains_dir = crate::moonup_home().join("toolchains");
 
@@ -351,14 +357,14 @@ fn link_dirs(recipe: &InstallRecipe) -> miette::Result<()> {
             if from_latest.exists() {
                 from_latest
             } else {
-                let from_recipe = toolchains_dir.join(recipe.spec.install_name()).join(dir);
+                let from_spec = toolchains_dir.join(spec.install_name()).join(dir);
 
                 // Older toolchains may not have the `include` directory
-                if !from_recipe.exists() {
-                    tracing::debug!("dir '{}' not found in toolchain {}", dir, recipe.spec);
+                if !from_spec.exists() {
+                    tracing::debug!("dir '{}' not found in toolchain {}", dir, spec);
                     continue;
                 }
-                from_recipe
+                from_spec
             }
         };
 

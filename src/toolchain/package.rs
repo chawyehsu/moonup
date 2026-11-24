@@ -17,24 +17,25 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     // failed while swapping it into place; retry the swap rather than
     // discarding the fully-assembled toolchain, as long as it holds the same
     // release the recipe resolves to.
-    if atomic::is_complete(&recipe.spec) && atomic::staged_matches(&recipe.spec, recipe)? {
+    if atomic::staged_matches(&recipe.spec, recipe)? {
         atomic::swap(&recipe.spec)?;
         return Ok(());
     }
 
     let staging_dir = atomic::staging_dir_for(&recipe.spec);
-    // Assemble the new toolchain in a staging directory and swap it into the
-    // live location only once it is fully assembled. A failed run leaves a
-    // discarded staging directory, never a damaged live toolchain. A stale
-    // completeness marker is cleaned too, so a partial extraction is never
-    // misread as complete.
+    // Discard staging leftovers from any previous run — a partial extraction
+    // or a staging left by an older moonup, neither of which carries a
+    // finalization payload — then assemble the new toolchain in a staging
+    // directory and swap it into the live location only once it is fully
+    // assembled. A failed run leaves a discarded staging directory, never a
+    // damaged live toolchain.
+    atomic::sweep_staging(&recipe.spec);
     crate::fs::remove_dir_all(&staging_dir)
         .into_diagnostic()
         .wrap_err(format!(
             "failed to clean the staging directory {}",
             staging_dir.display()
         ))?;
-    let _ = std::fs::remove_file(atomic::completeness_marker_for(&recipe.spec));
 
     let mut download_dir = crate::moonup_home();
     download_dir.push("downloads");
@@ -183,20 +184,13 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
         }
     }
 
-    // Every install records its identity in a metadata stub
-    super::InstallMeta::from(recipe).save(&staging_dir).await?;
-
-    // mark the staging directory as fully assembled, recording the release
-    // identity, so that recovery never promotes a partial extraction and can
-    // finalize the promoted toolchain from its own metadata
-    let marker = atomic::completeness_marker_for(&recipe.spec);
-    let staged = atomic::StagedRelease::from_recipe(recipe);
-    let marker_json = serde_json::to_string(&staged)
-        .into_diagnostic()
-        .wrap_err("failed to serialize staged release metadata")?;
-    tokio::fs::write(&marker, marker_json)
-        .await
-        .into_diagnostic()?;
+    // Every install records its identity in the install record inside the
+    // staging directory. The record carries the finalization inputs so the
+    // post-install steps never depend on the network, and the presence of its
+    // finalization payload marks the staging as complete and ready to
+    // promote; `acknowledge` rewrites it without the payload once the
+    // post-install steps succeed.
+    super::InstallMeta::from(recipe).save(&staging_dir)?;
 
     atomic::swap(&recipe.spec)?;
 
