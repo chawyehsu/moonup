@@ -112,16 +112,19 @@ pub fn release_order(
 ) -> ReleaseOrder {
     match spec {
         ToolchainSpec::Channel(c) => ReleaseOrder::Channel(
-            channel_ranks.get(c).copied().unwrap_or(usize::MAX),
-            c.clone(),
+            channel_ranks.get(c.as_str()).copied().unwrap_or(usize::MAX),
+            c.to_string(),
         ),
         ToolchainSpec::Version { channel, key } => ReleaseOrder::Pinned {
-            channel_rank: channel_ranks.get(channel).copied().unwrap_or(usize::MAX),
-            channel: channel.clone(),
+            channel_rank: channel_ranks
+                .get(channel.as_str())
+                .copied()
+                .unwrap_or(usize::MAX),
+            channel: channel.to_string(),
             order: match NumericVersion::parse(key) {
                 Ok(num) => PinnedReleaseOrder::Versioned(
                     release_positions
-                        .get(channel)
+                        .get(channel.as_str())
                         .and_then(|positions| positions.get(key))
                         .copied(),
                     num,
@@ -189,13 +192,18 @@ pub fn read_channel_ranks() -> HashMap<String, usize> {
         .channels()
         .iter()
         .enumerate()
-        .map(|(i, c)| (c.name.clone(), i))
+        .map(|(i, c)| (c.name.to_string(), i))
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dist_server::schema::ChannelName;
+
+    fn channel_name(value: &str) -> ChannelName {
+        ChannelName::parse(value).expect("test channel name should be valid")
+    }
 
     #[test]
     fn compares_exact_identities() {
@@ -225,11 +233,11 @@ mod tests {
             HashMap::from([("0.1.0".to_owned(), 10)]),
         )]);
         let first = ToolchainSpec::Version {
-            channel: "first".to_owned(),
+            channel: channel_name("first"),
             key: "0.1.0".to_owned(),
         };
         let second = ToolchainSpec::Version {
-            channel: "second".to_owned(),
+            channel: channel_name("second"),
             key: "99.0.0".to_owned(),
         };
 
@@ -242,7 +250,7 @@ mod tests {
         // Pinned release kinds are also compared only after the channel, so a
         // ranked versioned channel precedes a later-ranked dated channel.
         let dated = ToolchainSpec::Version {
-            channel: "second".to_owned(),
+            channel: channel_name("second"),
             key: "2026-01-01".to_owned(),
         };
         assert!(
@@ -259,11 +267,11 @@ mod tests {
             HashMap::from([("0.9.0".to_owned(), 1), ("0.10.0".to_owned(), 0)]),
         )]);
         let older_index_position = ToolchainSpec::Version {
-            channel: "latest".to_owned(),
+            channel: channel_name("latest"),
             key: "0.10.0".to_owned(),
         };
         let newer_index_position = ToolchainSpec::Version {
-            channel: "latest".to_owned(),
+            channel: channel_name("latest"),
             key: "0.9.0".to_owned(),
         };
 

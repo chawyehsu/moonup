@@ -1,7 +1,7 @@
 use miette::{Context, IntoDiagnostic};
 use std::path::{Path, PathBuf};
 
-use crate::dist_server::schema::Release;
+use crate::dist_server::schema::{ChannelName, Release};
 
 use super::install::InstallRecipe;
 use super::{InstalledToolchain, ToolchainSpec};
@@ -49,7 +49,7 @@ pub struct StagedRelease {
     /// The channel of the spec being staged. Absent in markers written by
     /// older moonup versions.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channel: Option<String>,
+    pub channel: Option<ChannelName>,
 
     /// Whether the spec being staged is a floating channel install. Absent in
     /// markers written before install identity was recorded.
@@ -65,7 +65,7 @@ impl StagedRelease {
     /// Persist the release identity of the recipe being assembled.
     pub fn from_recipe(recipe: &InstallRecipe) -> Self {
         Self {
-            channel: Some(recipe.spec.channel().to_owned()),
+            channel: Some(recipe.spec.channel().clone()),
             floating: Some(matches!(recipe.spec, ToolchainSpec::Channel(_))),
             release: recipe.release.clone(),
         }
@@ -75,7 +75,7 @@ impl StagedRelease {
     /// Missing fields are accepted for older completeness markers.
     fn matches_spec(&self, spec: &ToolchainSpec) -> bool {
         self.channel
-            .as_deref()
+            .as_ref()
             .is_none_or(|channel| channel == spec.channel())
             && self
                 .floating
@@ -372,6 +372,11 @@ fn sibling_with_suffix(path: &Path, from: &str, to: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dist_server::schema::ChannelName;
+
+    fn channel_name(value: &str) -> ChannelName {
+        ChannelName::parse(value).expect("test channel name should be valid")
+    }
 
     #[test]
     fn unique_tombstone_name_follows_convention() {
@@ -397,15 +402,15 @@ mod tests {
     #[test]
     fn staged_identity_distinguishes_a_channel_from_a_colliding_pin() {
         let staged = StagedRelease {
-            channel: Some("lts-2026-01-01".to_owned()),
+            channel: Some(channel_name("lts-2026-01-01")),
             floating: Some(true),
             release: Release::new("2026-01-01"),
         };
         let colliding_pin = ToolchainSpec::Version {
-            channel: "lts".to_owned(),
+            channel: channel_name("lts"),
             key: "2026-01-01".to_owned(),
         };
-        let floating_channel = ToolchainSpec::Channel("lts-2026-01-01".to_owned());
+        let floating_channel = ToolchainSpec::Channel(channel_name("lts-2026-01-01"));
 
         assert!(!staged.matches_spec(&colliding_pin));
         assert!(staged.matches_spec(&floating_channel));

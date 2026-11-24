@@ -39,7 +39,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let mut download_dir = crate::moonup_home();
     download_dir.push("downloads");
 
-    let channel = recipe.spec.channel();
+    let channel = recipe.spec.channel().as_str();
     let release_key = recipe.release.key().to_owned();
 
     download_dir.push(channel);

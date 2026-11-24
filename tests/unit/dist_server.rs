@@ -13,7 +13,7 @@ fn test_handle_future_channel() {
 
     let channel = serde_json::from_str::<Channel>(json).expect("should parse channel successfully");
 
-    assert_eq!(channel.name, "lts");
+    assert_eq!(channel.name.as_str(), "lts");
 }
 
 #[test]

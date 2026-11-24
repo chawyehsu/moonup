@@ -5,6 +5,86 @@ mod legacy;
 mod v2;
 mod v3;
 
+/// A syntactically valid dist-server channel name.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ChannelName(String);
+
+impl ChannelName {
+    /// Parse a channel name containing only lowercase ASCII letters, digits,
+    /// and hyphens.
+    pub fn parse(name: &str) -> Result<Self, InvalidChannelName> {
+        Self::try_from(name.to_owned())
+    }
+
+    /// Borrow the channel name as a string.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<&str> for ChannelName {
+    type Error = InvalidChannelName;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        Self::parse(name)
+    }
+}
+
+impl TryFrom<String> for ChannelName {
+    type Error = InvalidChannelName;
+
+    fn try_from(name: String) -> Result<Self, Self::Error> {
+        if !name.is_empty()
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        {
+            Ok(Self(name))
+        } else {
+            Err(InvalidChannelName { channel: name })
+        }
+    }
+}
+
+impl AsRef<str> for ChannelName {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl std::fmt::Display for ChannelName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl Serialize for ChannelName {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ChannelName {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::try_from(name).map_err(D::Error::custom)
+    }
+}
+
+/// A string that does not match the dist-server channel-name grammar.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InvalidChannelName {
+    channel: String,
+}
+
+impl std::fmt::Display for InvalidChannelName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid channel name '{}'", self.channel)
+    }
+}
+
+impl std::error::Error for InvalidChannelName {}
+
 #[derive(Debug)]
 pub enum VersionedIndex {
     /// Schema version 2
@@ -88,29 +168,6 @@ impl Index {
     }
 }
 
-/// Whether a channel name is a non-empty lowercase ASCII name using only
-/// letters, digits, and hyphens.
-pub fn is_valid_channel_name(name: &str) -> bool {
-    !name.is_empty()
-        && name
-            .bytes()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
-}
-
-fn deserialize_channel_name<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let name = String::deserialize(deserializer)?;
-    if is_valid_channel_name(&name) {
-        Ok(name)
-    } else {
-        Err(D::Error::custom(format!(
-            "invalid channel name {name:?}; expected [a-z0-9-]+"
-        )))
-    }
-}
-
 /// A build date in the dist-server schema, formatted as `YYYY-MM-DD`.
 ///
 /// The underlying date implementation is intentionally private. Use [`BuildDate::parse`]
@@ -170,8 +227,7 @@ fn parse_build_date(value: &str) -> Option<Date> {
 #[derive(Debug, Deserialize)]
 pub struct Channel {
     /// The channel name, matching `[a-z0-9-]+`.
-    #[serde(deserialize_with = "deserialize_channel_name")]
-    pub name: String,
+    pub name: ChannelName,
     /// The (compiler) version number of the latest release in the channel
     pub version: String,
     /// Optional nightly build date of the latest release, formatted as `YYYY-MM-DD`.
@@ -464,15 +520,34 @@ mod tests {
     #[test]
     fn validates_channel_names() {
         for name in ["latest", "dev-preview", "nightly-2", "123"] {
-            assert!(is_valid_channel_name(name), "expected {name:?} to be valid");
+            assert!(
+                ChannelName::parse(name).is_ok(),
+                "expected {name:?} to be valid"
+            );
         }
 
         for name in ["", "Latest", "dev_preview", "dev/preview", "dev@preview"] {
             assert!(
-                !is_valid_channel_name(name),
+                ChannelName::parse(name).is_err(),
                 "expected {name:?} to be invalid"
             );
         }
+    }
+
+    #[test]
+    fn channel_name_serde_preserves_string_representation_and_validation() {
+        let name = ChannelName::parse("dev-preview").expect("valid channel name");
+        assert_eq!(name.to_string(), "dev-preview");
+        assert_eq!(
+            serde_json::to_string(&name).expect("serialize channel name"),
+            r#""dev-preview""#
+        );
+        assert_eq!(
+            serde_json::from_str::<ChannelName>(r#""dev-preview""#)
+                .expect("deserialize channel name"),
+            name
+        );
+        assert!(serde_json::from_str::<ChannelName>(r#""Dev_preview""#).is_err());
     }
 
     #[test]

@@ -85,7 +85,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         if !args.keep_cache {
             if let Ok(installed) = InstalledToolchain::from_path(&toolchain_dir) {
                 let mut download_dir = crate::moonup_home().join("downloads");
-                download_dir.push(toolchain.channel());
+                download_dir.push(toolchain.channel().as_str());
                 download_dir.push(installed.key());
 
                 tracing::info!("removing cached downloads {}", download_dir.display());
