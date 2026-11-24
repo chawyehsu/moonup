@@ -1,11 +1,11 @@
 use jiff::civil::Date;
-use miette::IntoDiagnostic;
+use miette::{Context, IntoDiagnostic};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::constant::DEFAULT_CHANNEL;
-use crate::dist_server::schema::ChannelName;
 pub use crate::dist_server::schema::InvalidChannelName;
+use crate::dist_server::schema::{ChannelName, Release};
 use crate::toolchain::install::InstallRecipe;
 use crate::toolchain::ordering::{
     NumericVersion, read_channel_ranks, read_release_positions, release_order,
@@ -19,12 +19,15 @@ pub mod package;
 pub mod resolve;
 pub mod version;
 
-/// The filename of the install metadata stub, relative to an install directory.
+/// The filename of the install record, relative to an install directory.
 ///
-/// New installs write JSON (`{"channel": ..., "key": ...}`); legacy installs
-/// wrote a plain-text release key (floating installs only). Both forms are
-/// read; legacy files are left as-is until the toolchain is reinstalled or
-/// updated, which rewrites the stub in the JSON format.
+/// The record travels with the installation: `populate` writes it into the
+/// staging directory, and the swap carries it into the live install. New
+/// installs write JSON (`{"channel": ..., "key": ..., "floating": ...}`,
+/// plus a `finalization` object while finalization is pending); legacy
+/// installs wrote a plain-text release key (floating installs only). Both
+/// forms are read; legacy files are left as-is until the toolchain is
+/// reinstalled or updated, which rewrites the record in the JSON format.
 pub(crate) const METADATA_FILENAME: &str = "version";
 
 /// The recorded identity of an installed toolchain.
@@ -39,16 +42,66 @@ pub struct InstallMeta {
 
     /// Indicates whether the toolchain is a floating install
     pub floating: bool,
+
+    /// The inputs the post-install steps need, present only while
+    /// finalization is pending
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finalization: Option<Finalization>,
+}
+
+/// The inputs the post-install steps (pouring shims, building the core
+/// library, linking directories) need, recorded in the install record before
+/// the swap so finalization never depends on the network.
+///
+/// The presence of this value in an install record means finalization is
+/// pending: it marks a staging directory as complete enough to promote, and
+/// marks a promoted toolchain as awaiting its post-install steps.
+/// [`atomic::acknowledge`] rewrites the record without it once the
+/// post-install steps succeed.
+///
+/// New inputs belong inside this object so the record schema only ever grows
+/// in one place.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct Finalization {
+    /// Whether the release supports `moonx`; `"unavailable"` means it does
+    /// not
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub moonx: Option<String>,
+
+    /// Whether `moon bundle` should be run with `--source-dir`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle_source_dir: Option<bool>,
+}
+
+impl From<&Release> for Finalization {
+    fn from(release: &Release) -> Self {
+        Finalization {
+            moonx: release.moonx.clone(),
+            bundle_source_dir: release.bundle_source_dir,
+        }
+    }
 }
 
 impl InstallMeta {
-    /// Save the install metadata to the given install directory.
-    pub async fn save(&self, install_dir: &Path) -> miette::Result<()> {
+    /// Save the install record to the given install directory.
+    ///
+    /// The record is written to a sibling temp file and renamed into place so
+    /// a crash never leaves a truncated record behind.
+    pub fn save(&self, install_dir: &Path) -> miette::Result<()> {
         let meta_file = install_dir.join(METADATA_FILENAME);
+        let temp_file = install_dir.join(format!("{METADATA_FILENAME}.tmp"));
         let content = serde_json::to_string(self).into_diagnostic()?;
-        tokio::fs::write(&meta_file, content)
-            .await
-            .into_diagnostic()?;
+        std::fs::write(&temp_file, content)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("failed to write {}", temp_file.display()))?;
+        std::fs::rename(&temp_file, &meta_file)
+            .into_diagnostic()
+            .wrap_err_with(|| {
+                format!(
+                    "failed to move the install record into place at {}",
+                    meta_file.display()
+                )
+            })?;
         Ok(())
     }
 }
@@ -59,6 +112,7 @@ impl From<&InstallRecipe> for InstallMeta {
             channel: recipe.spec.channel().clone(),
             key: recipe.release.key().to_string(),
             floating: matches!(recipe.spec, ToolchainSpec::Channel(_)),
+            finalization: Some(Finalization::from(&recipe.release)),
         }
     }
 }
@@ -100,6 +154,7 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
                     channel: ChannelName::try_from(name).into_diagnostic()?,
                     key: key.to_owned(),
                     floating: true,
+                    finalization: None,
                 });
             }
 
@@ -115,6 +170,7 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
                     channel: ChannelName::parse("nightly").expect("built-in channel name is valid"),
                     key: key.to_owned(),
                     floating: false,
+                    finalization: None,
                 });
             }
 
@@ -125,6 +181,7 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
                         .expect("default channel name is valid"),
                     key: name.to_owned(),
                     floating: false,
+                    finalization: None,
                 });
             }
 

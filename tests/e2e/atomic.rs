@@ -4,8 +4,6 @@
 //! at a local mockito server serving the committed dist-server fixtures,
 //! including tiny per-target toolchain stub archives.
 
-use std::path::PathBuf;
-
 use moonup::{
     constant,
     toolchain::{ToolchainSpec, atomic},
@@ -13,24 +11,18 @@ use moonup::{
 
 use crate::{
     constant::E2E_TEST_MOCK_INSTALL_VERSION,
-    util::{TestWorkspace, mock_dist_server},
+    util::{TestWorkspace, crash_state as cs, mock_dist_server},
 };
 
 fn spec(value: &str) -> ToolchainSpec {
     ToolchainSpec::try_from(value).expect("test spec should be valid")
 }
 
-/// The staging leftovers a recovery is expected to consume.
-fn staging_leftovers(spec: &ToolchainSpec) -> (PathBuf, PathBuf) {
-    (
-        atomic::staging_dir_for(spec),
-        atomic::completeness_marker_for(spec),
-    )
-}
-
 /// Simulate a crash that left a fully assembled staging directory: move the
-/// live toolchain into the staging location and write the completeness marker.
-fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
+/// live toolchain into the staging location and rewrite its install record
+/// with a pending finalization payload, as `populate` would have written
+/// before the swap it did not survive.
+fn simulate_crash_state(ws: &TestWorkspace, name: &str, key: &str) {
     let spec = spec(name);
 
     // the path helpers resolve `MOONUP_HOME` from the process environment, so
@@ -40,14 +32,18 @@ fn simulate_crash_state(ws: &TestWorkspace, name: &str, version: &str) {
         Some(ws.moonup_home().as_os_str()),
         || {
             let install_path = spec.install_path();
-            let (staging_dir, marker) = staging_leftovers(&spec);
+            let staging_dir = atomic::staging_dir_for(&spec);
 
             std::fs::create_dir_all(staging_dir.parent().unwrap())
                 .expect("should create .staging dir");
             std::fs::rename(&install_path, &staging_dir)
                 .expect("should move toolchain into staging");
-            std::fs::write(&marker, format!(r#"{{"version":"{version}"}}"#))
-                .expect("should write marker");
+            let finalization = serde_json::json!({"bundle_source_dir": false});
+            std::fs::write(
+                staging_dir.join("version"),
+                cs::install_record(&spec, key, Some(finalization)),
+            )
+            .expect("should rewrite the staged record");
 
             assert!(!install_path.exists());
         },
@@ -65,7 +61,6 @@ fn test_install_recovers_interrupted_swap() {
         Some(ws.moonup_home().as_os_str()),
         || {
             let install_path = spec.install_path();
-            let (staging_dir, marker) = staging_leftovers(&spec);
 
             // first, install the toolchain
             let _ = ws
@@ -106,8 +101,14 @@ fn test_install_recovers_interrupted_swap() {
                 install_path.exists(),
                 "toolchain should be promoted back to the live location"
             );
-            assert!(!staging_dir.exists(), "staging dir should be consumed");
-            assert!(!marker.exists(), "completeness marker should be cleaned up");
+            assert!(
+                !atomic::staging_dir_for(&spec).exists(),
+                "staging dir should be consumed"
+            );
+            assert!(
+                !cs::live_record_has_finalization(&spec),
+                "recovery should acknowledge the promotion in the install record"
+            );
 
             // the recovery finalized the installation: the shim was re-poured
             assert!(shim.exists(), "shim should have re-poured after recovery");
@@ -157,12 +158,14 @@ fn test_install_repairs_shims_for_up_to_date_toolchain() {
 fn test_update_skips_incomplete_staging_without_index_lookup() {
     let ws = TestWorkspace::new();
     let mut s = mock_dist_server();
-    let staging = ws
-        .moonup_home()
-        .join("toolchains")
-        .join(".staging")
-        .join("latest.new");
-    std::fs::create_dir_all(&staging).expect("should create incomplete staging directory");
+
+    temp_env::with_var(
+        constant::ENVNAME_MOONUP_HOME,
+        Some(ws.moonup_home().as_os_str()),
+        || {
+            cs::write_partial_staging(&spec("latest"));
+        },
+    );
 
     s.reset();
     let index_request = s.mock("GET", "/index.json").expect(0).create();
@@ -195,7 +198,6 @@ fn test_update_ignores_staged_toolchain_and_install_recovers_it() {
         Some(ws.moonup_home().as_os_str()),
         || {
             let install_path = spec.install_path();
-            let (staging_dir, marker) = staging_leftovers(&spec);
 
             // install the `latest` channel first
             let _ = ws
@@ -206,15 +208,15 @@ fn test_update_ignores_staged_toolchain_and_install_recovers_it() {
                 .output()
                 .expect("should run moonup install");
 
-            let actual_version = std::fs::read_to_string(install_path.join("version"))
-                .expect("should read metadata stub");
-            let actual_version =
-                serde_json::from_str::<moonup::toolchain::InstallMeta>(actual_version.trim())
-                    .expect("should parse metadata stub")
+            let actual_key = std::fs::read_to_string(install_path.join("version"))
+                .expect("should read install record");
+            let actual_key =
+                serde_json::from_str::<moonup::toolchain::InstallMeta>(actual_key.trim())
+                    .expect("should parse install record")
                     .key;
 
             // simulate a crash that left a complete staging directory
-            simulate_crash_state(&ws, "latest", &actual_version);
+            simulate_crash_state(&ws, "latest", &actual_key);
 
             let _ = ws
                 .cli()
@@ -241,8 +243,14 @@ fn test_update_ignores_staged_toolchain_and_install_recovers_it() {
                 install_path.exists(),
                 "latest toolchain should be promoted back to the live location"
             );
-            assert!(!staging_dir.exists(), "staging dir should be consumed");
-            assert!(!marker.exists(), "completeness marker should be cleaned up");
+            assert!(
+                !atomic::staging_dir_for(&spec).exists(),
+                "staging dir should be consumed"
+            );
+            assert!(
+                !cs::live_record_has_finalization(&spec),
+                "recovery should acknowledge the promotion in the install record"
+            );
         },
     );
 }

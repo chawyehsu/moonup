@@ -1,6 +1,7 @@
 use assert_fs::TempDir;
 use mockito::ServerGuard;
 use moonup::constant;
+use moonup::toolchain::{InstallMeta, ToolchainSpec, atomic};
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -237,3 +238,141 @@ macro_rules! apply_common_filters {
 
 #[allow(unused_imports)]
 pub(crate) use apply_common_filters;
+
+/// Fabricators for atomic-workflow crash states.
+///
+/// Every helper here requires `MOONUP_HOME` to point at the test home (call
+/// inside `temp_env::with_var`). Together they are the single place in the
+/// test suite that knows the on-disk atomic-workflow layout and the install
+/// record format, so a format change updates this module and no test.
+pub(crate) mod crash_state {
+    use super::*;
+
+    /// The install record JSON for the given spec and release key, carrying a
+    /// finalization payload when one is given.
+    #[allow(unused)]
+    pub fn install_record(
+        spec: &ToolchainSpec,
+        key: &str,
+        finalization: Option<serde_json::Value>,
+    ) -> String {
+        let mut record = serde_json::json!({
+            "channel": spec.channel().as_str(),
+            "key": key,
+            "floating": matches!(spec, ToolchainSpec::Channel(_)),
+        });
+        if let Some(finalization) = finalization {
+            record["finalization"] = finalization;
+        }
+        record.to_string()
+    }
+
+    /// The `.staging` directory under the current `MOONUP_HOME`.
+    #[allow(unused)]
+    pub fn staging_root() -> PathBuf {
+        moonup::moonup_home()
+            .join("toolchains")
+            .join(atomic::STAGING_DIR)
+    }
+
+    /// Whether any retired leftover (`<name>.old` or
+    /// `<name>.old.<pid>.<counter>`) exists for the spec.
+    #[allow(unused)]
+    pub fn has_retired_leftover(spec: &ToolchainSpec) -> bool {
+        let prefix = format!("{}.old", spec.install_name());
+        let Ok(read_dir) = staging_root().read_dir() else {
+            return false;
+        };
+        read_dir.flatten().any(|e| {
+            let name = e.file_name();
+            let name = name.to_string_lossy();
+            name.starts_with(&prefix)
+        })
+    }
+
+    /// Whether the live install record for the spec carries a finalization
+    /// payload.
+    #[allow(unused)]
+    pub fn live_record_has_finalization(spec: &ToolchainSpec) -> bool {
+        let live = spec.install_path();
+        let content = std::fs::read_to_string(live.join("version")).expect("should read record");
+        serde_json::from_str::<InstallMeta>(&content)
+            .expect("should parse install record")
+            .finalization
+            .is_some()
+    }
+
+    /// Fabricate a live install: the install directory with `bin/moon` content
+    /// and the given install record.
+    #[allow(unused)]
+    pub fn write_live_install(spec: &ToolchainSpec, record: &str) -> PathBuf {
+        let live = spec.install_path();
+        std::fs::create_dir_all(live.join("bin")).expect("should create live dir");
+        std::fs::write(live.join("bin").join("moon"), b"live").expect("should write live content");
+        std::fs::write(live.join("version"), record).expect("should write install record");
+        live
+    }
+
+    /// Fabricate a complete staging: `bin/moon` content plus an install record
+    /// with the given finalization payload, as `populate` writes it before the
+    /// swap it did not survive.
+    #[allow(unused)]
+    pub fn write_complete_staging(
+        spec: &ToolchainSpec,
+        key: &str,
+        finalization: serde_json::Value,
+    ) -> PathBuf {
+        let staging = atomic::staging_dir_for(spec);
+        std::fs::create_dir_all(staging.join("bin")).expect("should create staging dir");
+        std::fs::write(staging.join("bin").join("moon"), b"new")
+            .expect("should write staging content");
+        let record = install_record(spec, key, Some(finalization));
+        std::fs::write(staging.join("version"), record).expect("should write staged record");
+        staging
+    }
+
+    /// Fabricate an incomplete staging: `bin/moon` content, no install record,
+    /// as a crash during extraction leaves behind.
+    #[allow(unused)]
+    pub fn write_partial_staging(spec: &ToolchainSpec) -> PathBuf {
+        let staging = atomic::staging_dir_for(spec);
+        std::fs::create_dir_all(staging.join("bin")).expect("should create staging dir");
+        std::fs::write(staging.join("bin").join("moon"), b"new")
+            .expect("should write staging content");
+        staging
+    }
+
+    /// Fabricate a retired leftover under the legacy deterministic name
+    /// (`<name>.old`) that older moonup versions used.
+    #[allow(unused)]
+    pub fn write_legacy_retired(spec: &ToolchainSpec) -> PathBuf {
+        let retired = staging_root().join(format!("{}.old", spec.install_name()));
+        std::fs::create_dir_all(&retired).expect("should create legacy retired dir");
+        retired
+    }
+
+    /// Fabricate a retired leftover under a unique pid-counter name
+    /// (`<name>.old.<pid>.<counter>`).
+    #[allow(unused)]
+    pub fn write_unique_retired(spec: &ToolchainSpec, counter: u64) -> PathBuf {
+        let retired = staging_root().join(format!(
+            "{}.old.{}.{counter}",
+            spec.install_name(),
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&retired).expect("should create retired leftover dir");
+        retired
+    }
+
+    /// Fabricate the legacy completeness marker of older moonup versions
+    /// (`<name>.complete`).
+    #[allow(unused)]
+    pub fn write_legacy_complete_marker(spec: &ToolchainSpec, version: &str) -> PathBuf {
+        let marker = staging_root().join(format!("{}.complete", spec.install_name()));
+        std::fs::create_dir_all(marker.parent().expect("should have .staging parent"))
+            .expect("should create .staging dir");
+        std::fs::write(&marker, format!(r#"{{"version":"{version}"}}"#))
+            .expect("should write legacy marker");
+        marker
+    }
+}
