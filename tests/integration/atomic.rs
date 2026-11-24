@@ -256,6 +256,7 @@ fn test_swap_restores_live_when_staging_is_missing() {
             let spec = spec("latest");
             let (live_dir, _) = swap_paths(&spec);
 
+            std::fs::create_dir_all(cs::staging_root()).expect("should create staging parent");
             cs::write_live_install(&spec, &cs::install_record(&spec, "0.1.0", None));
 
             // no staging at all: the promotion fails and the retired live
