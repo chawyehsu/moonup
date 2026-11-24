@@ -82,13 +82,13 @@ async fn list_channel_versions(spec: &ToolchainSpec) -> miette::Result<Option<To
     // Validate against the main index so an unknown channel errors with the
     // available ones instead of a bare download failure.
     if let Some(channels) = index::available_channels().await
-        && !channels.iter().any(|c| c == channel)
+        && !channels.iter().any(|candidate| candidate == channel)
     {
         eprintln!("No toolchain available for requested spec '{}'", spec);
         return Err(crate::status::exit_with(1));
     }
 
-    let channel_index = index::read_channel_index(channel).await?;
+    let channel_index = index::read_channel_index(channel.as_str()).await?;
     let releases = channel_index
         .releases()
         .iter()
@@ -116,7 +116,7 @@ async fn list_channel_versions(spec: &ToolchainSpec) -> miette::Result<Option<To
 
     let picked_release = releases[selection];
     let picked = ToolchainSpec::Version {
-        channel: channel.to_owned(),
+        channel: spec.channel().clone(),
         key: picked_release.key().to_owned(),
     };
 
@@ -124,7 +124,7 @@ async fn list_channel_versions(spec: &ToolchainSpec) -> miette::Result<Option<To
 }
 
 fn release_label(release: &crate::dist_server::schema::Release) -> String {
-    match release.date.as_deref() {
+    match release.date.as_ref() {
         Some(date) => format!("{} ({})", release.version, date),
         None => release.version.clone(),
     }

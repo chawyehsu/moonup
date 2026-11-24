@@ -5,7 +5,9 @@ use miette::{Context, IntoDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::constant;
-use crate::dist_server::schema::{ChannelIndex, ComponentIndex, Index, Release, Target};
+use crate::dist_server::schema::{
+    ChannelIndex, ChannelName, ComponentIndex, Index, Release, Target,
+};
 use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
 
 /// Read the main index
@@ -225,8 +227,8 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
 /// The valid channels advertised by a readable main-index catalog.
 ///
 /// `None` means no usable channel catalog was available. `Some(vec![])` means
-/// a catalog was read but contained no valid channel names.
-pub async fn available_channels() -> Option<Vec<String>> {
+/// a catalog was read but contained no channels.
+pub async fn available_channels() -> Option<Vec<ChannelName>> {
     match read_index().await {
         Ok(index) if index.has_channel_catalog() => Some(
             index

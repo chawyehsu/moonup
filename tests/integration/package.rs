@@ -1,6 +1,6 @@
 use moonup::{
     constant,
-    dist_server::schema::{Component, Release},
+    dist_server::schema::{ChannelName, Component, Release},
     toolchain::{ToolchainSpec, install::InstallRecipe, package::populate_install},
 };
 
@@ -24,11 +24,11 @@ fn test_populate_install_redownloads_invalid_cache() {
 
     let recipe = InstallRecipe {
         spec: ToolchainSpec::Version {
-            channel: constant::DEFAULT_CHANNEL.to_string(),
+            channel: ChannelName::parse(constant::DEFAULT_CHANNEL).unwrap(),
             key: version.to_string(),
         },
         requested_spec: ToolchainSpec::Version {
-            channel: constant::DEFAULT_CHANNEL.to_string(),
+            channel: ChannelName::parse(constant::DEFAULT_CHANNEL).unwrap(),
             key: version.to_string(),
         },
         release: Release::new(version),

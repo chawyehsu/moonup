@@ -39,7 +39,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     let mut download_dir = crate::moonup_home();
     download_dir.push("downloads");
 
-    let channel = recipe.spec.channel();
+    let channel = recipe.spec.channel().as_str();
     let release_key = recipe.release.key().to_owned();
 
     download_dir.push(channel);
@@ -91,7 +91,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
 
             // GitHub release tag: dated releases publish as `{channel}-{date}`,
             // versioned releases as `v{version}`.
-            let tag = match recipe.release.date.as_deref() {
+            let tag = match recipe.release.date.as_ref() {
                 Some(date) => format!("{channel}-{date}"),
                 None => format!("v{}", recipe.release.version),
             };

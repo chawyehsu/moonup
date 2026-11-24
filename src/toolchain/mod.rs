@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::constant::DEFAULT_CHANNEL;
+use crate::dist_server::schema::ChannelName;
+pub use crate::dist_server::schema::InvalidChannelName;
 use crate::toolchain::install::InstallRecipe;
 use crate::toolchain::ordering::{
     NumericVersion, read_channel_ranks, read_release_positions, release_order,
@@ -29,7 +31,7 @@ pub(crate) const METADATA_FILENAME: &str = "version";
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct InstallMeta {
     /// The channel the toolchain was installed from
-    pub channel: String,
+    pub channel: ChannelName,
 
     /// The installed release key: the build date for dated releases,
     /// otherwise the version
@@ -54,7 +56,7 @@ impl InstallMeta {
 impl From<&InstallRecipe> for InstallMeta {
     fn from(recipe: &InstallRecipe) -> Self {
         InstallMeta {
-            channel: recipe.spec.channel().to_string(),
+            channel: recipe.spec.channel().clone(),
             key: recipe.release.key().to_string(),
             floating: matches!(recipe.spec, ToolchainSpec::Channel(_)),
         }
@@ -95,7 +97,7 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             let key = content.trim();
             if !key.is_empty() {
                 return Ok(InstallMeta {
-                    channel: name.to_owned(),
+                    channel: ChannelName::try_from(name).into_diagnostic()?,
                     key: key.to_owned(),
                     floating: true,
                 });
@@ -110,7 +112,7 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             // legacy `nightly-YYYY-MM-DD` installs
             if let Some(key) = legacy_nightly_key(name) {
                 return Ok(InstallMeta {
-                    channel: "nightly".to_owned(),
+                    channel: ChannelName::parse("nightly").expect("built-in channel name is valid"),
                     key: key.to_owned(),
                     floating: false,
                 });
@@ -119,7 +121,8 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             // legacy install in the default channel, version-shaped filename
             if name.contains('+') || version::is_stable_selector(name) {
                 return Ok(InstallMeta {
-                    channel: DEFAULT_CHANNEL.to_owned(),
+                    channel: ChannelName::parse(DEFAULT_CHANNEL)
+                        .expect("default channel name is valid"),
                     key: name.to_owned(),
                     floating: false,
                 });
@@ -146,21 +149,6 @@ impl From<&InstallMeta> for ToolchainSpec {
     }
 }
 
-/// A toolchain spec contains a channel name that does not match Moonup's
-/// channel-name grammar.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InvalidChannelName {
-    channel: String,
-}
-
-impl std::fmt::Display for InvalidChannelName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid channel name '{}'", self.channel)
-    }
-}
-
-impl std::error::Error for InvalidChannelName {}
-
 /// Install specification for a toolchain
 ///
 /// A floating spec names a valid channel advertised by the dist server's main
@@ -170,7 +158,7 @@ impl std::error::Error for InvalidChannelName {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolchainSpec {
     /// A floating channel spec: the newest release of the named channel
-    Channel(String),
+    Channel(ChannelName),
 
     /// A pinned release within a channel.
     ///
@@ -178,7 +166,7 @@ pub enum ToolchainSpec {
     /// legacy `nightly-YYYY-MM-DD` form is also accepted.
     Version {
         /// The channel the pin resolves within
-        channel: String,
+        channel: ChannelName,
         /// The key to identify the release within the channel
         ///
         /// Depends on how the dist server defines releases, the key can be:
@@ -190,9 +178,9 @@ pub enum ToolchainSpec {
 }
 
 impl ToolchainSpec {
-    /// The dist server channel this spec resolves within.
+    /// The dist-server channel this spec resolves within.
     #[inline]
-    pub fn channel(&self) -> &str {
+    pub fn channel(&self) -> &ChannelName {
         match self {
             ToolchainSpec::Channel(c) => c,
             ToolchainSpec::Version { channel, .. } => channel,
@@ -204,48 +192,33 @@ impl ToolchainSpec {
     /// files and propagated to shims.
     pub fn canonical(&self) -> String {
         match self {
-            ToolchainSpec::Channel(c) => c.clone(),
-            ToolchainSpec::Version { channel, key } if channel == DEFAULT_CHANNEL => key.clone(),
+            ToolchainSpec::Channel(c) => c.to_string(),
+            ToolchainSpec::Version { channel, key } if channel.as_str() == DEFAULT_CHANNEL => {
+                key.clone()
+            }
             ToolchainSpec::Version { channel, key } => format!("{channel}@{key}"),
         }
     }
 
-    /// Validate the channel carried by this spec.
-    fn validate_channel_name(&self) -> Result<(), InvalidChannelName> {
-        let channel = self.channel();
-        if crate::dist_server::schema::is_valid_channel_name(channel) {
-            Ok(())
-        } else {
-            Err(InvalidChannelName {
-                channel: channel.to_owned(),
-            })
-        }
-    }
-
     /// Parse a toolchain spec from its syntactic string form.
-    fn parse_syntactically(value: &str) -> Self {
+    fn parse_syntactically(value: &str) -> Result<Self, InvalidChannelName> {
         // Qualified pin input uses `/` or `@`. A hyphen is part of a channel
         // name except for the exact legacy nightly-date form below.
-        if let Some((channel, key)) = for_separators(value) {
-            return ToolchainSpec::Version { channel, key };
-        }
+        let (channel, key) = if let Some((channel, key)) = for_separators(value) {
+            (channel, Some(key))
+        } else if let Some(key) = legacy_nightly_key(value) {
+            ("nightly".to_owned(), Some(key.to_owned()))
+        } else if version::is_semver_version(value) || version::is_stable_selector(value) {
+            (DEFAULT_CHANNEL.to_owned(), Some(value.to_owned()))
+        } else {
+            (value.to_owned(), None)
+        };
+        let channel = ChannelName::try_from(channel)?;
 
-        if let Some(key) = legacy_nightly_key(value) {
-            return ToolchainSpec::Version {
-                channel: "nightly".to_owned(),
-                key: key.to_owned(),
-            };
-        }
-
-        // Bare, version-shaped string: a pin in the default channel.
-        if version::is_semver_version(value) || version::is_stable_selector(value) {
-            return ToolchainSpec::Version {
-                channel: DEFAULT_CHANNEL.to_owned(),
-                key: value.to_owned(),
-            };
-        }
-
-        ToolchainSpec::Channel(value.to_owned())
+        Ok(match key {
+            Some(key) => ToolchainSpec::Version { channel, key },
+            None => ToolchainSpec::Channel(channel),
+        })
     }
 
     /// The toolchains directory basename for this spec: the channel name for
@@ -253,8 +226,10 @@ impl ToolchainSpec {
     /// `{channel}-{key}` for other channels' pins.
     pub fn install_name(&self) -> String {
         match self {
-            ToolchainSpec::Channel(c) => c.clone(),
-            ToolchainSpec::Version { channel, key } if channel == DEFAULT_CHANNEL => key.clone(),
+            ToolchainSpec::Channel(c) => c.to_string(),
+            ToolchainSpec::Version { channel, key } if channel.as_str() == DEFAULT_CHANNEL => {
+                key.clone()
+            }
             ToolchainSpec::Version { channel, key } => format!("{channel}-{key}"),
         }
     }
@@ -277,9 +252,7 @@ impl TryFrom<&str> for ToolchainSpec {
     type Error = InvalidChannelName;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let spec = Self::parse_syntactically(value);
-        spec.validate_channel_name()?;
-        Ok(spec)
+        Self::parse_syntactically(value)
     }
 }
 
@@ -375,7 +348,7 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
             for it in &t {
                 if !it.is_floating() && NumericVersion::parse(it.key()).is_ok() {
                     pinned_keys
-                        .entry(it.spec.channel().to_owned())
+                        .entry(it.spec.channel().as_str().to_owned())
                         .or_default()
                         .push(it.key().to_owned());
                 }
@@ -405,11 +378,15 @@ mod tests {
         ToolchainSpec::try_from(value).expect("test spec should be valid")
     }
 
+    fn channel_name(value: &str) -> ChannelName {
+        ChannelName::parse(value).expect("test channel name should be valid")
+    }
+
     #[test]
     fn parses_qualified_pins_with_slash_and_at() {
         // Both accepted separators parse to the same (channel, key) pair.
         let expected = ToolchainSpec::Version {
-            channel: "lts".to_owned(),
+            channel: channel_name("lts"),
             key: "0.11.0".to_owned(),
         };
         assert_eq!(spec("lts/0.11.0"), expected);
@@ -422,17 +399,17 @@ mod tests {
         assert_eq!(
             spec("nightly-2026-01-01"),
             ToolchainSpec::Version {
-                channel: "nightly".to_owned(),
+                channel: channel_name("nightly"),
                 key: "2026-01-01".to_owned(),
             }
         );
         assert_eq!(
             spec("nightly-2026-02-31"),
-            ToolchainSpec::Channel("nightly-2026-02-31".to_owned())
+            ToolchainSpec::Channel(channel_name("nightly-2026-02-31"))
         );
         assert_eq!(
             spec("nightly-2026-1-01"),
-            ToolchainSpec::Channel("nightly-2026-1-01".to_owned())
+            ToolchainSpec::Channel(channel_name("nightly-2026-1-01"))
         );
     }
 
@@ -440,14 +417,14 @@ mod tests {
     fn validates_channel_names_when_parsing_user_specs() {
         assert_eq!(
             ToolchainSpec::try_from("dev-preview").expect("hyphenated channel is valid"),
-            ToolchainSpec::Channel("dev-preview".to_owned())
+            ToolchainSpec::Channel(channel_name("dev-preview"))
         );
         assert!(ToolchainSpec::try_from("Dev-preview").is_err());
         assert!(ToolchainSpec::try_from("dev_preview").is_err());
         assert_eq!(
             ToolchainSpec::try_from("nightly-2026-01-01").expect("legacy nightly date is accepted"),
             ToolchainSpec::Version {
-                channel: "nightly".to_owned(),
+                channel: channel_name("nightly"),
                 key: "2026-01-01".to_owned(),
             }
         );
@@ -458,28 +435,28 @@ mod tests {
         assert_eq!(
             spec("0.11.0"),
             ToolchainSpec::Version {
-                channel: DEFAULT_CHANNEL.to_owned(),
+                channel: channel_name(DEFAULT_CHANNEL),
                 key: "0.11.0".to_owned(),
             }
         );
         assert_eq!(
             spec("0.10"),
             ToolchainSpec::Version {
-                channel: DEFAULT_CHANNEL.to_owned(),
+                channel: channel_name(DEFAULT_CHANNEL),
                 key: "0.10".to_owned(),
             }
         );
         assert_eq!(
             spec("0.11.0+abc"),
             ToolchainSpec::Version {
-                channel: DEFAULT_CHANNEL.to_owned(),
+                channel: channel_name(DEFAULT_CHANNEL),
                 key: "0.11.0+abc".to_owned(),
             }
         );
         assert_eq!(
             spec("1.0.0-preview"),
             ToolchainSpec::Version {
-                channel: DEFAULT_CHANNEL.to_owned(),
+                channel: channel_name(DEFAULT_CHANNEL),
                 key: "1.0.0-preview".to_owned(),
             }
         );
@@ -487,10 +464,10 @@ mod tests {
 
     #[test]
     fn parses_plain_names_as_floating_channels() {
-        assert_eq!(spec("lts"), ToolchainSpec::Channel("lts".to_owned()));
+        assert_eq!(spec("lts"), ToolchainSpec::Channel(channel_name("lts")));
         assert_eq!(
             spec("nightly"),
-            ToolchainSpec::Channel("nightly".to_owned())
+            ToolchainSpec::Channel(channel_name("nightly"))
         );
     }
 
@@ -529,8 +506,8 @@ mod tests {
 
         assert_ne!(latest, lts);
         assert_ne!(latest.install_path(), lts.install_path());
-        assert_eq!(latest.channel(), DEFAULT_CHANNEL);
-        assert_eq!(lts.channel(), "lts");
+        assert_eq!(latest.channel().as_str(), DEFAULT_CHANNEL);
+        assert_eq!(lts.channel().as_str(), "lts");
     }
 
     #[test]
@@ -546,7 +523,7 @@ mod tests {
         )
         .expect("should write stub");
         let parsed = InstalledToolchain::from_path(&floating).expect("should classify");
-        assert_eq!(parsed.spec, ToolchainSpec::Channel("lts".to_owned()));
+        assert_eq!(parsed.spec, ToolchainSpec::Channel(channel_name("lts")));
         assert_eq!(parsed.key(), "1.0.0");
 
         // qualified pinned install: dir name != channel name
@@ -561,7 +538,7 @@ mod tests {
         assert_eq!(
             parsed.spec,
             ToolchainSpec::Version {
-                channel: "lts".to_owned(),
+                channel: channel_name("lts"),
                 key: "1.0.0".to_owned(),
             }
         );
@@ -580,7 +557,7 @@ mod tests {
         assert_eq!(
             parsed.spec,
             ToolchainSpec::Version {
-                channel: "dev-preview".to_owned(),
+                channel: channel_name("dev-preview"),
                 key: "1.0.0-preview".to_owned(),
             }
         );
@@ -592,7 +569,7 @@ mod tests {
         std::fs::write(legacy.join(METADATA_FILENAME), "2026-01-01\n")
             .expect("should write legacy stub");
         let parsed = InstalledToolchain::from_path(&legacy).expect("should classify");
-        assert_eq!(parsed.spec, ToolchainSpec::Channel("nightly".to_owned()));
+        assert_eq!(parsed.spec, ToolchainSpec::Channel(channel_name("nightly")));
         assert_eq!(parsed.key(), "2026-01-01");
         // read paths must not mutate the install; the stub upgrades to JSON
         // only when the toolchain is reinstalled or updated
@@ -608,7 +585,7 @@ mod tests {
         assert_eq!(
             parsed.spec,
             ToolchainSpec::Version {
-                channel: DEFAULT_CHANNEL.to_owned(),
+                channel: channel_name(DEFAULT_CHANNEL),
                 key: "0.10.17+d971670cd".to_owned(),
             }
         );
@@ -620,7 +597,7 @@ mod tests {
         assert_eq!(
             parsed.spec,
             ToolchainSpec::Version {
-                channel: "nightly".to_owned(),
+                channel: channel_name("nightly"),
                 key: "2025-06-01".to_owned(),
             }
         );

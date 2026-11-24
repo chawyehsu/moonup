@@ -115,3 +115,15 @@ and could drift after manual directory changes or interrupted install/update/
 uninstall operations. A future short-lived, derived I/O cache may be considered
 if inventory scans prove costly; it must not become an independent source of
 truth.
+
+## Amendment: strict dist-schema naming validation
+
+This amendment supersedes the earlier rule that invalid channel entries from
+the main index are ignored with a warning.
+
+Supported dist-server schemas reject invalid values during deserialization. A
+channel name must match `[a-z0-9-]+`; a present channel or release date must be
+a real calendar date in the exact `YYYY-MM-DD` form. Date fields remain
+optional. Rejecting the containing document makes malformed catalog data
+visible instead of silently omitting a channel or accepting an invalid release
+key. Invalid user-provided channel names continue to be rejected.

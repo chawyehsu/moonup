@@ -58,15 +58,15 @@ fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
 /// Returns `None` when the channel is not advertised by the main index, or no
 /// host-supported release matches the spec.
 async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
-    let channel = spec.channel().to_owned();
+    let channel = spec.channel().clone();
     if let Some(channels) = available_channels().await
-        && !channels.contains(&channel)
+        && !channels.iter().any(|candidate| candidate == &channel)
     {
         tracing::info!("channel '{}' is unavailable", channel);
         return Ok(None);
     }
 
-    let index = read_channel_index(&channel).await?;
+    let index = read_channel_index(channel.as_str()).await?;
     let mut releases = index.releases().iter().filter(|r| r.is_host_supported());
 
     let release = match spec {
@@ -74,7 +74,7 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
         ToolchainSpec::Version { key, .. } if version::is_stable_selector(key) => {
             version::resolve_stable_selector(key, releases).cloned()
         }
-        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key).cloned(),
+        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key.as_str()).cloned(),
     };
 
     let Some(release) = release else {
@@ -82,7 +82,7 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
         return Ok(None);
     };
 
-    let components = read_component_index(&channel, &release)
+    let components = read_component_index(channel.as_str(), &release)
         .await?
         .components()
         .to_vec();

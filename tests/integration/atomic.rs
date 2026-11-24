@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use moonup::{
     constant,
-    dist_server::schema::Release,
+    dist_server::schema::{ChannelName, Release},
     toolchain::{ToolchainSpec, atomic, install::InstallRecipe, installed_toolchains},
 };
 
@@ -98,7 +98,7 @@ fn test_recovery_recipe_uses_concrete_spec_for_stable_selector() {
         release: Release::new("0.10.1+build"),
     };
     let requested = ToolchainSpec::Version {
-        channel: "latest".to_string(),
+        channel: ChannelName::parse("latest").unwrap(),
         key: "0.10".to_string(),
     };
 
@@ -107,7 +107,7 @@ fn test_recovery_recipe_uses_concrete_spec_for_stable_selector() {
     assert_eq!(
         recipe.spec,
         ToolchainSpec::Version {
-            channel: "latest".to_string(),
+            channel: ChannelName::parse("latest").unwrap(),
             key: "0.10.1+build".to_string()
         }
     );

@@ -13,7 +13,7 @@ fn test_handle_future_channel() {
 
     let channel = serde_json::from_str::<Channel>(json).expect("should parse channel successfully");
 
-    assert_eq!(channel.name, "lts");
+    assert_eq!(channel.name.as_str(), "lts");
 }
 
 #[test]
@@ -74,6 +74,96 @@ fn test_schema_v3_index_parse() {
     };
 
     assert!(inner.is_some());
+}
+
+#[test]
+fn test_channel_name_and_date_validation_across_index_versions() {
+    let legacy_properties = serde_json::json!({
+        "last_modified": "20251020T1405571173Z",
+        "releases": [{
+            "version": "0.1.20240704+647946c28",
+            "name": "moonbit",
+            "sha256": "deadbeef"
+        }]
+    });
+    let legacy = serde_json::json!({
+        "core": legacy_properties.clone(),
+        "darwin-arm64": legacy_properties.clone(),
+        "darwin-x64": legacy_properties.clone(),
+        "linux-x64": legacy_properties.clone(),
+        "win-x64": legacy_properties
+    });
+    assert!(matches!(
+        serde_json::from_value::<Index>(legacy),
+        Ok(Index::Legacy(_))
+    ));
+
+    for version in [2, 3] {
+        let valid_index = serde_json::json!({
+            "version": version,
+            "lastModified": "20251020T1405571173Z",
+            "channels": [{
+                "name": "nightly-preview",
+                "version": "0.1.20240704+647946c28",
+                "date": "2024-02-29"
+            }],
+            "targets": []
+        });
+        let index = serde_json::from_value::<Index>(valid_index)
+            .unwrap_or_else(|error| panic!("v{version} index should parse: {error}"));
+        assert_eq!(index.channels()[0].date.unwrap().to_string(), "2024-02-29");
+
+        let invalid_channel = serde_json::json!({
+            "version": version,
+            "lastModified": "20251020T1405571173Z",
+            "channels": [{"name": "Nightly", "version": "1.0.0"}],
+            "targets": []
+        });
+        assert!(
+            serde_json::from_value::<Index>(invalid_channel).is_err(),
+            "v{version} index should reject an invalid channel name"
+        );
+
+        let invalid_channel_date = serde_json::json!({
+            "version": version,
+            "lastModified": "20251020T1405571173Z",
+            "channels": [{
+                "name": "nightly",
+                "version": "1.0.0",
+                "date": "2026-02-31"
+            }],
+            "targets": []
+        });
+        assert!(
+            serde_json::from_value::<Index>(invalid_channel_date).is_err(),
+            "v{version} index should reject an invalid channel date"
+        );
+
+        let valid_channel_index = serde_json::json!({
+            "version": version,
+            "lastModified": "20251020T1405571173Z",
+            "releases": [{
+                "version": "0.1.20240704+647946c28",
+                "date": "2024-02-29"
+            }]
+        });
+        let channel_index = serde_json::from_value::<ChannelIndex>(valid_channel_index)
+            .unwrap_or_else(|error| panic!("v{version} channel index should parse: {error}"));
+        assert_eq!(channel_index.releases()[0].key(), "2024-02-29");
+
+        let invalid_release_date = serde_json::json!({
+            "version": version,
+            "lastModified": "20251020T1405571173Z",
+            "releases": [{
+                "version": "0.1.20240704+647946c28",
+                "date": "2026-02-31"
+            }]
+        });
+        assert!(
+            serde_json::from_value::<ChannelIndex>(invalid_release_date).is_err(),
+            "v{version} channel index should reject an invalid release date"
+        );
+    }
 }
 
 #[test]
