@@ -62,8 +62,8 @@ therefore channel-qualified:
   `version` files parse as floating and are left as-is on read paths — they are
   rewritten in the JSON format whenever the toolchain is reinstalled or updated.
   Legacy pinned dirs (no stub) keep the name heuristics.
-- The completeness marker records the spec's channel so crash recovery works
-  offline for qualified pins; old markers stay readable.
+- The install record carries the spec's channel so crash recovery works
+  offline for qualified pins.
 - `moonup list` orders a pinned install by its key's position in its own
   channel's cached channel index, falling back to numeric ordering.
 

@@ -107,13 +107,41 @@ _Avoid_: Safe delete, clean replace
 
 **Staging directory**:
 Where a new toolchain is fully assembled and verified before it is swapped into
-the live install location. A failed install leaves a discarded staging directory,
-never a corrupted live toolchain.
+the live install location. Verification is by the install record it holds. A
+failed install leaves a discarded staging directory, never a corrupted live
+toolchain.
 
 **Populate**:
-The act of assembling a toolchain into its install location: downloading
-components, extracting them, and making the toolchain live.
+The act of assembling a toolchain: downloading components, extracting them
+into a staging directory, and swapping the fully assembled result into the
+live install location.
 _Avoid_: Install in place
+
+**Install record**:
+The identity file inside a toolchain install directory, live or staged: the
+channel, the release key, whether the install is floating, and — while
+finalization is pending — the finalization inputs. A staging directory is
+complete when it holds a matching install record with a finalization payload.
+_Avoid_: version stub, metadata file, completeness marker
+
+**Promote**:
+The rename that moves a complete staging directory into the live install
+location, preceded by retiring the previous live directory under a unique
+name. If promotion fails, the retired toolchain is restored to the live name.
+_Avoid_: swap in place, copy over
+
+**Finalization**:
+The post-install steps that make a promoted toolchain fully usable: pouring
+shims, building the core library, and linking directories. Its inputs travel
+in the install record so finalization never depends on the network.
+_Avoid_: post-install, finalize step
+
+**Pending finalization**:
+The state of a promoted toolchain whose finalization has not been
+acknowledged, recorded by the presence of the finalization inputs in its
+install record. Recovery retries the post-install steps and acknowledges the
+promotion by rewriting the record without them.
+_Avoid_: incomplete install, unacknowledged install
 
 **Shim**:
 A wrapper executable in `MOON_HOME/bin/` (and `bin/internal/`) that forwards a
@@ -122,10 +150,11 @@ It is a copy of the `moonup-shim` binary named after the toolchain command.
 _Avoid_: Launcher, proxy
 
 **Retire**:
-Moving a replaced executable into the hidden `MOON_HOME/bin/.trash/` directory
-under a unique name so the live name is freed immediately, deleting it best-effort
-once any process holding it has exited. On Windows a running executable can be
-renamed but not deleted, which is why retirement precedes deletion.
+Moving a replaced artifact — a shim executable, or a replaced toolchain
+directory — aside under a unique hidden name so the live name is freed
+immediately, deleting it best-effort once any process holding it has exited.
+On Windows a running executable can be renamed but not deleted, which is why
+retirement precedes deletion.
 _Avoid_: Delete in place
 
 ### Release ordering
