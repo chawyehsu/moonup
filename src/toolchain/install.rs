@@ -118,6 +118,11 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
 /// `first_time` indicates whether this is the first time the toolchain
 /// is being installed.
 pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::Result<()> {
+    // Serialize toolchain mutations across processes: a shim-triggered
+    // auto-install waits for a running update instead of racing it around
+    // the same staging paths.
+    let _lock = crate::lock::ToolchainLock::acquire()?;
+
     // Attempt to recover previous incomplete installation if possible
     if heal_recovered(spec, first_time)? && first_time {
         return Ok(());

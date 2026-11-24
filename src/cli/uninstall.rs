@@ -72,6 +72,10 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         return Err(crate::status::exit_with(1));
     }
 
+    // Serialize toolchain mutations across processes, after the interactive
+    // selection so the lock is not held during the dialog.
+    let _lock = crate::lock::ToolchainLock::acquire()?;
+
     for toolchain in toolchains {
         let toolchain_dir = toolchain.install_path();
         if !toolchain_dir.exists() {
