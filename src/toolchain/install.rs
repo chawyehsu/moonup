@@ -74,7 +74,7 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
         ToolchainSpec::Version { key, .. } if version::is_stable_selector(key) => {
             version::resolve_stable_selector(key, releases).cloned()
         }
-        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key).cloned(),
+        ToolchainSpec::Version { key, .. } => releases.find(|&r| r.key() == key.as_str()).cloned(),
     };
 
     let Some(release) = release else {

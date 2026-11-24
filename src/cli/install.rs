@@ -124,7 +124,7 @@ async fn list_channel_versions(spec: &ToolchainSpec) -> miette::Result<Option<To
 }
 
 fn release_label(release: &crate::dist_server::schema::Release) -> String {
-    match release.date.as_deref() {
+    match release.date.as_ref() {
         Some(date) => format!("{} ({})", release.version, date),
         None => release.version.clone(),
     }

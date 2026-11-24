@@ -1,3 +1,4 @@
+use jiff::civil::Date;
 use serde::{Deserialize, Serialize, de::Error};
 
 mod legacy;
@@ -24,16 +25,19 @@ impl<'de> serde::Deserialize<'de> for VersionedIndex {
 
         match version {
             None => Err(D::Error::custom("missing version field in versioned index")),
-            Some(2) => Ok(VersionedIndex::V2(v2::Index::deserialize(value).unwrap())),
-            Some(3) => Ok(VersionedIndex::V3(v3::Index::deserialize(value).unwrap())),
+            Some(2) => Ok(VersionedIndex::V2(
+                v2::Index::deserialize(value).map_err(D::Error::custom)?,
+            )),
+            Some(3) => Ok(VersionedIndex::V3(
+                v3::Index::deserialize(value).map_err(D::Error::custom)?,
+            )),
             _ => Ok(VersionedIndex::Unsupported),
         }
     }
 }
 
 /// The main index of the distribution server
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug)]
 pub enum Index {
     /// Versioned index formats (v2, v3, ...)
     Versioned(VersionedIndex),
@@ -45,6 +49,26 @@ pub enum Index {
     Unsupported(serde_json::Value),
 }
 
+impl<'de> serde::Deserialize<'de> for Index {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let value = serde_json::Value::deserialize(d)?;
+        if value
+            .get("version")
+            .and_then(serde_json::Value::as_u64)
+            .is_some()
+        {
+            return VersionedIndex::deserialize(value)
+                .map(Index::Versioned)
+                .map_err(D::Error::custom);
+        }
+
+        match legacy::Index::deserialize(value.clone()) {
+            Ok(index) => Ok(Index::Legacy(index)),
+            Err(_) => Ok(Index::Unsupported(value)),
+        }
+    }
+}
+
 impl Index {
     /// Whether this index format carries an explicit channel catalog.
     pub fn has_channel_catalog(&self) -> bool {
@@ -54,28 +78,13 @@ impl Index {
         )
     }
 
-    /// Get valid channels from the index, ignoring entries with invalid names.
+    /// Get the channels from the index. Names are validated during deserialization.
     pub fn channels(&self) -> Vec<&Channel> {
-        let channels = match self {
-            Index::Versioned(VersionedIndex::V2(i)) => i.channels.as_slice(),
-            Index::Versioned(VersionedIndex::V3(i)) => i.channels.as_slice(),
-            _ => &[],
-        };
-
-        channels
-            .iter()
-            .filter(|channel| {
-                if is_valid_channel_name(&channel.name) {
-                    true
-                } else {
-                    tracing::warn!(
-                        channel = %channel.name,
-                        "ignoring dist-server channel with invalid name"
-                    );
-                    false
-                }
-            })
-            .collect()
+        match self {
+            Index::Versioned(VersionedIndex::V2(i)) => i.channels.iter().collect(),
+            Index::Versioned(VersionedIndex::V3(i)) => i.channels.iter().collect(),
+            _ => Vec::new(),
+        }
     }
 }
 
@@ -88,20 +97,91 @@ pub fn is_valid_channel_name(name: &str) -> bool {
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
+fn deserialize_channel_name<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let name = String::deserialize(deserializer)?;
+    if is_valid_channel_name(&name) {
+        Ok(name)
+    } else {
+        Err(D::Error::custom(format!(
+            "invalid channel name {name:?}; expected [a-z0-9-]+"
+        )))
+    }
+}
+
+/// A build date in the dist-server schema, formatted as `YYYY-MM-DD`.
+///
+/// The underlying date implementation is intentionally private. Use [`BuildDate::parse`]
+/// to construct a value from its wire representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BuildDate(Date);
+
+impl BuildDate {
+    /// Parse a valid build date in the exact `YYYY-MM-DD` format.
+    pub fn parse(value: &str) -> Option<Self> {
+        parse_build_date(value).map(Self)
+    }
+}
+
+impl std::fmt::Display for BuildDate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Serialize for BuildDate {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for BuildDate {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Self::parse(&value).ok_or_else(|| {
+            D::Error::custom(format!("invalid build date {value:?}; expected YYYY-MM-DD"))
+        })
+    }
+}
+
+fn parse_build_date(value: &str) -> Option<Date> {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || !bytes[..4].iter().all(u8::is_ascii_digit)
+        || !bytes[5..7].iter().all(u8::is_ascii_digit)
+        || !bytes[8..].iter().all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+
+    Date::new(
+        value[..4].parse().ok()?,
+        value[5..7].parse().ok()?,
+        value[8..].parse().ok()?,
+    )
+    .ok()
+}
+
 /// Represents a channel in the index
 #[derive(Debug, Deserialize)]
 pub struct Channel {
-    /// The channel name
+    /// The channel name, matching `[a-z0-9-]+`.
+    #[serde(deserialize_with = "deserialize_channel_name")]
     pub name: String,
     /// The (compiler) version number of the latest release in the channel
     pub version: String,
-    /// (Optional) The (nightly) build date of the latest release in the channel
-    pub date: Option<String>,
+    /// Optional nightly build date of the latest release, formatted as `YYYY-MM-DD`.
+    #[serde(default)]
+    pub date: Option<BuildDate>,
 }
 
 impl std::fmt::Display for Channel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.date.as_deref() {
+        match self.date.as_ref() {
             Some(date) => write!(f, "{} ({}, {})", self.name, self.version, date),
             None => write!(f, "{} ({})", self.name, self.version),
         }
@@ -191,10 +271,10 @@ impl<'de> serde::Deserialize<'de> for VersionedChannelIndex {
                 "missing version field in versioned channel index",
             )),
             Some(2) => Ok(VersionedChannelIndex::V2(
-                v2::ChannelIndex::deserialize(value).unwrap(),
+                v2::ChannelIndex::deserialize(value).map_err(D::Error::custom)?,
             )),
             Some(3) => Ok(VersionedChannelIndex::V3(
-                v3::ChannelIndex::deserialize(value).unwrap(),
+                v3::ChannelIndex::deserialize(value).map_err(D::Error::custom)?,
             )),
             _ => Ok(VersionedChannelIndex::Unsupported),
         }
@@ -202,14 +282,29 @@ impl<'de> serde::Deserialize<'de> for VersionedChannelIndex {
 }
 
 /// The channel index
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug)]
 pub enum ChannelIndex {
     /// Versioned index formats (v2, v3, ...)
     Versioned(VersionedChannelIndex),
 
     /// Unknown index format
     Unsupported(serde_json::Value),
+}
+
+impl<'de> serde::Deserialize<'de> for ChannelIndex {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let value = serde_json::Value::deserialize(d)?;
+        if value
+            .get("version")
+            .and_then(serde_json::Value::as_u64)
+            .is_some()
+        {
+            return VersionedChannelIndex::deserialize(value)
+                .map(ChannelIndex::Versioned)
+                .map_err(D::Error::custom);
+        }
+        Ok(ChannelIndex::Unsupported(value))
+    }
 }
 
 impl ChannelIndex {
@@ -247,9 +342,10 @@ pub struct Release {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moonx: Option<String>,
 
-    /// The (nightly build) date of the release
+    /// Optional nightly build date of the release, formatted as `YYYY-MM-DD`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub date: Option<String>,
+    #[serde(default)]
+    pub date: Option<BuildDate>,
 
     /// The available target hosts for the release
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -271,8 +367,9 @@ impl Release {
 
     /// The path segment identifying this release within its channel: the
     /// build date when present, otherwise the version.
-    pub fn key(&self) -> &str {
-        self.date.as_deref().unwrap_or(&self.version)
+    pub fn key(&self) -> String {
+        self.date
+            .map_or_else(|| self.version.clone(), |date| date.to_string())
     }
 
     /// Check if the current host is supported by this release
@@ -379,8 +476,8 @@ mod tests {
     }
 
     #[test]
-    fn ignores_channels_with_invalid_names() {
-        let index: Index = serde_json::from_str(
+    fn rejects_indexes_with_invalid_channel_names() {
+        let index = serde_json::from_str::<Index>(
             r#"{
                 "version": 2,
                 "lastModified": "",
@@ -391,14 +488,66 @@ mod tests {
                 ],
                 "targets": []
             }"#,
-        )
-        .expect("index should deserialize");
+        );
 
-        let names = index
-            .channels()
-            .iter()
-            .map(|channel| channel.name.as_str())
-            .collect::<Vec<_>>();
-        assert_eq!(names, ["latest", "dev-preview"]);
+        assert!(index.is_err());
+    }
+
+    #[test]
+    fn validates_channel_and_release_dates_during_deserialization() {
+        let channel: Channel =
+            serde_json::from_str(r#"{"name":"nightly","version":"1.0.0","date":"2024-02-29"}"#)
+                .expect("valid channel date should deserialize");
+        assert_eq!(channel.date.unwrap().to_string(), "2024-02-29");
+
+        let release: Release = serde_json::from_str(r#"{"version":"1.0.0","date":"2024-02-29"}"#)
+            .expect("valid release date should deserialize");
+        assert_eq!(release.date.unwrap().to_string(), "2024-02-29");
+
+        for date in ["2026-02-31", "2026-2-01", "2026-01-01T00:00:00Z"] {
+            let channel = serde_json::json!({
+                "name": "nightly",
+                "version": "1.0.0",
+                "date": date,
+            });
+            assert!(
+                serde_json::from_value::<Channel>(channel).is_err(),
+                "{date}"
+            );
+
+            let release = serde_json::json!({"version": "1.0.0", "date": date});
+            assert!(
+                serde_json::from_value::<Release>(release).is_err(),
+                "{date}"
+            );
+        }
+
+        let encoded = serde_json::to_value(release).expect("release should serialize");
+        assert_eq!(encoded["date"], "2024-02-29");
+    }
+
+    #[test]
+    fn rejects_invalid_dates_in_versioned_documents() {
+        let index = serde_json::from_str::<Index>(
+            r#"{
+                "version": 3,
+                "lastModified": "",
+                "channels": [
+                    {"name": "nightly", "version": "1.0.0", "date": "2026-02-31"}
+                ]
+            }"#,
+        );
+        assert!(index.is_err());
+
+        let channel_index = serde_json::from_str::<ChannelIndex>(
+            r#"{
+                "version": 3,
+                "lastModified": "",
+                "releases": [
+                    {"version": "1.0.0", "date": "2026-02-31"}
+                ]
+            }"#,
+        );
+        assert!(channel_index.is_err());
     }
 }
