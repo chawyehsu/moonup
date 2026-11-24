@@ -5,6 +5,7 @@ pub mod cli;
 pub mod constant;
 pub mod dist_server;
 pub mod fs;
+pub(crate) mod lock;
 pub(crate) mod reporter;
 pub mod runner;
 pub mod status;
