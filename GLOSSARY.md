@@ -184,3 +184,12 @@ The channel-defined ordering between two concrete release identities. It returns
 older, equal, or newer according to sequence position; callers apply relational
 operators such as `>` or `>=` themselves.
 _Avoid_: Numeric version comparison, threshold resolution
+
+### Invocation
+
+**Session**:
+One moonup invocation's span of authority: the locations moonup operates on
+are resolved once at its start, and all reads of distribution-server metadata
+within it see one consistent view. Every invocation, including each shim run,
+is exactly one session, and sessions never observe each other's state.
+_Avoid_: Context, config, cache, global state
