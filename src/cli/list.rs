@@ -10,11 +10,14 @@ pub struct Args {}
 pub async fn execute(_: Args, session: &Session) -> miette::Result<()> {
     let installs = installed_toolchains(session)?;
 
-    println!("Moonup home: {}\n", session.moonup_home().display());
+    println!(
+        "Moonup home: {}\n",
+        session.layout().moonup_home().display()
+    );
     if installs.is_empty() {
         println!("No toolchains installed");
     } else {
-        let default = resolve::detect_default_toolchain()
+        let default = resolve::detect_default_toolchain(session.layout())
             .map(|value| ToolchainSpec::try_from(value.as_str()))
             .transpose()
             .map_err(|error| miette::miette!(error))?;
@@ -37,7 +40,8 @@ pub async fn execute(_: Args, session: &Session) -> miette::Result<()> {
             println!("  {}{}", i.spec, tags.unwrap_or_default());
         }
 
-        let active = resolve::detect_active_toolchain().map_err(|error| miette::miette!(error))?;
+        let active = resolve::detect_active_toolchain(session.layout())
+            .map_err(|error| miette::miette!(error))?;
         println!("\nActive toolchain: {}", console::style(active).green());
     }
 

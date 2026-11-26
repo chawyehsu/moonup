@@ -45,7 +45,7 @@ pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
         }
     };
 
-    let default_file = session.default_toolchain_file();
+    let default_file = session.layout().default_toolchain_file();
     std::fs::create_dir_all(default_file.parent().unwrap()).into_diagnostic()?;
     tokio::fs::write(&default_file, format!("{}\n", version))
         .await

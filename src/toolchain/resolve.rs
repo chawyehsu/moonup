@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::{
     constant::{DEFAULT_CHANNEL, TOOLCHAIN_FILE},
+    layout::Layout,
     toolchain::ToolchainSpec,
     utils::trimmed_or_none,
 };
@@ -41,9 +42,8 @@ pub fn detect_pinned_toolchain() -> Option<String> {
 /// # Returns
 ///
 /// The default toolchain version if found
-pub fn detect_default_toolchain() -> Option<String> {
-    let default_file = crate::paths::default_toolchain_file();
-    std::fs::read_to_string(default_file)
+pub fn detect_default_toolchain(layout: &Layout) -> Option<String> {
+    std::fs::read_to_string(layout.default_toolchain_file())
         .map(|s| trimmed_or_none(&s).map(str::to_owned))
         .ok()
         .flatten()
@@ -61,9 +61,11 @@ pub fn detect_default_toolchain() -> Option<String> {
 ///
 /// This function is used by the `moonup-shim`; keep it independent of
 /// `miette` and `tracing` so the shim stays small.
-pub fn detect_active_toolchain() -> Result<ToolchainSpec, super::InvalidChannelName> {
+pub fn detect_active_toolchain(
+    layout: &Layout,
+) -> Result<ToolchainSpec, super::InvalidChannelName> {
     let active = detect_pinned_toolchain()
-        .or(detect_default_toolchain())
+        .or(detect_default_toolchain(layout))
         .unwrap_or(DEFAULT_CHANNEL.to_string());
     ToolchainSpec::try_from(active)
 }

@@ -31,7 +31,7 @@ pub struct Args {
 #[instrument(name = "uninstall", skip(args, session), fields(toolchain = ?args.toolchain))]
 pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
     if args.clear {
-        let download_dir = session.downloads_dir();
+        let download_dir = session.layout().downloads_dir();
         tracing::info!("removing all cached downloads {}", download_dir.display());
         crate::fs::empty_dir(&download_dir)
             .into_diagnostic()
@@ -78,9 +78,9 @@ pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
     let _lock = crate::lock::ToolchainLock::acquire(session)?;
 
     for toolchain in toolchains {
-        let toolchain_dir = toolchain.install_path();
+        let toolchain_dir = session.layout().toolchain_dir(&toolchain);
         if !toolchain_dir.exists() {
-            atomic::sweep_staging(&toolchain);
+            atomic::sweep_staging(session.layout(), &toolchain);
             tracing::warn!("toolchain {} is not installed", toolchain);
             continue;
         }
@@ -89,7 +89,7 @@ pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
 
         if !args.keep_cache {
             if let Ok(installed) = InstalledToolchain::from_path(&toolchain_dir) {
-                let mut download_dir = session.downloads_dir();
+                let mut download_dir = session.layout().downloads_dir();
                 download_dir.push(toolchain.channel().as_str());
                 download_dir.push(installed.key());
 
@@ -107,7 +107,7 @@ pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
 
         tracing::debug!("removing toolchain from {}", toolchain_dir.display());
         crate::fs::remove_dir_all(toolchain_dir).into_diagnostic()?;
-        atomic::sweep_staging(&toolchain);
+        atomic::sweep_staging(session.layout(), &toolchain);
 
         println!(
             "{} Uninstalled toolchain {}",

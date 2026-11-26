@@ -15,7 +15,7 @@ use crate::utils::{build_dist_server_api, url_to_reader};
 /// Cache population is the session's business: this function always consults
 /// disk/server, and the caller stores the parsed result.
 pub(crate) async fn load_index(session: &Session) -> miette::Result<Index> {
-    let index_file = session.index_path();
+    let index_file = session.layout().index_path();
 
     let (cache_valid, mut content) = match read_json_with_lock(&index_file).await {
         Ok((cache_valid, content)) => (cache_valid, content),
@@ -59,7 +59,7 @@ pub(crate) async fn load_channel_index(
     session: &Session,
     channel: &str,
 ) -> miette::Result<ChannelIndex> {
-    let channel_index_file = session.channel_index_path(channel);
+    let channel_index_file = session.layout().channel_index_path(channel);
 
     let (cache_valid, mut content) = match read_json_with_lock(&channel_index_file).await {
         Ok((cache_valid, content)) => (cache_valid, content),
@@ -109,6 +109,7 @@ pub(crate) async fn load_component_index(
     let filename = format!("{}.json", host_target);
 
     let component_index_local = session
+        .layout()
         .downloads_dir()
         .join(channel)
         .join(release.key())

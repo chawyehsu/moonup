@@ -21,19 +21,18 @@
 //! [`paths`](crate::paths) layer.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use reqwest_middleware::ClientWithMiddleware;
 
 use crate::dist_server::schema::{ChannelIndex, ChannelName, ComponentIndex, Index, Release};
+use crate::layout::Layout;
 use crate::toolchain::index;
 
 /// The per-invocation context resolving locations once and serving index
 /// metadata from memory.
 pub struct Session {
-    moonup_home: PathBuf,
-    moon_home: PathBuf,
+    layout: Layout,
     http_client: OnceLock<ClientWithMiddleware>,
     indexes: Mutex<IndexCache>,
 }
@@ -53,64 +52,18 @@ impl Default for Session {
 }
 
 impl Session {
-    /// Create a session, resolving both home directories once.
+    /// Create a session, resolving the layout once.
     pub fn new() -> Self {
         Self {
-            moonup_home: crate::paths::moonup_home(),
-            moon_home: crate::paths::moon_home(),
+            layout: Layout::from_env(),
             http_client: OnceLock::new(),
             indexes: Mutex::new(IndexCache::default()),
         }
     }
 
-    /// The moonup home directory this session resolved at creation.
-    pub fn moonup_home(&self) -> &Path {
-        &self.moonup_home
-    }
-
-    /// The moon home directory this session resolved at creation.
-    pub fn moon_home(&self) -> &Path {
-        &self.moon_home
-    }
-
-    /// The directory holding installed toolchains, `$MOONUP_HOME/toolchains`.
-    ///
-    /// Derived from the home this session resolved at creation; these
-    /// accessors never touch the environment again.
-    pub fn toolchains_dir(&self) -> PathBuf {
-        self.moonup_home.join("toolchains")
-    }
-
-    /// The advisory lock file serializing toolchain mutations.
-    pub fn toolchains_lock_file(&self) -> PathBuf {
-        self.toolchains_dir().join(".lock")
-    }
-
-    /// The directory holding cached downloads, `$MOONUP_HOME/downloads`.
-    pub fn downloads_dir(&self) -> PathBuf {
-        self.moonup_home.join("downloads")
-    }
-
-    /// The main index cache file, `$MOONUP_HOME/downloads/index.json`.
-    pub fn index_path(&self) -> PathBuf {
-        self.downloads_dir().join("index.json")
-    }
-
-    /// A channel index cache file,
-    /// `$MOONUP_HOME/downloads/channel-{channel}.json`.
-    pub fn channel_index_path(&self, channel: &str) -> PathBuf {
-        self.downloads_dir().join(format!("channel-{channel}.json"))
-    }
-
-    /// The default-toolchain record, `$MOONUP_HOME/default`.
-    pub fn default_toolchain_file(&self) -> PathBuf {
-        self.moonup_home.join("default")
-    }
-
-    /// The directory moon-published executables are shimmed into,
-    /// `$MOON_HOME/bin`.
-    pub fn moon_bin_dir(&self) -> PathBuf {
-        self.moon_home.join("bin")
+    /// The locations this session resolved at creation.
+    pub fn layout(&self) -> &Layout {
+        &self.layout
     }
 
     /// The invocation's distribution-server HTTP client, built lazily and
@@ -218,7 +171,7 @@ mod tests {
             Some(tempdir.path().as_os_str()),
             || {
                 let session = Session::new();
-                assert_eq!(session.moonup_home(), tempdir.path());
+                assert_eq!(session.layout().moonup_home(), tempdir.path());
 
                 // a session created under a different env override keeps the
                 // paths it resolved at creation
@@ -228,8 +181,8 @@ mod tests {
                     Some(other.path().as_os_str()),
                     || {
                         let session2 = Session::new();
-                        assert_eq!(session2.moonup_home(), other.path());
-                        assert_eq!(session.moonup_home(), tempdir.path());
+                        assert_eq!(session2.layout().moonup_home(), other.path());
+                        assert_eq!(session.layout().moonup_home(), tempdir.path());
                     },
                 );
             },

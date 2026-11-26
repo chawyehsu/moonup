@@ -159,7 +159,7 @@ pub fn read_release_positions(
         return release_positions(&index, keys);
     }
 
-    let path = session.channel_index_path(channel);
+    let path = session.layout().channel_index_path(channel);
     let Ok(content) = std::fs::read_to_string(&path) else {
         return HashMap::new();
     };
@@ -201,7 +201,7 @@ pub fn read_channel_ranks(session: &Session) -> HashMap<String, usize> {
         return channel_ranks(&index);
     }
 
-    let path = session.index_path();
+    let path = session.layout().index_path();
     let Ok(content) = std::fs::read_to_string(&path) else {
         return HashMap::new();
     };

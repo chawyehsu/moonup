@@ -1,6 +1,7 @@
 use assert_fs::TempDir;
 use mockito::ServerGuard;
 use moonup::constant;
+use moonup::layout::Layout;
 use moonup::toolchain::{InstallMeta, ToolchainSpec, atomic};
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
@@ -294,7 +295,8 @@ pub(crate) mod crash_state {
     /// payload.
     #[allow(unused)]
     pub fn live_record_has_finalization(spec: &ToolchainSpec) -> bool {
-        let live = spec.install_path();
+        let layout = Layout::from_env();
+        let live = layout.toolchain_dir(spec);
         let content = std::fs::read_to_string(live.join("version")).expect("should read record");
         serde_json::from_str::<InstallMeta>(&content)
             .expect("should parse install record")
@@ -306,7 +308,8 @@ pub(crate) mod crash_state {
     /// and the given install record.
     #[allow(unused)]
     pub fn write_live_install(spec: &ToolchainSpec, record: &str) -> PathBuf {
-        let live = spec.install_path();
+        let layout = Layout::from_env();
+        let live = layout.toolchain_dir(spec);
         std::fs::create_dir_all(live.join("bin")).expect("should create live dir");
         std::fs::write(live.join("bin").join("moon"), b"live").expect("should write live content");
         std::fs::write(live.join("version"), record).expect("should write install record");
@@ -322,7 +325,8 @@ pub(crate) mod crash_state {
         key: &str,
         finalization: serde_json::Value,
     ) -> PathBuf {
-        let staging = atomic::staging_dir_for(spec);
+        let layout = Layout::from_env();
+        let staging = atomic::staging_dir_for(&layout, spec);
         std::fs::create_dir_all(staging.join("bin")).expect("should create staging dir");
         std::fs::write(staging.join("bin").join("moon"), b"new")
             .expect("should write staging content");
@@ -335,7 +339,8 @@ pub(crate) mod crash_state {
     /// as a crash during extraction leaves behind.
     #[allow(unused)]
     pub fn write_partial_staging(spec: &ToolchainSpec) -> PathBuf {
-        let staging = atomic::staging_dir_for(spec);
+        let layout = Layout::from_env();
+        let staging = atomic::staging_dir_for(&layout, spec);
         std::fs::create_dir_all(staging.join("bin")).expect("should create staging dir");
         std::fs::write(staging.join("bin").join("moon"), b"new")
             .expect("should write staging content");

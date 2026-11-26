@@ -2,15 +2,17 @@ use std::env;
 use std::ffi::OsStr;
 use std::process::Command;
 
+use crate::layout::Layout;
 use crate::toolchain::{ToolchainSpec, resolve};
 
 pub fn build_command<S: AsRef<OsStr>>(
+    layout: &Layout,
     toolchain: ToolchainSpec,
     command: Vec<S>,
 ) -> anyhow::Result<Command> {
     let exe_name = command[0].as_ref();
 
-    let mut bin_dir = toolchain.install_path();
+    let mut bin_dir = layout.toolchain_dir(&toolchain);
     bin_dir.push("bin");
 
     if !bin_dir.exists() {

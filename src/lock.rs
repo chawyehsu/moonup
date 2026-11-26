@@ -24,7 +24,7 @@ impl ToolchainLock {
     /// Acquire the toolchain mutation lock, blocking until any other moonup
     /// process finishes its own.
     pub(crate) fn acquire(session: &Session) -> miette::Result<Self> {
-        let path = session.toolchains_lock_file();
+        let path = session.layout().toolchains_lock_file();
         std::fs::create_dir_all(path.parent().expect("lock path should have a parent"))
             .into_diagnostic()
             .wrap_err("failed to create the toolchains directory")?;

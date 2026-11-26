@@ -43,12 +43,12 @@ pub struct InstallRecipe {
 /// swaps content in place under an unchanged directory name, leaving the
 /// existing links valid.
 fn heal_recovered(session: &Session, spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
-    let Some(finalization) = atomic::recover(spec)? else {
+    let Some(finalization) = atomic::recover(session.layout(), spec)? else {
         return Ok(false);
     };
 
     post_install(session, spec, &finalization, link)?;
-    atomic::acknowledge(spec);
+    atomic::acknowledge(session.layout(), spec);
     Ok(true)
 }
 
@@ -151,7 +151,7 @@ pub async fn sync_toolchain(
     if first_time {
         println!("Installing toolchain '{}'", recipe.spec);
     } else {
-        let install_path = spec.install_path();
+        let install_path = session.layout().toolchain_dir(spec);
         let Some(local) = InstalledToolchain::from_path(&install_path).ok() else {
             println!("The '{}' toolchain is not installed", spec);
             return Ok(());
@@ -172,7 +172,7 @@ pub async fn sync_toolchain(
         &Finalization::from(&recipe.release),
         first_time,
     )?;
-    atomic::acknowledge(&recipe.spec);
+    atomic::acknowledge(session.layout(), &recipe.spec);
 
     if first_time {
         println!(
@@ -182,7 +182,7 @@ pub async fn sync_toolchain(
         );
         println!(
             "Make sure '{}' is added to your PATH",
-            session.moon_bin_dir().display()
+            session.layout().moon_bin_dir().display()
         );
     }
 
@@ -219,10 +219,10 @@ fn pour_shims(
     let moonup_shim_name = exe_name("moonup-shim");
     moonup_shim_exe.set_file_name(moonup_shim_name);
 
-    let mut toolchain_dir = session.toolchains_dir();
+    let mut toolchain_dir = session.layout().toolchains_dir();
     toolchain_dir.push(spec.install_name());
 
-    let moon_home_bin = session.moon_bin_dir();
+    let moon_home_bin = session.layout().moon_bin_dir();
 
     std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
 
@@ -275,7 +275,7 @@ fn build_core_library(
     spec: &ToolchainSpec,
     finalization: &Finalization,
 ) -> miette::Result<()> {
-    let toolchain_dir = session.toolchains_dir().join(spec.install_name());
+    let toolchain_dir = session.layout().toolchains_dir().join(spec.install_name());
     let bin_dir = toolchain_dir.join("bin");
     let moon_exe = bin_dir.join(exe_name("moon"));
 
@@ -366,7 +366,7 @@ fn find_bins(dir: &Path) -> miette::Result<Vec<OsString>> {
 // Discussion: https://github.com/chawyehsu/moonup/issues/7
 fn link_dirs(session: &Session, spec: &ToolchainSpec) -> miette::Result<()> {
     let dirs = ["lib", "include"];
-    let toolchains_dir = session.toolchains_dir();
+    let toolchains_dir = session.layout().toolchains_dir();
 
     for dir in dirs {
         let src = {
@@ -388,7 +388,7 @@ fn link_dirs(session: &Session, spec: &ToolchainSpec) -> miette::Result<()> {
             }
         };
 
-        let lnk = session.moon_home().join(dir);
+        let lnk = session.layout().moon_home().join(dir);
         let _ = std::fs::remove_dir_all(&lnk).inspect_err(|e| {
             tracing::debug!("failed to remove link {} (err: {})", lnk.display(), e);
         });

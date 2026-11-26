@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
 use moonup::constant::RECURSION_LIMIT;
+use moonup::layout::Layout;
 use moonup::runner;
 use moonup::toolchain::ToolchainSpec;
 use moonup::toolchain::resolve::detect_active_toolchain;
@@ -25,6 +26,9 @@ pub fn main() -> std::process::ExitCode {
 fn run() -> Result<ExitStatus> {
     // Ensure recursion guard is at the top of the function
     let recursion_count = recursion_guard()?;
+
+    // The locations this shim invocation operates on, resolved once
+    let layout = Layout::from_env();
 
     let args = env::args_os().collect::<Vec<_>>();
     let current_exe = env::current_exe()
@@ -59,12 +63,12 @@ fn run() -> Result<ExitStatus> {
             .expect("MOONUP_TOOLCHAIN_SPEC should be valid UTF-8");
         ToolchainSpec::try_from(version)?
     } else {
-        detect_active_toolchain()?
+        detect_active_toolchain(&layout)?
     };
 
     // If the active toolchain is not installed, call `moonup install`
     // to install it.
-    if !spec.install_path().exists() {
+    if !layout.toolchain_dir(&spec).exists() {
         println!("toolchain version '{spec}' not installed");
 
         let mut cmd = Command::new("moonup");
@@ -96,7 +100,7 @@ fn run() -> Result<ExitStatus> {
     let idx = if args_1_is_toolchain { 2 } else { 1 };
     run_args.extend(args[idx..].iter().cloned());
 
-    let mut cmd = runner::build_command(spec, run_args)?;
+    let mut cmd = runner::build_command(&layout, spec, run_args)?;
     cmd.env("MOONUP_RECURSION_COUNT", (recursion_count + 1).to_string());
 
     cmd.status().map_err(anyhow::Error::from)
