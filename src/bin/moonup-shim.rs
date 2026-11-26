@@ -27,7 +27,6 @@ fn run() -> Result<ExitStatus> {
     // Ensure recursion guard is at the top of the function
     let recursion_count = recursion_guard()?;
 
-    // The locations this shim invocation operates on, resolved once
     let layout = Layout::from_env();
 
     let args = env::args_os().collect::<Vec<_>>();

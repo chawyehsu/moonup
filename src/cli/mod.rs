@@ -112,9 +112,7 @@ pub async fn start() -> miette::Result<()> {
     let args = Cli::parse();
     setup_logger(args.verbose.tracing_level_filter())?;
 
-    // One session per invocation: paths resolved once, index metadata served
-    // from memory, downloads sharing one HTTP client.
-    let session = Session::new();
+    let session = Session::default();
 
     match args.command {
         Command::Completions(args) => completions::execute(args, &session).await?,

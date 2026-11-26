@@ -18,7 +18,7 @@
 //! Sessions never observe each other's state: each invocation, including
 //! each shim run, starts from disk state. The shim binary itself links none
 //! of this module — it consumes only the std-only
-//! [`paths`](crate::paths) layer.
+//! [`layout`](crate::layout) layer.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -32,7 +32,7 @@ use crate::toolchain::index;
 /// The per-invocation context resolving locations once and serving index
 /// metadata from memory.
 pub struct Session {
-    layout: Layout,
+    layout: OnceLock<Layout>,
     http_client: OnceLock<ClientWithMiddleware>,
     indexes: Mutex<IndexCache>,
 }
@@ -52,18 +52,18 @@ impl Default for Session {
 }
 
 impl Session {
-    /// Create a session, resolving the layout once.
+    /// Create a session
     pub fn new() -> Self {
         Self {
-            layout: Layout::from_env(),
+            layout: OnceLock::new(),
             http_client: OnceLock::new(),
             indexes: Mutex::new(IndexCache::default()),
         }
     }
 
-    /// The locations this session resolved at creation.
+    /// The layout resolved for this session.
     pub fn layout(&self) -> &Layout {
-        &self.layout
+        self.layout.get_or_init(Layout::from_env)
     }
 
     /// The invocation's distribution-server HTTP client, built lazily and
