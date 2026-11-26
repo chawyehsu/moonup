@@ -10,9 +10,10 @@
 //! behind.
 
 use std::fs::{File, OpenOptions};
-use std::path::PathBuf;
 
 use miette::{Context, IntoDiagnostic};
+
+use crate::session::Session;
 
 /// The held toolchain mutation lock; dropping it releases the lock.
 pub(crate) struct ToolchainLock {
@@ -22,8 +23,8 @@ pub(crate) struct ToolchainLock {
 impl ToolchainLock {
     /// Acquire the toolchain mutation lock, blocking until any other moonup
     /// process finishes its own.
-    pub(crate) fn acquire() -> miette::Result<Self> {
-        let path = lock_path();
+    pub(crate) fn acquire(session: &Session) -> miette::Result<Self> {
+        let path = session.toolchains_lock_file();
         std::fs::create_dir_all(path.parent().expect("lock path should have a parent"))
             .into_diagnostic()
             .wrap_err("failed to create the toolchains directory")?;
@@ -48,10 +49,6 @@ impl ToolchainLock {
     }
 }
 
-fn lock_path() -> PathBuf {
-    crate::moonup_home().join("toolchains").join(".lock")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -63,13 +60,18 @@ mod tests {
             crate::constant::ENVNAME_MOONUP_HOME,
             Some(tempdir.path().as_os_str()),
             || {
-                let first = ToolchainLock::acquire().expect("should acquire the lock");
+                let session = crate::session::Session::new();
+                let first = ToolchainLock::acquire(&session).expect("should acquire the lock");
 
-                // a second acquisition from another thread must block until
-                // the first holder drops its guard
+                // a second acquisition — from another thread and its own
+                // session, which resolves the same home from the same
+                // environment — must block until the first holder drops
+                // its guard
                 let (tx, rx) = std::sync::mpsc::channel();
                 let handle = std::thread::spawn(move || {
-                    let _second = ToolchainLock::acquire().expect("should acquire after release");
+                    let session = crate::session::Session::new();
+                    let _second =
+                        ToolchainLock::acquire(&session).expect("should acquire after release");
                     tx.send(()).expect("should signal");
                 });
 

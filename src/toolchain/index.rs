@@ -5,17 +5,17 @@ use miette::{Context, IntoDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::constant;
-use crate::dist_server::schema::{
-    ChannelIndex, ChannelName, ComponentIndex, Index, Release, Target,
-};
-use crate::utils::{build_dist_server_api, build_http_client_with_retry, url_to_reader};
+use crate::dist_server::schema::{ChannelIndex, ComponentIndex, Index, Release, Target};
+use crate::session::Session;
+use crate::utils::{build_dist_server_api, url_to_reader};
 
-/// Read the main index
-pub async fn read_index() -> miette::Result<Index> {
-    let index_filename = "index.json";
-    let mut index_file = crate::moonup_home();
-    index_file.push("downloads");
-    index_file.push(index_filename);
+/// Load the main index from the on-disk cache (when fresh) or the
+/// distribution server.
+///
+/// Cache population is the session's business: this function always consults
+/// disk/server, and the caller stores the parsed result.
+pub(crate) async fn load_index(session: &Session) -> miette::Result<Index> {
+    let index_file = session.index_path();
 
     let (cache_valid, mut content) = match read_json_with_lock(&index_file).await {
         Ok((cache_valid, content)) => (cache_valid, content),
@@ -34,11 +34,11 @@ pub async fn read_index() -> miette::Result<Index> {
             });
     }
 
-    let main_index_url = build_dist_server_api(index_filename)?;
+    let main_index_url = build_dist_server_api("index.json")?;
 
     content.clear();
 
-    let mut reader = url_to_reader(main_index_url, &build_http_client_with_retry(), None).await?;
+    let mut reader = url_to_reader(main_index_url, &session.http_client(), None).await?;
     reader
         .read_to_string(&mut content)
         .await
@@ -53,13 +53,13 @@ pub async fn read_index() -> miette::Result<Index> {
     Ok(index)
 }
 
-/// Read the channel index
-pub async fn read_channel_index(channel: &str) -> miette::Result<ChannelIndex> {
-    let channel_index_filename = format!("channel-{channel}.json");
-
-    let mut channel_index_file = crate::moonup_home();
-    channel_index_file.push("downloads");
-    channel_index_file.push(&channel_index_filename);
+/// Load a channel index from the on-disk cache (when fresh) or the
+/// distribution server.
+pub(crate) async fn load_channel_index(
+    session: &Session,
+    channel: &str,
+) -> miette::Result<ChannelIndex> {
+    let channel_index_file = session.channel_index_path(channel);
 
     let (cache_valid, mut content) = match read_json_with_lock(&channel_index_file).await {
         Ok((cache_valid, content)) => (cache_valid, content),
@@ -78,12 +78,12 @@ pub async fn read_channel_index(channel: &str) -> miette::Result<ChannelIndex> {
             });
     }
 
+    let channel_index_filename = format!("channel-{channel}.json");
     let channel_index_url = build_dist_server_api(&channel_index_filename)?;
 
     content.clear();
 
-    let mut reader =
-        url_to_reader(channel_index_url, &build_http_client_with_retry(), None).await?;
+    let mut reader = url_to_reader(channel_index_url, &session.http_client(), None).await?;
     reader
         .read_to_string(&mut content)
         .await
@@ -98,19 +98,21 @@ pub async fn read_channel_index(channel: &str) -> miette::Result<ChannelIndex> {
     Ok(index)
 }
 
-/// Read the component index
-pub async fn read_component_index(
+/// Load a component index from the on-disk cache (when fresh) or the
+/// distribution server.
+pub(crate) async fn load_component_index(
+    session: &Session,
     channel: &str,
     release: &Release,
 ) -> miette::Result<ComponentIndex> {
     let host_target = Target::from_host()?;
     let filename = format!("{}.json", host_target);
 
-    let mut component_index_local = crate::moonup_home();
-    component_index_local.push("downloads");
-    component_index_local.push(channel);
-    component_index_local.push(release.key());
-    component_index_local.push(&filename);
+    let component_index_local = session
+        .downloads_dir()
+        .join(channel)
+        .join(release.key())
+        .join(&filename);
 
     let (cache_valid, mut content) = match read_json_with_lock(&component_index_local).await {
         Ok((cache_valid, content)) => (cache_valid, content),
@@ -135,8 +137,7 @@ pub async fn read_component_index(
 
     content.clear();
 
-    let mut reader =
-        url_to_reader(component_index_url, &build_http_client_with_retry(), None).await?;
+    let mut reader = url_to_reader(component_index_url, &session.http_client(), None).await?;
     reader
         .read_to_string(&mut content)
         .await
@@ -222,17 +223,4 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(bool, String)> {
             Ok((true, content))
         }
     }
-}
-
-/// The valid channels advertised by a readable main-index catalog.
-///
-/// `None` means no usable channel catalog was available. `Some(vec![])` means
-/// a catalog was read but contained no channels.
-pub async fn available_channels() -> miette::Result<Vec<ChannelName>> {
-    let index = read_index().await?;
-    Ok(index
-        .channels()
-        .iter()
-        .map(|channel| channel.name.clone())
-        .collect::<Vec<_>>())
 }

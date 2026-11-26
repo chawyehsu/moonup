@@ -1,15 +1,16 @@
 use clap::Parser;
 
+use crate::session::Session;
 use crate::toolchain::{ToolchainSpec, installed_toolchains, resolve};
 
 /// List installed and active toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 
-pub async fn execute(_: Args) -> miette::Result<()> {
-    let installs = installed_toolchains()?;
+pub async fn execute(_: Args, session: &Session) -> miette::Result<()> {
+    let installs = installed_toolchains(session)?;
 
-    println!("Moonup home: {}\n", crate::moonup_home().display());
+    println!("Moonup home: {}\n", session.moonup_home().display());
     if installs.is_empty() {
         println!("No toolchains installed");
     } else {

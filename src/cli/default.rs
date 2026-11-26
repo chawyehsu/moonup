@@ -2,7 +2,7 @@ use clap::Parser;
 use dialoguer::theme::ColorfulTheme;
 use miette::IntoDiagnostic;
 
-use crate::{constant, status, toolchain::ToolchainSpec};
+use crate::{constant, session::Session, status, toolchain::ToolchainSpec};
 
 use super::ToolchainSpecValueParser;
 
@@ -14,11 +14,11 @@ pub struct Args {
     toolchain: Option<ToolchainSpec>,
 }
 
-pub async fn execute(args: Args) -> miette::Result<()> {
+pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
     let version = match args.toolchain {
         Some(version) => version,
         None => {
-            let selections = match crate::toolchain::installed_toolchains() {
+            let selections = match crate::toolchain::installed_toolchains(session) {
                 Ok(toolchains) => toolchains
                     .iter()
                     .map(|t| t.spec.to_owned())
@@ -45,7 +45,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         }
     };
 
-    let default_file = crate::moonup_home().join("default");
+    let default_file = session.default_toolchain_file();
     std::fs::create_dir_all(default_file.parent().unwrap()).into_diagnostic()?;
     tokio::fs::write(&default_file, format!("{}\n", version))
         .await

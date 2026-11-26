@@ -347,7 +347,8 @@ fn test_installed_toolchains_excludes_staging() {
             cs::write_live_install(&spec("latest"), "0.1.0\n");
             cs::write_partial_staging(&spec("latest"));
 
-            let installed = installed_toolchains().expect("should list installed toolchains");
+            let installed = installed_toolchains(&moonup::session::Session::new())
+                .expect("should list installed toolchains");
             assert_eq!(installed.len(), 1);
             assert_eq!(installed[0].spec, spec("latest"));
         },
@@ -380,7 +381,8 @@ fn test_installed_toolchains_stale_latest_cache_falls_back_to_numeric() {
             )
             .expect("should write stale latest cache");
 
-            let installed = installed_toolchains().expect("should list installed toolchains");
+            let installed = installed_toolchains(&moonup::session::Session::new())
+                .expect("should list installed toolchains");
             let names = installed
                 .iter()
                 .map(|t| t.spec.to_string())

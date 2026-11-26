@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::constant::DEFAULT_CHANNEL;
 pub use crate::dist_server::schema::InvalidChannelName;
 use crate::dist_server::schema::{ChannelName, Release};
+use crate::session::Session;
 use crate::toolchain::install::InstallRecipe;
 use crate::toolchain::ordering::{
     NumericVersion, read_channel_ranks, read_release_positions, release_order,
@@ -293,7 +294,7 @@ impl ToolchainSpec {
 
     //// Get the install dir root for the toolchain
     pub fn install_path(&self) -> PathBuf {
-        let mut path = crate::moonup_home().join("toolchains");
+        let mut path = crate::paths::toolchains_dir();
         path.push(self.install_name());
         path
     }
@@ -387,8 +388,8 @@ fn legacy_nightly_key(s: &str) -> Option<&str> {
     Some(key)
 }
 
-pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
-    let toolchains_dir = crate::moonup_home().join("toolchains");
+pub fn installed_toolchains(session: &Session) -> miette::Result<Vec<InstalledToolchain>> {
+    let toolchains_dir = session.toolchains_dir();
 
     let toolchains = match toolchains_dir.read_dir() {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => vec![],
@@ -410,11 +411,11 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
                         .push(it.key().to_owned());
                 }
             }
-            let channel_ranks = read_channel_ranks();
+            let channel_ranks = read_channel_ranks(session);
             let release_positions = pinned_keys
                 .into_iter()
                 .map(|(channel, keys)| {
-                    let positions = read_release_positions(&channel, &keys);
+                    let positions = read_release_positions(session, &channel, &keys);
                     (channel, positions)
                 })
                 .collect();

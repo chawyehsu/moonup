@@ -2,6 +2,7 @@ use clap::{CommandFactory, Parser};
 use clap_complete::Shell;
 
 use crate::cli::Cli;
+use crate::session::Session;
 
 /// Generate shell completions
 #[derive(Parser, Debug)]
@@ -11,7 +12,7 @@ pub struct Args {
     shell: Shell,
 }
 
-pub async fn execute(args: Args) -> miette::Result<()> {
+pub async fn execute(args: Args, _session: &Session) -> miette::Result<()> {
     let mut buf = vec![];
     clap_complete::generate(
         args.shell,

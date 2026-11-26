@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::{runner, toolchain::resolve::detect_active_toolchain};
+use crate::{runner, session::Session, toolchain::resolve::detect_active_toolchain};
 
 /// Show the actual binary that will be run for a given command
 #[derive(Parser, Debug)]
@@ -16,7 +16,7 @@ fn format_command(cmd: &std::process::Command) -> String {
     parts.join(" ")
 }
 
-pub async fn execute(args: Args) -> miette::Result<()> {
+pub async fn execute(args: Args, _session: &Session) -> miette::Result<()> {
     let spec = detect_active_toolchain().map_err(|error| miette::miette!(error))?;
 
     match runner::build_command(spec, vec![args.command.as_str()]) {

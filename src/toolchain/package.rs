@@ -5,12 +5,13 @@ use crate::{
     archive::{extract_tar_gz, extract_zip},
     fs::{compute_file_sha256, save_file},
     reporter::{ProgressReporter, Reporter},
-    utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
+    session::Session,
+    utils::{build_dist_server_api, path_to_reader, url_to_reader},
 };
 
 use super::{atomic, install::InstallRecipe};
 
-pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
+pub async fn populate_install(session: &Session, recipe: &InstallRecipe) -> miette::Result<()> {
     atomic::ensure_install_path_available(&recipe.spec)?;
 
     // A previous run may have finished assembling the staging directory but
@@ -37,8 +38,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             staging_dir.display()
         ))?;
 
-    let mut download_dir = crate::moonup_home();
-    download_dir.push("downloads");
+    let mut download_dir = session.downloads_dir();
 
     let channel = recipe.spec.channel().as_str();
     let release_key = recipe.release.key().to_owned();
@@ -97,7 +97,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
                 None => format!("v{}", recipe.release.version),
             };
 
-            let client = build_http_client_with_retry();
+            let client = session.http_client();
 
             let pathname = format!("/download/{}/{}", tag, file);
             let url = build_dist_server_api(&pathname)?;

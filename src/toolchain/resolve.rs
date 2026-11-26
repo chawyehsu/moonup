@@ -42,7 +42,7 @@ pub fn detect_pinned_toolchain() -> Option<String> {
 ///
 /// The default toolchain version if found
 pub fn detect_default_toolchain() -> Option<String> {
-    let default_file = crate::moonup_home().join("default");
+    let default_file = crate::paths::default_toolchain_file();
     std::fs::read_to_string(default_file)
         .map(|s| trimmed_or_none(&s).map(str::to_owned))
         .ok()

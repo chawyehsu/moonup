@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use crate::{
     dist_server::schema::{ChannelIndex, Index},
+    session::Session,
     toolchain::ToolchainSpec,
 };
 
@@ -137,18 +138,28 @@ pub fn release_order(
     }
 }
 
-/// Positions of releases in a channel's cached channel index.
+/// Positions of releases in a channel's channel index.
 ///
 /// Offline and best-effort: on any read or parse error the installs
-/// fall back to numeric version ordering.
-pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String, usize> {
+/// fall back to numeric version ordering. The session's cached channel
+/// index is served when this invocation already loaded it; otherwise the
+/// cached file is read from disk. Disk reads are never stored back, so a
+/// stale disk copy neither poisons the session's view nor suppresses a
+/// freshness re-fetch.
+pub fn read_release_positions(
+    session: &Session,
+    channel: &str,
+    keys: &[String],
+) -> HashMap<String, usize> {
     if keys.is_empty() {
         return HashMap::new();
     }
 
-    let path = crate::moonup_home()
-        .join("downloads")
-        .join(format!("channel-{channel}.json"));
+    if let Some(index) = session.cached_channel_index(channel) {
+        return release_positions(&index, keys);
+    }
+
+    let path = session.channel_index_path(channel);
     let Ok(content) = std::fs::read_to_string(&path) else {
         return HashMap::new();
     };
@@ -156,6 +167,10 @@ pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String,
         return HashMap::new();
     };
 
+    release_positions(&index, keys)
+}
+
+fn release_positions(index: &ChannelIndex, keys: &[String]) -> HashMap<String, usize> {
     let positions = index
         .releases()
         .iter()
@@ -174,13 +189,19 @@ pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String,
     positions
 }
 
-/// Ranks of channels in the cached main index, used to order floating
+/// Ranks of channels in the main index, used to order floating
 /// channel installs.
 ///
 /// Offline and best-effort: on any read or parse error no channel is
-/// ranked, and unranked channels sort last, by name.
-pub fn read_channel_ranks() -> HashMap<String, usize> {
-    let path = crate::moonup_home().join("downloads").join("index.json");
+/// ranked, and unranked channels sort last, by name. The session's cached
+/// main index is served when this invocation already loaded it; otherwise
+/// the cached file is read from disk, never stored back.
+pub fn read_channel_ranks(session: &Session) -> HashMap<String, usize> {
+    if let Some(index) = session.cached_main_index() {
+        return channel_ranks(&index);
+    }
+
+    let path = session.index_path();
     let Ok(content) = std::fs::read_to_string(&path) else {
         return HashMap::new();
     };
@@ -188,6 +209,10 @@ pub fn read_channel_ranks() -> HashMap<String, usize> {
         return HashMap::new();
     };
 
+    channel_ranks(&index)
+}
+
+fn channel_ranks(index: &Index) -> HashMap<String, usize> {
     index
         .channels()
         .iter()

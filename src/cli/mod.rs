@@ -5,6 +5,7 @@ use tracing_subscriber::{
     EnvFilter, filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt,
 };
 
+use crate::session::Session;
 use crate::toolchain::ToolchainSpec;
 
 mod completions;
@@ -111,17 +112,21 @@ pub async fn start() -> miette::Result<()> {
     let args = Cli::parse();
     setup_logger(args.verbose.tracing_level_filter())?;
 
+    // One session per invocation: paths resolved once, index metadata served
+    // from memory, downloads sharing one HTTP client.
+    let session = Session::new();
+
     match args.command {
-        Command::Completions(args) => completions::execute(args).await?,
-        Command::Default(args) => default::execute(args).await?,
-        Command::Install(args) => install::execute(args).await?,
-        Command::List(args) => list::execute(args).await?,
-        Command::Pin(args) => pin::execute(args).await?,
-        Command::Run(args) => run::execute(args).await?,
-        Command::SelfUpdate(args) => selfupdate::execute(args).await?,
-        Command::Uninstall(args) => uninstall::execute(args).await?,
-        Command::Update(args) => update::execute(args).await?,
-        Command::Which(args) => which::execute(args).await?,
+        Command::Completions(args) => completions::execute(args, &session).await?,
+        Command::Default(args) => default::execute(args, &session).await?,
+        Command::Install(args) => install::execute(args, &session).await?,
+        Command::List(args) => list::execute(args, &session).await?,
+        Command::Pin(args) => pin::execute(args, &session).await?,
+        Command::Run(args) => run::execute(args, &session).await?,
+        Command::SelfUpdate(args) => selfupdate::execute(args, &session).await?,
+        Command::Uninstall(args) => uninstall::execute(args, &session).await?,
+        Command::Update(args) => update::execute(args, &session).await?,
+        Command::Which(args) => which::execute(args, &session).await?,
     }
     Ok(())
 }

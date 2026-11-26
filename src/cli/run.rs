@@ -1,6 +1,6 @@
 use clap::{Parser, ValueHint};
 
-use crate::{runner, status, toolchain::ToolchainSpec};
+use crate::{runner, session::Session, status, toolchain::ToolchainSpec};
 
 use super::ToolchainSpecValueParser;
 
@@ -17,7 +17,7 @@ pub struct Args {
     command: Vec<String>,
 }
 
-pub async fn execute(args: Args) -> miette::Result<()> {
+pub async fn execute(args: Args, _session: &Session) -> miette::Result<()> {
     let mut cmd = runner::build_command(args.toolchain, args.command)
         .map_err(|e| miette::miette!("Failed to build command: {}", e))?;
 

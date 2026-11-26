@@ -1,6 +1,7 @@
 use moonup::{
     constant,
     dist_server::schema::{ChannelName, Component, Release},
+    session::Session,
     toolchain::{ToolchainSpec, install::InstallRecipe, package::populate_install},
 };
 
@@ -49,7 +50,9 @@ fn test_populate_install_redownloads_invalid_cache() {
                 || {
                     let rt = tokio::runtime::Runtime::new().expect("should create runtime");
                     rt.block_on(async {
-                        populate_install(&recipe)
+                        let session = Session::new();
+
+                        populate_install(&session, &recipe)
                             .await
                             .expect("first install should succeed");
 
@@ -63,7 +66,7 @@ fn test_populate_install_redownloads_invalid_cache() {
                         std::fs::write(&cache_file, b"corrupted")
                             .expect("should overwrite cache with corrupted data");
 
-                        populate_install(&recipe)
+                        populate_install(&session, &recipe)
                             .await
                             .expect("second install should redownload and succeed");
 

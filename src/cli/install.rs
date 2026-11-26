@@ -1,9 +1,10 @@
 use clap::{CommandFactory, Parser};
 use dialoguer::theme::ColorfulTheme;
 
+use crate::session::Session;
+use crate::toolchain::ToolchainSpec;
 use crate::toolchain::install::sync_toolchain;
 use crate::toolchain::resolve::detect_pinned_toolchain;
-use crate::toolchain::{ToolchainSpec, index};
 
 use super::ToolchainSpecValueParser;
 use miette::IntoDiagnostic;
@@ -27,9 +28,9 @@ pub struct Args {
     list_available: bool,
 }
 
-pub async fn execute(args: Args) -> miette::Result<()> {
+pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
     if args.list_available && args.toolchain.is_none() {
-        let index = index::read_index().await?;
+        let index = session.read_index().await?;
         let channels = index.channels();
         if channels.is_empty() {
             println!("No available channel found");
@@ -46,7 +47,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     let spec = match args.toolchain {
         Some(s) => {
             if args.list_available {
-                match list_channel_versions(&s).await? {
+                match list_channel_versions(session, &s).await? {
                     Some(picked) => picked,
                     // A floating-only channel: the listing is the whole answer
                     None => return Ok(()),
@@ -69,23 +70,26 @@ pub async fn execute(args: Args) -> miette::Result<()> {
         },
     };
 
-    sync_toolchain(&spec, true).await?;
+    sync_toolchain(session, &spec, true).await?;
     Ok(())
 }
 /// List the releases of the channel the given spec resolves within, and
 /// interactively pick one to install.
 ///
 /// Picking produces a channel-qualified pinned spec
-async fn list_channel_versions(spec: &ToolchainSpec) -> miette::Result<Option<ToolchainSpec>> {
+async fn list_channel_versions(
+    session: &Session,
+    spec: &ToolchainSpec,
+) -> miette::Result<Option<ToolchainSpec>> {
     let channel = spec.channel();
-    let channels = index::available_channels().await?;
+    let channels = session.available_channels().await?;
 
     if channels.is_empty() || !channels.iter().any(|candidate| candidate == channel) {
         eprintln!("No toolchain available for requested spec '{}'", spec);
         return Err(crate::status::exit_with(1));
     }
 
-    let channel_index = index::read_channel_index(channel.as_str()).await?;
+    let channel_index = session.read_channel_index(channel.as_str()).await?;
     let releases = channel_index
         .releases()
         .iter()

@@ -285,7 +285,7 @@ fn unique_retired_path(parent: &Path, base: &str) -> PathBuf {
 }
 
 fn toolchains_root() -> PathBuf {
-    crate::moonup_home().join("toolchains")
+    crate::paths::toolchains_dir()
 }
 
 /// Read the install record inside a staging directory, `None` when the
