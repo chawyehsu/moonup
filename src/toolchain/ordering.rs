@@ -7,7 +7,6 @@ use crate::{
     session::Session,
     toolchain::ToolchainSpec,
 };
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompareError {
     InvalidVersion(String),
@@ -140,12 +139,9 @@ pub fn release_order(
 
 /// Positions of releases in a channel's channel index.
 ///
-/// Offline and best-effort: on any read or parse error the installs
-/// fall back to numeric version ordering. The session's cached channel
-/// index is served when this invocation already loaded it; otherwise the
-/// cached file is read from disk. Disk reads are never stored back, so a
-/// stale disk copy neither poisons the session's view nor suppresses a
-/// freshness re-fetch.
+/// Offline and best-effort: reads the session in offline mode (memory or
+/// disk, never the network); on any error the installs fall back to numeric
+/// version ordering.
 pub fn read_release_positions(
     session: &Session,
     channel: &str,
@@ -155,19 +151,10 @@ pub fn read_release_positions(
         return HashMap::new();
     }
 
-    if let Some(index) = session.cached_channel_index(channel) {
-        return release_positions(&index, keys);
-    }
-
-    let path = session.layout().channel_index_path(channel);
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return HashMap::new();
-    };
-    let Ok(index) = serde_json::from_str::<ChannelIndex>(&content) else {
-        return HashMap::new();
-    };
-
-    release_positions(&index, keys)
+    session
+        .read_channel_index_offline(channel)
+        .map(|index| release_positions(&index, keys))
+        .unwrap_or_default()
 }
 
 fn release_positions(index: &ChannelIndex, keys: &[String]) -> HashMap<String, usize> {
@@ -192,24 +179,14 @@ fn release_positions(index: &ChannelIndex, keys: &[String]) -> HashMap<String, u
 /// Ranks of channels in the main index, used to order floating
 /// channel installs.
 ///
-/// Offline and best-effort: on any read or parse error no channel is
-/// ranked, and unranked channels sort last, by name. The session's cached
-/// main index is served when this invocation already loaded it; otherwise
-/// the cached file is read from disk, never stored back.
+/// Offline and best-effort: reads the session in offline mode (memory or
+/// disk, never the network); on any error no channel is ranked, and
+/// unranked channels sort last, by name.
 pub fn read_channel_ranks(session: &Session) -> HashMap<String, usize> {
-    if let Some(index) = session.cached_main_index() {
-        return channel_ranks(&index);
-    }
-
-    let path = session.layout().index_path();
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return HashMap::new();
-    };
-    let Ok(index) = serde_json::from_str::<Index>(&content) else {
-        return HashMap::new();
-    };
-
-    channel_ranks(&index)
+    session
+        .read_index_offline()
+        .map(|index| channel_ranks(&index))
+        .unwrap_or_default()
 }
 
 fn channel_ranks(index: &Index) -> HashMap<String, usize> {

@@ -1,19 +1,20 @@
 //! The per-invocation session.
 //!
 //! A session is created once per CLI invocation in `cli::start()` and passed
-//! as `&Session` to every subcommand. It resolves moonup's locations once at
-//! creation, owns the invocation's distribution-server HTTP client (so
-//! downloads share pooled connections instead of paying a fresh handshake per
-//! file), and caches parsed index metadata so repeated reads within one
-//! invocation hit memory.
+//! as `&Session` to every subcommand. It resolves moonup's locations once,
+//! owns the invocation's distribution-server HTTP client (so downloads share
+//! pooled connections instead of paying a fresh handshake per file), and
+//! caches parsed index metadata so repeated reads within one invocation hit
+//! memory.
 //!
-//! The cache carries no invalidation machinery: every value fetched or
-//! re-read during the invocation is stored back, making the cache the source
-//! of truth for the session's lifetime — the same write-through shape the
-//! index layer applies to disk. Index files that the release-ordering module
-//! reads directly from disk (best-effort, offline) are never stored, so a
-//! stale disk copy cannot pin the session's view or suppress a freshness
-//! re-fetch.
+//! The cache carries no invalidation machinery: each entry is bound to the
+//! on-disk `.lock` timestamp of the file it came from — the same oracle the
+//! disk cache uses. Fresh reads ([`Session::read_index`]) serve a cached
+//! entry only while that timestamp still matches disk and passes the
+//! freshness window, so entries written by offline reads can be reused
+//! without ever serving stale data as fresh. Offline reads
+//! ([`Session::read_index_offline`], used by release ordering) serve memory
+//! or disk and never perform a network request.
 //!
 //! Sessions never observe each other's state: each invocation, including
 //! each shim run, starts from disk state. The shim binary itself links none
@@ -23,6 +24,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
+use jiff::Timestamp;
 use reqwest_middleware::ClientWithMiddleware;
 
 use crate::dist_server::schema::{ChannelIndex, ChannelName, ComponentIndex, Index, Release};
@@ -37,12 +39,29 @@ pub struct Session {
     indexes: Mutex<IndexCache>,
 }
 
+/// One cached index value, bound to the on-disk lock timestamp of the file
+/// it was read from (or that was just written for it). `None` means the file
+/// carried no readable lock timestamp at read time.
+struct Entry<T> {
+    value: Arc<T>,
+    lock: Option<Timestamp>,
+}
+
+impl<T> Clone for Entry<T> {
+    fn clone(&self) -> Self {
+        Entry {
+            value: Arc::clone(&self.value),
+            lock: self.lock,
+        }
+    }
+}
+
 /// The in-memory index cache, keyed by index kind.
 #[derive(Default)]
 struct IndexCache {
-    main: Option<Arc<Index>>,
-    channels: HashMap<String, Arc<ChannelIndex>>,
-    components: HashMap<(String, String), Arc<ComponentIndex>>,
+    main: Option<Entry<Index>>,
+    channels: HashMap<String, Entry<ChannelIndex>>,
+    components: HashMap<(String, String), Entry<ComponentIndex>>,
 }
 
 impl Default for Session {
@@ -74,51 +93,140 @@ impl Session {
             .clone()
     }
 
-    /// Read the main index, from memory when this session already loaded it.
+    /// Read the main index, enforcing the freshness rule: serve from memory
+    /// or disk while the on-disk lock timestamp is fresh, fetch (and write
+    /// back to disk and memory) when it is stale.
     pub async fn read_index(&self) -> miette::Result<Arc<Index>> {
-        if let Some(cached) = self.cached_main_index() {
-            return Ok(cached);
+        if let Some(cached) = self.indexes.lock().ok().and_then(|c| c.main.clone()) {
+            let disk = index::read_lock_timestamp(&self.layout().index_path());
+            if entry_is_fresh(&cached, disk) {
+                return Ok(cached.value);
+            }
         }
 
-        let index = Arc::new(index::load_index(self).await?);
+        let (index, lock) = index::load_index(self).await?;
+        let value = Arc::new(index);
         if let Ok(mut cache) = self.indexes.lock() {
-            cache.main = Some(Arc::clone(&index));
+            cache.main = Some(Entry {
+                value: Arc::clone(&value),
+                lock: Some(lock),
+            });
         }
-        Ok(index)
+        Ok(value)
     }
 
-    /// Read a channel index, from memory when this session already loaded it.
+    /// Read the main index without any network access: serve memory or disk,
+    /// freshness ignored. Best-effort — `None` when neither is readable.
+    pub fn read_index_offline(&self) -> Option<Arc<Index>> {
+        if let Some(cached) = self.indexes.lock().ok().and_then(|c| c.main.clone()) {
+            return Some(cached.value);
+        }
+
+        let (index, lock) = index::load_index_offline(self.layout())?;
+        let value = Arc::new(index);
+        if let Ok(mut cache) = self.indexes.lock() {
+            cache.main = Some(Entry {
+                value: Arc::clone(&value),
+                lock,
+            });
+        }
+        Some(value)
+    }
+
+    /// Read a channel index, enforcing the freshness rule (see
+    /// [`Session::read_index`]).
     pub async fn read_channel_index(&self, channel: &str) -> miette::Result<Arc<ChannelIndex>> {
-        if let Some(cached) = self.cached_channel_index(channel) {
-            return Ok(cached);
+        if let Some(cached) = self
+            .indexes
+            .lock()
+            .ok()
+            .and_then(|c| c.channels.get(channel).cloned())
+        {
+            let disk = index::read_lock_timestamp(&self.layout().channel_index_path(channel));
+            if entry_is_fresh(&cached, disk) {
+                return Ok(cached.value);
+            }
         }
 
-        let index = Arc::new(index::load_channel_index(self, channel).await?);
+        let (index, lock) = index::load_channel_index(self, channel).await?;
+        let value = Arc::new(index);
         if let Ok(mut cache) = self.indexes.lock() {
-            cache
-                .channels
-                .insert(channel.to_owned(), Arc::clone(&index));
+            cache.channels.insert(
+                channel.to_owned(),
+                Entry {
+                    value: Arc::clone(&value),
+                    lock: Some(lock),
+                },
+            );
         }
-        Ok(index)
+        Ok(value)
     }
 
-    /// Read a component index, from memory when this session already loaded
-    /// it.
+    /// Read a channel index without any network access (see
+    /// [`Session::read_index_offline`]).
+    pub fn read_channel_index_offline(&self, channel: &str) -> Option<Arc<ChannelIndex>> {
+        if let Some(cached) = self
+            .indexes
+            .lock()
+            .ok()
+            .and_then(|c| c.channels.get(channel).cloned())
+        {
+            return Some(cached.value);
+        }
+
+        let (index, lock) = index::load_channel_index_offline(self.layout(), channel)?;
+        let value = Arc::new(index);
+        if let Ok(mut cache) = self.indexes.lock() {
+            cache.channels.insert(
+                channel.to_owned(),
+                Entry {
+                    value: Arc::clone(&value),
+                    lock,
+                },
+            );
+        }
+        Some(value)
+    }
+
+    /// Read a component index, enforcing the freshness rule (see
+    /// [`Session::read_index`]).
     pub async fn read_component_index(
         &self,
         channel: &str,
         release: &Release,
     ) -> miette::Result<Arc<ComponentIndex>> {
         let key = (channel.to_owned(), release.key().to_owned());
-        if let Some(cached) = self.cached_component_index(&key) {
-            return Ok(cached);
+        if let Some(cached) = self
+            .indexes
+            .lock()
+            .ok()
+            .and_then(|c| c.components.get(&key).cloned())
+        {
+            let disk = index::read_lock_timestamp(
+                &self
+                    .layout()
+                    .downloads_dir()
+                    .join(&key.0)
+                    .join(&key.1)
+                    .join(component_index_filename()),
+            );
+            if entry_is_fresh(&cached, disk) {
+                return Ok(cached.value);
+            }
         }
 
-        let index = Arc::new(index::load_component_index(self, channel, release).await?);
+        let (index, lock) = index::load_component_index(self, channel, release).await?;
+        let value = Arc::new(index);
         if let Ok(mut cache) = self.indexes.lock() {
-            cache.components.insert(key, Arc::clone(&index));
+            cache.components.insert(
+                key,
+                Entry {
+                    value: Arc::clone(&value),
+                    lock: Some(lock),
+                },
+            );
         }
-        Ok(index)
+        Ok(value)
     }
 
     /// The channels advertised by a readable main-index catalog.
@@ -134,55 +242,99 @@ impl Session {
             .map(|channel| channel.name.clone())
             .collect())
     }
+}
 
-    /// The cached main index, if this session already loaded it.
-    ///
-    /// Synchronous view for the release-ordering module, which is offline
-    /// and best-effort.
-    pub(crate) fn cached_main_index(&self) -> Option<Arc<Index>> {
-        let cache = self.indexes.lock().ok()?;
-        cache.main.clone()
-    }
+/// Whether a cache entry may be served by a fresh read: its lock timestamp
+/// must still match the on-disk file's, and that timestamp must pass the
+/// freshness window. Anything else falls through to disk/fetch.
+fn entry_is_fresh<T>(entry: &Entry<T>, disk_lock: Option<Timestamp>) -> bool {
+    entry.lock == disk_lock && disk_lock.is_some_and(|ts| index::lock_is_fresh(&ts))
+}
 
-    /// The cached channel index for `channel`, if this session already
-    /// loaded it.
-    pub(crate) fn cached_channel_index(&self, channel: &str) -> Option<Arc<ChannelIndex>> {
-        let cache = self.indexes.lock().ok()?;
-        cache.channels.get(channel).cloned()
-    }
-
-    /// The cached component index for `(channel, release)`, if this session
-    /// already loaded it.
-    fn cached_component_index(&self, key: &(String, String)) -> Option<Arc<ComponentIndex>> {
-        let cache = self.indexes.lock().ok()?;
-        cache.components.get(key).cloned()
-    }
+fn component_index_filename() -> String {
+    use crate::dist_server::schema::Target;
+    format!(
+        "{}.json",
+        Target::from_host().expect("host target should be resolvable")
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn write_index(home: &std::path::Path, body: &str, lock_micros: i64) {
+        let downloads = home.join("downloads");
+        std::fs::create_dir_all(&downloads).expect("should create downloads dir");
+        std::fs::write(downloads.join("index.json"), body).expect("should write index");
+        std::fs::write(downloads.join("index.json.lock"), lock_micros.to_string())
+            .expect("should write lock");
+    }
+
     #[test]
-    fn session_resolves_paths_from_env_at_creation() {
+    fn fresh_read_serves_memory_without_touching_disk() {
         let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
         temp_env::with_var(
             crate::constant::ENVNAME_MOONUP_HOME,
             Some(tempdir.path().as_os_str()),
             || {
-                let session = Session::new();
-                assert_eq!(session.layout().moonup_home(), tempdir.path());
+                let rt = tokio::runtime::Runtime::new().expect("should create runtime");
+                rt.block_on(async {
+                    let session = Session::new();
+                    write_index(
+                        tempdir.path(),
+                        r#"{"version": 3, "lastModified": "2026-01-01", "channels": []}"#,
+                        jiff::Timestamp::now().as_microsecond(),
+                    );
 
-                // a session created under a different env override keeps the
-                // paths it resolved at creation
-                let other = assert_fs::TempDir::new().expect("should create tempdir");
+                    // the offline read populates the session cache
+                    assert!(session.read_index_offline().is_some());
+
+                    // remove the on-disk file: a fresh read must still succeed
+                    // by serving the memory entry (the lock timestamp still
+                    // matches disk and passes the freshness window)
+                    std::fs::remove_file(tempdir.path().join("downloads/index.json"))
+                        .expect("should remove index file");
+                    assert!(session.read_index().await.is_ok());
+                });
+            },
+        );
+    }
+
+    #[test]
+    fn stale_offline_entries_are_never_served_as_fresh() {
+        let tempdir = assert_fs::TempDir::new().expect("should create tempdir");
+        // the dist server points at a closed port, so a fetch fails fast
+        // and hermetically
+        temp_env::with_var(
+            crate::constant::ENVNAME_MOONUP_DIST_SERVER,
+            Some("http://127.0.0.1:1"),
+            || {
                 temp_env::with_var(
                     crate::constant::ENVNAME_MOONUP_HOME,
-                    Some(other.path().as_os_str()),
+                    Some(tempdir.path().as_os_str()),
                     || {
-                        let session2 = Session::new();
-                        assert_eq!(session2.layout().moonup_home(), other.path());
-                        assert_eq!(session.layout().moonup_home(), tempdir.path());
+                        let rt = tokio::runtime::Runtime::new().expect("should create runtime");
+                        rt.block_on(async {
+                            let session = Session::new();
+                            // a lock timestamp from 2 hours ago: outside the
+                            // freshness window
+                            let stale = (jiff::Timestamp::now()
+                                - jiff::SignedDuration::from_hours(2))
+                            .as_microsecond();
+                            write_index(
+                                tempdir.path(),
+                                r#"{"version": 3, "lastModified": "2026-01-01", "channels": []}"#,
+                                stale,
+                            );
+
+                            // offline mode serves the stale file, best-effort
+                            assert!(session.read_index_offline().is_some());
+
+                            // fresh mode must not serve the stale entry as
+                            // fresh: it attempts a fetch and fails
+                            assert!(session.read_index().await.is_err());
+                        });
                     },
                 );
             },
