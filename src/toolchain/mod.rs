@@ -187,8 +187,9 @@ fn read_install_meta(install_dir: &Path) -> miette::Result<InstallMeta> {
             }
 
             // otherwise, it's not an install or a broken install
+            tracing::warn!("failed to determine install metadata for install: {}", name);
             Err(miette::miette!(
-                "failed to derive install meta from filename"
+                "failed to determine install metadata from filename"
             ))
         }
         Err(e) => Err(e).into_diagnostic(),
