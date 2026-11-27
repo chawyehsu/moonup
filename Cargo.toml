@@ -10,6 +10,16 @@ license = "Apache-2.0"
 keywords = ["moonbit", "version-manager"]
 categories = ["development-tools"]
 
+[features]
+default = ["self_update"]
+# Display the self-update subcommand in the --help output
+self_update = []
+# Test interactive commands that require TTY
+test-interactive = []
+# Extra tests that require network access to prod MOONUP_DIST_SERVER APIs,
+# which may be flaky and slow, default is off
+test-online = []
+
 [dependencies]
 anyhow = "1.0.102"
 clap = { version = "4.5", features = ["derive"] }
@@ -41,7 +51,7 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 url = "2.5.8"
 which = "8.0.0"
-zip = "8.6.0"
+zip = "9.8.2"
 
 [dev-dependencies]
 assert_fs = "1.1.3"
@@ -60,16 +70,6 @@ regex = "1.12.2"
 
 [target."cfg(windows)".dependencies]
 junction = "2.0.0"
-
-[features]
-default = ["self_update"]
-# Display the self-update subcommand in the --help output
-self_update = []
-# Test interactive commands that require TTY
-test-interactive = []
-# Extra tests that require network access to prod MOONUP_DIST_SERVER APIs,
-# which may be flaky and slow, default is off
-test-online = []
 
 # https://insta.rs/docs/quickstart/#optional-faster-runs
 [profile.dev.package]

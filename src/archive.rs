@@ -47,7 +47,7 @@ fn extract_zip_sync(reader: impl Read, destination: &Path) -> miette::Result<Sha
     let mut reader = HashingReader::<_, Sha256>::new(BufReader::new(reader));
 
     while let Some(file) = read_zipfile_from_stream(&mut reader).into_diagnostic()? {
-        let path = file.mangled_name();
+        let path = file.mangled_name().into_diagnostic()?;
         let path = destination.join(path);
 
         if file.is_dir() {
