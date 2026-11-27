@@ -23,7 +23,7 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     # skip if release commit and the dependabot commit
-    if: "!contains(github.event.head_commit.message, 'build(deps)') && !contains(github.event.pull_request.title, 'build(deps)') && !contains(github.event.pull_request.title, 'chore(main): release') && !contains(github.event.head_commit.message, 'chore(main): release')"
+    if: "!contains(github.event.head_commit.message, '(deps)') && !contains(github.event.pull_request.title, '(deps)') && !contains(github.event.pull_request.title, 'chore(main): release') && !contains(github.event.head_commit.message, 'chore(main): release')"
     env:
       KACHE_CACHE_DIR: ${{ github.workspace }}/.kache
       KACHE_RUNTIME_DIR: ${{ github.workspace }}/.kache-runtime
