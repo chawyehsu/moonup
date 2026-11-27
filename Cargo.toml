@@ -49,7 +49,7 @@ insta = { version = "1.46.3", features = ["filters", "glob", "redactions", "yaml
 insta-cmd = "0.7.0"
 mockito = "1.7.0"
 predicates = "3.1.3"
-serial_test = "3.5.0"
+serial_test = "4.0.1"
 temp-env = "0.3.6"
 
 # expectrl has some issues on Windows
