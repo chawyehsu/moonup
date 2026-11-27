@@ -80,8 +80,8 @@ build = { cmd = "cargo build", description = "Build in dev mode" }
 fmt = { cmd = "cargo fmt --all", description = "Code formatting" }
 lint = { cmd = "cargo clippy", description = "Code lintting" }
 package = { cmd = "pixi build", description = "Build the package" }
-test = { cmd = "cargo insta test --review", description = "Run tests", env = { CARGO_TARGET_DIR = "target/insta" } }
-test-all = { cmd = "cargo insta test --review --all-features", description = "Run tests with all features on", env = { CARGO_TARGET_DIR = "target/insta" } }
+test = { cmd = "cargo insta test", description = "Run tests", env = { CARGO_TARGET_DIR = "target/insta" } }
+test-all = { cmd = "cargo insta test --all-features", description = "Run tests with all features on", env = { CARGO_TARGET_DIR = "target/insta" } }
 cache-stats = { cmd = "kache stats --since 24h --full", description = "Show kache build cache statistics" }
 
 # -------- #
