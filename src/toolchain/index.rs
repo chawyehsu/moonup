@@ -215,9 +215,6 @@ async fn read_json_with_lock(path: &Path) -> miette::Result<(Option<Timestamp>, 
     let mut file = tokio::fs::File::open(path)
         .await
         .into_diagnostic()
-        .inspect_err(|e| {
-            tracing::debug!("failed to read index json: {}", e);
-        })
         .wrap_err("failed to open index file")?;
 
     let mut content = String::new();
