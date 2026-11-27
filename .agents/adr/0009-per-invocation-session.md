@@ -35,12 +35,20 @@ the index cache, and the shared HTTP client.
 The cache covers exactly the three index readers — main index, channel index,
 component index — stored parsed behind std synchronization primitives
 (`Mutex`/`OnceLock`; no `.await` occurs while a lock is held, and values
-crossing into `spawn_blocking` closures are owned clones). The
-release-ordering module routes through the same cache instead of its private
-disk reads: when the invocation has already loaded an index, ordering reads
-the session's copy; otherwise it keeps its offline, best-effort disk read —
-which is deliberately never stored back, so a stale disk copy can neither
-poison the session's view nor suppress a freshness re-fetch. Consistency
+crossing into `spawn_blocking` closures are owned clones). Each entry is
+bound to the on-disk `.lock` timestamp of the file it came from — the same
+oracle the disk cache uses — which lets two read modes share one cache
+safely. Fresh reads (`read_index`, `read_channel_index`,
+`read_component_index`) serve a cached entry only while its timestamp still
+matches the file and passes the freshness window; otherwise they consult
+disk and fetch when stale, writing back to both disk and memory. Offline
+reads (`read_index_offline`, `read_channel_index_offline`) serve memory or
+disk, freshness ignored, and never perform a network request — these are
+what the release-ordering module uses, so its reads join the cache instead
+of living on a private disk path, and read-only commands never grow a
+network dependency. Because "fresh" is only ever claimed when the timestamp
+that produced an entry still matches the file, ordering-populated entries
+can be reused without serving stale data as fresh. Consistency
 needs no invalidation API: whenever the index layer fetches fresh data from
 the distribution server and rewrites the on-disk cache files, it also updates
 the session's in-memory entry, so the cache acts as the source of truth for
@@ -74,6 +82,18 @@ binaries keep their current read-on-demand behavior.
   silently ranks against stale content the rest of the invocation has already
   replaced; routing it through the shared cache costs nothing extra and
   removes the second, divergent read path.
+- **Letting ordering use the freshness-enforcing reads** (awaiting
+  `read_index`/`read_channel_index` directly) — rejected: freshness means
+  fetch-on-stale, so `list`, `pin`, `default`, and `uninstall` would each
+  grow a network round-trip whenever the on-disk cache is older than an hour
+  — the common case — and would fail offline exactly when the stale disk
+  copy is most valuable. Ordering's output is display-only, so freshness is
+  not worth a network dependency; the dedicated offline mode serves that
+  contract.
+- **A mode flag on the read methods** — rejected: freshness is the caller's
+  identity, not a per-call knob; a boolean at twenty call sites is opaque
+  and easy to get wrong, where two named methods make each caller's
+  contract self-documenting.
 - **Keeping per-download client construction** — rejected: the requests of
   one invocation are known up front and share the same hosts, so a
   session-owned client is no more complex than the current rebuild-per-use
@@ -89,10 +109,11 @@ binaries keep their current read-on-demand behavior.
   channel, and `install` reads each index file from disk at most once.
 - Downloads within one invocation share pooled connections: multi-component
   installs and multi-channel updates stop paying a TLS handshake per file.
-- Release ordering serves the session's cached index whenever the invocation
-  has already loaded it, while its cold-path disk read stays offline and
-  best-effort exactly as before — no network is introduced into `list` or
-  ranking, and a stale disk copy cannot leak into the session's view.
+- Release ordering reads through the session's offline mode — memory or
+  disk, never the network — so `list`, `pin`, `default`, and `uninstall`
+  gain cache participation without gaining a single network request.
+  Ordering still ranks against local data, stale when the on-disk cache is
+  stale; since ordering only affects display order, this is accepted.
 - The shim binary is unchanged in behavior and size: it constructs a
   `Layout` (which resolves the homes once, exactly as a session would) and
   links none of the session/caching machinery; a shim invocation continues
