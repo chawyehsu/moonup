@@ -77,6 +77,15 @@ impl Layout {
         self.downloads_dir().join(format!("channel-{channel}.json"))
     }
 
+    /// A component index cache file,
+    /// `$MOONUP_HOME/downloads/{channel}/{key}/{target}.json`.
+    pub fn component_index_path(&self, channel: &str, key: &str, target: &str) -> PathBuf {
+        self.downloads_dir()
+            .join(channel)
+            .join(key)
+            .join(format!("{}.json", target))
+    }
+
     /// The default-toolchain record, `$MOONUP_HOME/default`.
     pub fn default_toolchain_file(&self) -> PathBuf {
         self.moonup_home.join("default")

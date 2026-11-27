@@ -27,7 +27,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use jiff::Timestamp;
 use reqwest_middleware::ClientWithMiddleware;
 
-use crate::dist_server::schema::{ChannelIndex, ChannelName, ComponentIndex, Index, Release};
+use crate::dist_server::schema::{
+    ChannelIndex, ChannelName, ComponentIndex, Index, Release, Target,
+};
 use crate::layout::Layout;
 use crate::toolchain::index;
 
@@ -117,12 +119,12 @@ impl Session {
 
     /// Read the main index without any network access: serve memory or disk,
     /// freshness ignored. Best-effort — `None` when neither is readable.
-    pub fn read_index_offline(&self) -> Option<Arc<Index>> {
+    pub async fn read_index_offline(&self) -> Option<Arc<Index>> {
         if let Some(cached) = self.indexes.lock().ok().and_then(|c| c.main.clone()) {
             return Some(cached.value);
         }
 
-        let (index, lock) = index::load_index_offline(self.layout())?;
+        let (index, lock) = index::load_index_offline(self.layout()).await.ok()?;
         let value = Arc::new(index);
         if let Ok(mut cache) = self.indexes.lock() {
             cache.main = Some(Entry {
@@ -164,7 +166,7 @@ impl Session {
 
     /// Read a channel index without any network access (see
     /// [`Session::read_index_offline`]).
-    pub fn read_channel_index_offline(&self, channel: &str) -> Option<Arc<ChannelIndex>> {
+    pub async fn read_channel_index_offline(&self, channel: &str) -> Option<Arc<ChannelIndex>> {
         if let Some(cached) = self
             .indexes
             .lock()
@@ -174,7 +176,9 @@ impl Session {
             return Some(cached.value);
         }
 
-        let (index, lock) = index::load_channel_index_offline(self.layout(), channel)?;
+        let (index, lock) = index::load_channel_index_offline(self.layout(), channel)
+            .await
+            .ok()?;
         let value = Arc::new(index);
         if let Ok(mut cache) = self.indexes.lock() {
             cache.channels.insert(
@@ -202,13 +206,9 @@ impl Session {
             .ok()
             .and_then(|c| c.components.get(&key).cloned())
         {
+            let target = Target::from_host()?.to_string();
             let disk = index::read_lock_timestamp(
-                &self
-                    .layout()
-                    .downloads_dir()
-                    .join(&key.0)
-                    .join(&key.1)
-                    .join(component_index_filename()),
+                &self.layout().component_index_path(&key.0, &key.1, &target),
             );
             if entry_is_fresh(&cached, disk) {
                 return Ok(cached.value);
@@ -251,14 +251,6 @@ fn entry_is_fresh<T>(entry: &Entry<T>, disk_lock: Option<Timestamp>) -> bool {
     entry.lock == disk_lock && disk_lock.is_some_and(|ts| index::lock_is_fresh(&ts))
 }
 
-fn component_index_filename() -> String {
-    use crate::dist_server::schema::Target;
-    format!(
-        "{}.json",
-        Target::from_host().expect("host target should be resolvable")
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,7 +280,7 @@ mod tests {
                     );
 
                     // the offline read populates the session cache
-                    assert!(session.read_index_offline().is_some());
+                    assert!(session.read_index_offline().await.is_some());
 
                     // remove the on-disk file: a fresh read must still succeed
                     // by serving the memory entry (the lock timestamp still
@@ -329,7 +321,7 @@ mod tests {
                             );
 
                             // offline mode serves the stale file, best-effort
-                            assert!(session.read_index_offline().is_some());
+                            assert!(session.read_index_offline().await.is_some());
 
                             // fresh mode must not serve the stale entry as
                             // fresh: it attempts a fetch and fails

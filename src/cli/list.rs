@@ -8,7 +8,7 @@ use crate::toolchain::{ToolchainSpec, installed_toolchains, resolve};
 pub struct Args {}
 
 pub async fn execute(_: Args, session: &Session) -> miette::Result<()> {
-    let installs = installed_toolchains(session)?;
+    let installs = installed_toolchains(session).await?;
 
     println!(
         "Moonup home: {}\n",

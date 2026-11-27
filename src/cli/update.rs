@@ -8,7 +8,8 @@ use crate::toolchain::{ToolchainSpec, install::sync_toolchain, installed_toolcha
 pub struct Args {}
 
 pub async fn execute(_: Args, session: &Session) -> miette::Result<()> {
-    let specs = installed_toolchains(session)?
+    let specs = installed_toolchains(session)
+        .await?
         .into_iter()
         .filter(|toolchain| matches!(&toolchain.spec, ToolchainSpec::Channel(_)))
         .map(|toolchain| toolchain.spec)

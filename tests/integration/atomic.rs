@@ -351,13 +351,17 @@ fn test_installed_toolchains_excludes_staging() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            cs::write_live_install(&spec("latest"), "0.1.0\n");
-            cs::write_partial_staging(&spec("latest"));
+            let rt = tokio::runtime::Runtime::new().expect("should create runtime");
+            rt.block_on(async {
+                cs::write_live_install(&spec("latest"), "0.1.0\n");
+                cs::write_partial_staging(&spec("latest"));
 
-            let installed = installed_toolchains(&moonup::session::Session::new())
-                .expect("should list installed toolchains");
-            assert_eq!(installed.len(), 1);
-            assert_eq!(installed[0].spec, spec("latest"));
+                let installed = installed_toolchains(&moonup::session::Session::new())
+                    .await
+                    .expect("should list installed toolchains");
+                assert_eq!(installed.len(), 1);
+                assert_eq!(installed[0].spec, spec("latest"));
+            });
         },
     );
 }
@@ -371,30 +375,34 @@ fn test_installed_toolchains_stale_latest_cache_falls_back_to_numeric() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            // A stale cache that no longer lists the installed `0.11.0` must not
-            // sort it below `0.10.0` (which the cache does list); the whole
-            // latest group falls back to numeric version ordering.
-            let toolchains_dir = moonup_home.join("toolchains");
-            for v in ["0.10.0", "0.11.0"] {
-                std::fs::create_dir_all(toolchains_dir.join(v))
-                    .expect("should create toolchain dir");
-            }
+            let rt = tokio::runtime::Runtime::new().expect("should create runtime");
+            rt.block_on(async {
+                // A stale cache that no longer lists the installed `0.11.0` must not
+                // sort it below `0.10.0` (which the cache does list); the whole
+                // latest group falls back to numeric version ordering.
+                let toolchains_dir = moonup_home.join("toolchains");
+                for v in ["0.10.0", "0.11.0"] {
+                    std::fs::create_dir_all(toolchains_dir.join(v))
+                        .expect("should create toolchain dir");
+                }
 
-            let downloads_dir = moonup_home.join("downloads");
-            std::fs::create_dir_all(&downloads_dir).expect("should create downloads dir");
-            std::fs::write(
-                downloads_dir.join("channel-latest.json"),
-                r#"{ "version": 3, "lastModified": "STALE", "releases": [ { "version": "0.10.0", "targets": ["aarch64-apple-darwin"] } ] }"#,
-            )
-            .expect("should write stale latest cache");
+                let downloads_dir = moonup_home.join("downloads");
+                std::fs::create_dir_all(&downloads_dir).expect("should create downloads dir");
+                std::fs::write(
+                    downloads_dir.join("channel-latest.json"),
+                    r#"{ "version": 3, "lastModified": "STALE", "releases": [ { "version": "0.10.0", "targets": ["aarch64-apple-darwin"] } ] }"#,
+                )
+                .expect("should write stale latest cache");
 
-            let installed = installed_toolchains(&moonup::session::Session::new())
-                .expect("should list installed toolchains");
-            let names = installed
-                .iter()
-                .map(|t| t.spec.to_string())
-                .collect::<Vec<_>>();
-            assert_eq!(names, vec!["0.10.0", "0.11.0"]);
+                let installed = installed_toolchains(&moonup::session::Session::new())
+                    .await
+                    .expect("should list installed toolchains");
+                let names = installed
+                    .iter()
+                    .map(|t| t.spec.to_string())
+                    .collect::<Vec<_>>();
+                assert_eq!(names, vec!["0.10.0", "0.11.0"]);
+            });
         },
     );
 }

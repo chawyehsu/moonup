@@ -44,7 +44,7 @@ pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
     }
 
     let toolchains = if args.toolchain.is_empty() {
-        let installed = installed_toolchains(session)?;
+        let installed = installed_toolchains(session).await?;
         if installed.is_empty() {
             let mut cmd = Args::command();
             cmd.print_help().into_diagnostic()?;

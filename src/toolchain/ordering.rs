@@ -142,7 +142,7 @@ pub fn release_order(
 /// Offline and best-effort: reads the session in offline mode (memory or
 /// disk, never the network); on any error the installs fall back to numeric
 /// version ordering.
-pub fn read_release_positions(
+pub async fn read_release_positions(
     session: &Session,
     channel: &str,
     keys: &[String],
@@ -153,6 +153,7 @@ pub fn read_release_positions(
 
     session
         .read_channel_index_offline(channel)
+        .await
         .map(|index| release_positions(&index, keys))
         .unwrap_or_default()
 }
@@ -182,9 +183,10 @@ fn release_positions(index: &ChannelIndex, keys: &[String]) -> HashMap<String, u
 /// Offline and best-effort: reads the session in offline mode (memory or
 /// disk, never the network); on any error no channel is ranked, and
 /// unranked channels sort last, by name.
-pub fn read_channel_ranks(session: &Session) -> HashMap<String, usize> {
+pub async fn read_channel_ranks(session: &Session) -> HashMap<String, usize> {
     session
         .read_index_offline()
+        .await
         .map(|index| channel_ranks(&index))
         .unwrap_or_default()
 }

@@ -381,7 +381,7 @@ fn legacy_nightly_key(s: &str) -> Option<&str> {
     Some(key)
 }
 
-pub fn installed_toolchains(session: &Session) -> miette::Result<Vec<InstalledToolchain>> {
+pub async fn installed_toolchains(session: &Session) -> miette::Result<Vec<InstalledToolchain>> {
     let toolchains_dir = session.layout().toolchains_dir();
 
     let toolchains = match toolchains_dir.read_dir() {
@@ -404,14 +404,12 @@ pub fn installed_toolchains(session: &Session) -> miette::Result<Vec<InstalledTo
                         .push(it.key().to_owned());
                 }
             }
-            let channel_ranks = read_channel_ranks(session);
-            let release_positions = pinned_keys
-                .into_iter()
-                .map(|(channel, keys)| {
-                    let positions = read_release_positions(session, &channel, &keys);
-                    (channel, positions)
-                })
-                .collect();
+            let channel_ranks = read_channel_ranks(session).await;
+            let mut release_positions = HashMap::new();
+            for (channel, keys) in pinned_keys {
+                let positions = read_release_positions(session, &channel, &keys).await;
+                release_positions.insert(channel, positions);
+            }
 
             t.sort_by_key(|it| release_order(&it.spec, &release_positions, &channel_ranks));
             t
