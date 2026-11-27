@@ -1,0 +1,18 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - uninstall
+    - latest
+    - "-vv"
+---
+success: true
+exit_code: 0
+----- stdout -----
+ INFO uninstall{toolchain=[Channel(ChannelName("latest"))]}: moonup::cli::uninstall: uninstalling toolchain latest
+ INFO uninstall{toolchain=[Channel(ChannelName("latest"))]}: moonup::cli::uninstall: removing cached downloads [MOONUP_HOME]/downloads/latest/0.10.17+d971670cd
+ WARN uninstall{toolchain=[Channel(ChannelName("latest"))]}: moonup::cli::uninstall: failed to remove cached downloads: [IO_ERROR]
+✔  Uninstalled toolchain latest
+
+----- stderr -----

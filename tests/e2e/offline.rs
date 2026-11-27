@@ -892,3 +892,105 @@ fn moonup_update_channel_no_longer_available() {
             .arg("update")
     );
 }
+
+#[test]
+fn moonup_install_without_spec_installs_pinned_toolchain() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+    let version = crate::constant::E2E_TEST_MOCK_INSTALL_VERSION;
+
+    // The project pins a toolchain via the version file (as `moonup pin`
+    // writes it)
+    fs::write(
+        ws.project_path().join(constant::TOOLCHAIN_FILE),
+        format!("{version}\n"),
+    )
+    .expect("should write pinned toolchain file");
+
+    // setup mock server for dist_server from committed fixtures
+    let s = util::mock_dist_server();
+
+    // No toolchain spec given: the pinned toolchain should be installed
+    assert_cmd_snapshot!(
+        "moonup_install_without_spec_installs_pinned_toolchain",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("install")
+    );
+
+    assert!(
+        ws.moonup_home().join("toolchains").join(version).exists(),
+        "the pinned toolchain should be installed"
+    );
+}
+
+#[test]
+fn moonup_install_without_spec_no_available_channel() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+
+    // A dist server whose main index advertises no channels at all
+    let mut server = util::mock_dist_server();
+    server.reset();
+    server
+        .mock("GET", "/index.json")
+        .with_body(r#"{"version": 3, "lastModified": "20261121T0000000000Z", "channels": []}"#)
+        .create();
+
+    assert_cmd_snapshot!(
+        "moonup_install_without_spec_no_available_channel",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, server.url())
+            .arg("install")
+            .arg("--list-available")
+    );
+}
+
+#[test]
+fn moonup_uninstall_remove_cached_downloads_failure() {
+    util::apply_common_filters!();
+    let ws = TestWorkspace::new();
+
+    // setup mock server for dist_server from committed fixtures
+    let s = util::mock_dist_server();
+
+    // Install the latest toolchain so the release archive is cached
+    let output = ws
+        .cli()
+        .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+        .arg("install")
+        .arg("latest")
+        .output()
+        .expect("should install latest toolchain successfully");
+    assert!(output.status.success(), "install should succeed");
+
+    // Replace the downloads directory with a regular file so that removing
+    // the cached downloads of the toolchain fails
+    let downloads_dir = ws.moonup_home().join("downloads");
+    fs::remove_dir_all(&downloads_dir).expect("should remove downloads directory");
+    fs::write(&downloads_dir, "not a directory").expect("should write downloads file");
+
+    // The io error text differs across platforms; mask it while keeping the
+    // warning line visible
+    let mut settings = insta::Settings::clone_current();
+    settings.add_filter(
+        r"failed to remove cached downloads: .*",
+        "failed to remove cached downloads: [IO_ERROR]",
+    );
+    let _bound = settings.bind_to_scope();
+
+    assert_cmd_snapshot!(
+        "moonup_uninstall_remove_cached_downloads_failure",
+        ws.cli()
+            .env(constant::ENVNAME_MOONUP_DIST_SERVER, s.url())
+            .arg("uninstall")
+            .arg("latest")
+            .arg("-vv")
+    );
+
+    // The toolchain itself is removed despite the cache removal failure
+    assert!(
+        !ws.moonup_home().join("toolchains").join("latest").exists(),
+        "the toolchain directory should be removed"
+    );
+}

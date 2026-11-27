@@ -1,0 +1,15 @@
+---
+source: tests/e2e/offline.rs
+info:
+  program: moonup
+  args:
+    - install
+---
+success: true
+exit_code: 0
+----- stdout -----
+Installing toolchain '0.10.17+d971670cd'
+✔ Installed toolchain version '0.10.17+d971670cd'
+Make sure '[MOON_HOME]/bin' is added to your PATH
+
+----- stderr -----
