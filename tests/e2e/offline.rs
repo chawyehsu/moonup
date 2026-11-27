@@ -3,7 +3,9 @@
 //! `online.rs` holds tests that involve the production dist server; the tests
 //! here run against `mock_dist_server()` with zero network.
 
-use std::{env, fs, path::Path};
+#[cfg(unix)]
+use std::path::Path;
+use std::{env, fs};
 
 use insta_cmd::assert_cmd_snapshot;
 use moonup::constant;
@@ -950,6 +952,7 @@ fn moonup_install_without_spec_no_available_channel() {
 fn moonup_uninstall_remove_cached_downloads_failure() {
     util::apply_common_filters!();
     let ws = TestWorkspace::new();
+    let version = crate::constant::E2E_TEST_MOCK_INSTALL_VERSION;
 
     // setup mock server for dist_server from committed fixtures
     let s = util::mock_dist_server();
@@ -964,11 +967,15 @@ fn moonup_uninstall_remove_cached_downloads_failure() {
         .expect("should install latest toolchain successfully");
     assert!(output.status.success(), "install should succeed");
 
-    // Replace the downloads directory with a regular file so that removing
-    // the cached downloads of the toolchain fails
-    let downloads_dir = ws.moonup_home().join("downloads");
-    fs::remove_dir_all(&downloads_dir).expect("should remove downloads directory");
-    fs::write(&downloads_dir, "not a directory").expect("should write downloads file");
+    // Replace the download directory of the toolchain with a regular file
+    // to simulate a failure in removing cached downloads
+    let download_dir = ws
+        .moonup_home()
+        .join("downloads")
+        .join("latest")
+        .join(&version);
+    fs::remove_dir_all(&download_dir).expect("should remove download directory");
+    fs::write(&download_dir, "not a directory").expect("should write download file");
 
     // The io error text differs across platforms; mask it while keeping the
     // warning line visible
