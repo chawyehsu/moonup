@@ -5,31 +5,33 @@ use crate::{
     archive::{extract_tar_gz, extract_zip},
     fs::{compute_file_sha256, save_file},
     reporter::{ProgressReporter, Reporter},
-    utils::{build_dist_server_api, build_http_client_with_retry, path_to_reader, url_to_reader},
+    session::Session,
+    utils::{build_dist_server_api, path_to_reader, url_to_reader},
 };
 
 use super::{atomic, install::InstallRecipe};
 
-pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
-    atomic::ensure_install_path_available(&recipe.spec)?;
+pub async fn populate_install(session: &Session, recipe: &InstallRecipe) -> miette::Result<()> {
+    let layout = session.layout();
+    atomic::ensure_install_path_available(layout, &recipe.spec)?;
 
     // A previous run may have finished assembling the staging directory but
     // failed while swapping it into place; retry the swap rather than
     // discarding the fully-assembled toolchain, as long as it holds the same
     // release the recipe resolves to.
-    if atomic::staged_matches(&recipe.spec, recipe)? {
-        atomic::swap(&recipe.spec)?;
+    if atomic::staged_matches(layout, &recipe.spec, recipe)? {
+        atomic::swap(layout, &recipe.spec)?;
         return Ok(());
     }
 
-    let staging_dir = atomic::staging_dir_for(&recipe.spec);
+    let staging_dir = atomic::staging_dir_for(layout, &recipe.spec);
     // Discard staging leftovers from any previous run — a partial extraction
     // or a staging left by an older moonup, neither of which carries a
     // finalization payload — then assemble the new toolchain in a staging
     // directory and swap it into the live location only once it is fully
     // assembled. A failed run leaves a discarded staging directory, never a
     // damaged live toolchain.
-    atomic::sweep_staging(&recipe.spec);
+    atomic::sweep_staging(layout, &recipe.spec);
     crate::fs::remove_dir_all(&staging_dir)
         .into_diagnostic()
         .wrap_err(format!(
@@ -37,8 +39,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
             staging_dir.display()
         ))?;
 
-    let mut download_dir = crate::moonup_home();
-    download_dir.push("downloads");
+    let mut download_dir = session.layout().downloads_dir();
 
     let channel = recipe.spec.channel().as_str();
     let release_key = recipe.release.key().to_owned();
@@ -97,7 +98,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
                 None => format!("v{}", recipe.release.version),
             };
 
-            let client = build_http_client_with_retry();
+            let client = session.http_client();
 
             let pathname = format!("/download/{}/{}", tag, file);
             let url = build_dist_server_api(&pathname)?;
@@ -192,7 +193,7 @@ pub async fn populate_install(recipe: &InstallRecipe) -> miette::Result<()> {
     // post-install steps succeed.
     super::InstallMeta::from(recipe).save(&staging_dir)?;
 
-    atomic::swap(&recipe.spec)?;
+    atomic::swap(layout, &recipe.spec)?;
 
     Ok(())
 }

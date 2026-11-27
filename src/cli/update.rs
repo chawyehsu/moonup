@@ -1,13 +1,15 @@
 use clap::Parser;
 
+use crate::session::Session;
 use crate::toolchain::{ToolchainSpec, install::sync_toolchain, installed_toolchains};
 
 /// Update MoonBit toolchains
 #[derive(Parser, Debug)]
 pub struct Args {}
 
-pub async fn execute(_: Args) -> miette::Result<()> {
-    let specs = installed_toolchains()?
+pub async fn execute(_: Args, session: &Session) -> miette::Result<()> {
+    let specs = installed_toolchains(session)
+        .await?
         .into_iter()
         .filter(|toolchain| matches!(&toolchain.spec, ToolchainSpec::Channel(_)))
         .map(|toolchain| toolchain.spec)
@@ -21,7 +23,7 @@ pub async fn execute(_: Args) -> miette::Result<()> {
 
     let mut failed = false;
     for spec in &specs {
-        let _ = sync_toolchain(spec, false).await.inspect_err(|e| {
+        let _ = sync_toolchain(session, spec, false).await.inspect_err(|e| {
             eprintln!("{e}");
             failed = true;
         });

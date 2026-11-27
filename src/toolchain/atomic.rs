@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::install::InstallRecipe;
 use super::{Finalization, InstallMeta, InstalledToolchain, ToolchainSpec};
+use crate::layout::Layout;
 
 pub const STAGING_DIR: &str = ".staging";
 pub const STAGING_SUFFIX: &str = ".new";
@@ -14,10 +15,12 @@ const LEGACY_COMPLETE_SUFFIX: &str = ".complete";
 
 /// The directory where a new toolchain is fully assembled before it is swapped
 /// into the live install location.
-pub fn staging_dir_for(spec: &ToolchainSpec) -> PathBuf {
-    toolchains_root()
-        .join(STAGING_DIR)
-        .join(format!("{}{}", spec.install_name(), STAGING_SUFFIX))
+pub fn staging_dir_for(layout: &Layout, spec: &ToolchainSpec) -> PathBuf {
+    layout.toolchains_dir().join(STAGING_DIR).join(format!(
+        "{}{}",
+        spec.install_name(),
+        STAGING_SUFFIX
+    ))
 }
 
 /// Whether a complete staging directory holds the same release as the given
@@ -28,8 +31,12 @@ pub fn staging_dir_for(spec: &ToolchainSpec) -> PathBuf {
 /// by older moonup versions carry no payload and count as stale. Returns an
 /// error if the staged record belongs to a different spec; returns `false`
 /// when the staging is absent, incomplete, or records another release.
-pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> miette::Result<bool> {
-    let Some(record) = read_staged_record(spec) else {
+pub fn staged_matches(
+    layout: &Layout,
+    spec: &ToolchainSpec,
+    recipe: &InstallRecipe,
+) -> miette::Result<bool> {
+    let Some(record) = read_staged_record(layout, spec) else {
         return Ok(false);
     };
 
@@ -41,8 +48,11 @@ pub fn staged_matches(spec: &ToolchainSpec, recipe: &InstallRecipe) -> miette::R
 ///
 /// An existing path whose identity cannot be read is rejected rather than
 /// replaced, since it may be a different toolchain sharing the same flat name.
-pub(crate) fn ensure_install_path_available(spec: &ToolchainSpec) -> miette::Result<()> {
-    let live = spec.install_path();
+pub(crate) fn ensure_install_path_available(
+    layout: &Layout,
+    spec: &ToolchainSpec,
+) -> miette::Result<()> {
+    let live = layout.toolchain_dir(spec);
     if !live.exists() {
         return Ok(());
     }
@@ -81,16 +91,16 @@ pub(crate) fn ensure_install_path_available(spec: &ToolchainSpec) -> miette::Res
 /// toolchain, which Windows lets us rename but not delete) never blocks the
 /// next swap; later swaps sweep such leftovers best-effort once their
 /// processes have exited.
-pub fn swap(spec: &ToolchainSpec) -> miette::Result<()> {
-    let live = spec.install_path();
-    let staging = staging_dir_for(spec);
+pub fn swap(layout: &Layout, spec: &ToolchainSpec) -> miette::Result<()> {
+    let live = layout.toolchain_dir(spec);
+    let staging = staging_dir_for(layout, spec);
 
-    ensure_install_path_available(spec)?;
+    ensure_install_path_available(layout, spec)?;
 
     // Only promote a staging whose own install record proves it belongs to
     // this spec; an unverifiable staging is never promoted.
     if staging.exists() {
-        let Some(record) = read_staged_record(spec) else {
+        let Some(record) = read_staged_record(layout, spec) else {
             return Err(miette::miette!(
                 "refusing to promote staging for '{}': its toolchain identity cannot be verified",
                 spec
@@ -150,19 +160,19 @@ fn swap_paths(live: &Path, staging: &Path) -> miette::Result<()> {
 ///   can retry the post-install steps.
 ///
 /// Returns `Ok(Some(..))` in both cases, `Ok(None)` otherwise.
-pub fn recover(spec: &ToolchainSpec) -> miette::Result<Option<Finalization>> {
-    let live = spec.install_path();
-    let staging = staging_dir_for(spec);
+pub fn recover(layout: &Layout, spec: &ToolchainSpec) -> miette::Result<Option<Finalization>> {
+    let live = layout.toolchain_dir(spec);
+    let staging = staging_dir_for(layout, spec);
 
     if !live.exists() {
-        let Some(record) = read_staged_record(spec) else {
+        let Some(record) = read_staged_record(layout, spec) else {
             return Ok(None);
         };
         ensure_record_spec(spec, &record)?;
         let Some(finalization) = record.finalization else {
             return Ok(None);
         };
-        swap(spec)?;
+        swap(layout, spec)?;
         return Ok(Some(finalization));
     }
 
@@ -170,7 +180,7 @@ pub fn recover(spec: &ToolchainSpec) -> miette::Result<Option<Finalization>> {
         && let Ok(record) = super::read_install_meta(&live)
         && let Some(finalization) = record.finalization
     {
-        ensure_install_path_available(spec)?;
+        ensure_install_path_available(layout, spec)?;
         return Ok(Some(finalization));
     }
 
@@ -199,8 +209,8 @@ fn ensure_record_spec(spec: &ToolchainSpec, record: &InstallMeta) -> miette::Res
 ///
 /// Best-effort: a failed rewrite leaves the payload in place, and the next
 /// install or update simply retries the post-install steps.
-pub fn acknowledge(spec: &ToolchainSpec) {
-    let live = spec.install_path();
+pub fn acknowledge(layout: &Layout, spec: &ToolchainSpec) {
+    let live = layout.toolchain_dir(spec);
     let Ok(mut record) = super::read_install_meta(&live) else {
         return;
     };
@@ -213,8 +223,8 @@ pub fn acknowledge(spec: &ToolchainSpec) {
 /// Best-effort sweep of any staging leftovers for a toolchain: the staging
 /// directory itself, retired directories from earlier swaps, and legacy
 /// artifacts left by older moonup versions.
-pub fn sweep_staging(spec: &ToolchainSpec) {
-    let staging = staging_dir_for(spec);
+pub fn sweep_staging(layout: &Layout, spec: &ToolchainSpec) {
+    let staging = staging_dir_for(layout, spec);
     let _ = crate::fs::remove_dir_all(&staging);
     let parent = staging.parent().expect("staging path should have a parent");
     sweep_leftovers(&retired_base(&staging), parent);
@@ -284,14 +294,10 @@ fn unique_retired_path(parent: &Path, base: &str) -> PathBuf {
     }
 }
 
-fn toolchains_root() -> PathBuf {
-    crate::moonup_home().join("toolchains")
-}
-
 /// Read the install record inside a staging directory, `None` when the
 /// staging is absent or its record is missing or unreadable.
-fn read_staged_record(spec: &ToolchainSpec) -> Option<InstallMeta> {
-    let staging = staging_dir_for(spec);
+fn read_staged_record(layout: &Layout, spec: &ToolchainSpec) -> Option<InstallMeta> {
+    let staging = staging_dir_for(layout, spec);
     if !staging.is_dir() {
         return None;
     }

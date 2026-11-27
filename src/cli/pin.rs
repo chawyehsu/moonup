@@ -4,7 +4,9 @@ use miette::IntoDiagnostic;
 use std::env;
 
 use crate::{
-    constant, status,
+    constant,
+    session::Session,
+    status,
     toolchain::{ToolchainSpec, resolve::resolve_toolchain_file},
 };
 
@@ -18,11 +20,11 @@ pub struct Args {
     toolchain: Option<ToolchainSpec>,
 }
 
-pub async fn execute(args: Args) -> miette::Result<()> {
+pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
     let version = match args.toolchain {
         Some(version) => version,
         None => {
-            let selections = match crate::toolchain::installed_toolchains() {
+            let selections = match crate::toolchain::installed_toolchains(session).await {
                 Ok(toolchains) => toolchains
                     .iter()
                     .map(|t| t.spec.to_owned())

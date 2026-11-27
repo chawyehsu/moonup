@@ -8,12 +8,19 @@ use moonup::{
 
 use crate::util::crash_state as cs;
 
+fn layout() -> moonup::layout::Layout {
+    moonup::layout::Layout::from_env()
+}
+
 fn spec(value: &str) -> ToolchainSpec {
     ToolchainSpec::try_from(value).expect("test spec should be valid")
 }
 
 fn swap_paths(spec: &ToolchainSpec) -> (PathBuf, PathBuf) {
-    (spec.install_path(), atomic::staging_dir_for(spec))
+    (
+        layout().toolchain_dir(spec),
+        atomic::staging_dir_for(&layout(), spec),
+    )
 }
 
 fn recipe(spec: &ToolchainSpec, version: &str) -> InstallRecipe {
@@ -31,7 +38,7 @@ fn finalization() -> serde_json::Value {
 }
 
 fn live_moon(spec: &ToolchainSpec) -> String {
-    std::fs::read_to_string(spec.install_path().join("bin").join("moon"))
+    std::fs::read_to_string(layout().toolchain_dir(spec).join("bin").join("moon"))
         .expect("should read live moon")
 }
 
@@ -45,14 +52,14 @@ fn test_recover_promotes_complete_staging() {
         Some(moonup_home.as_os_str()),
         || {
             let spec = spec("latest");
-            let live_dir = spec.install_path();
+            let live_dir = layout().toolchain_dir(&spec);
 
             // simulate a crash that left a fully assembled staging directory
             cs::write_complete_staging(&spec, "0.1.0", finalization());
 
             assert!(!live_dir.exists());
 
-            let staged = atomic::recover(&spec)
+            let staged = atomic::recover(&layout(), &spec)
                 .expect("recovery should not fail")
                 .expect("complete staging should be promoted");
             assert_eq!(staged.bundle_source_dir, Some(false));
@@ -62,7 +69,7 @@ fn test_recover_promotes_complete_staging() {
                 "staging should be promoted to the live location"
             );
             assert!(
-                !atomic::staging_dir_for(&spec).exists(),
+                !atomic::staging_dir_for(&layout(), &spec).exists(),
                 "staging dir should be consumed by the swap"
             );
             assert!(
@@ -70,7 +77,7 @@ fn test_recover_promotes_complete_staging() {
                 "the promoted record should still carry the finalization payload"
             );
 
-            atomic::acknowledge(&spec);
+            atomic::acknowledge(&layout(), &spec);
             assert!(
                 !cs::live_record_has_finalization(&spec),
                 "acknowledgment should clear the finalization payload"
@@ -93,10 +100,10 @@ fn test_recover_does_not_promote_incomplete_staging() {
             // a staging dir without an install record was cut short
             cs::write_partial_staging(&spec);
 
-            let staged = atomic::recover(&spec).expect("recovery should not fail");
+            let staged = atomic::recover(&layout(), &spec).expect("recovery should not fail");
             assert!(staged.is_none(), "partial staging should not be promoted");
             assert!(
-                !spec.install_path().exists(),
+                !layout().toolchain_dir(&spec).exists(),
                 "no live toolchain should exist"
             );
         },
@@ -113,7 +120,7 @@ fn test_recover_retries_pending_finalization() {
         Some(moonup_home.as_os_str()),
         || {
             let spec = spec("latest");
-            let live_dir = spec.install_path();
+            let live_dir = layout().toolchain_dir(&spec);
 
             // the live toolchain is already promoted but its finalization
             // never completed: its install record still carries the payload
@@ -122,7 +129,7 @@ fn test_recover_retries_pending_finalization() {
                 &cs::install_record(&spec, "0.1.0", Some(finalization())),
             );
 
-            let staged = atomic::recover(&spec).expect("recovery should not fail");
+            let staged = atomic::recover(&layout(), &spec).expect("recovery should not fail");
             assert!(staged.is_some(), "pending finalization should be retried");
 
             assert!(
@@ -152,14 +159,14 @@ fn test_recover_refuses_live_install_with_a_different_identity() {
                 &cs::install_record(&colliding_channel, "2026-01-01", Some(finalization())),
             );
 
-            let error = atomic::recover(&pin)
+            let error = atomic::recover(&layout(), &pin)
                 .expect_err("recovery must not finalize another toolchain's live path");
             assert!(
                 error.to_string().contains("occupied by"),
                 "unexpected recovery error: {error}"
             );
             assert!(
-                colliding_channel.install_path().exists(),
+                layout().toolchain_dir(&colliding_channel).exists(),
                 "the existing install must be preserved"
             );
         },
@@ -180,11 +187,11 @@ fn test_swap_promotes_and_retires() {
             cs::write_live_install(&spec, &cs::install_record(&spec, "0.1.0", None));
             cs::write_complete_staging(&spec, "0.1.0", finalization());
 
-            atomic::swap(&spec).expect("swap should succeed");
+            atomic::swap(&layout(), &spec).expect("swap should succeed");
 
             assert_eq!(live_moon(&spec), "new");
             assert!(
-                !atomic::staging_dir_for(&spec).exists(),
+                !atomic::staging_dir_for(&layout(), &spec).exists(),
                 "staging should be consumed"
             );
             assert!(
@@ -196,7 +203,7 @@ fn test_swap_promotes_and_retires() {
                 "the record should survive the swap as a pending-finalization marker"
             );
 
-            atomic::acknowledge(&spec);
+            atomic::acknowledge(&layout(), &spec);
             assert!(
                 !cs::live_record_has_finalization(&spec),
                 "acknowledgment should clear the finalization payload"
@@ -223,21 +230,21 @@ fn test_swap_refuses_a_colliding_live_install() {
             );
             cs::write_complete_staging(&pin, "2026-01-01", finalization());
 
-            assert!(atomic::swap(&pin).is_err());
+            assert!(atomic::swap(&layout(), &pin).is_err());
             assert!(
-                colliding_channel.install_path().exists(),
+                layout().toolchain_dir(&colliding_channel).exists(),
                 "the existing install must be preserved"
             );
             assert!(
-                atomic::staging_dir_for(&pin).exists(),
+                atomic::staging_dir_for(&layout(), &pin).exists(),
                 "the staged pin must be preserved"
             );
 
-            std::fs::remove_file(colliding_channel.install_path().join("version"))
+            std::fs::remove_file(layout().toolchain_dir(&colliding_channel).join("version"))
                 .expect("should remove live record");
-            assert!(atomic::swap(&pin).is_err());
+            assert!(atomic::swap(&layout(), &pin).is_err());
             assert!(
-                colliding_channel.install_path().exists(),
+                layout().toolchain_dir(&colliding_channel).exists(),
                 "the unidentifiable path must be preserved"
             );
         },
@@ -261,7 +268,7 @@ fn test_swap_restores_live_when_staging_is_missing() {
 
             // no staging at all: the promotion fails and the retired live
             // toolchain is restored to the live name
-            let result = atomic::swap(&spec);
+            let result = atomic::swap(&layout(), &spec);
             assert!(
                 result.is_err(),
                 "promotion of a missing staging should fail"
@@ -293,12 +300,12 @@ fn test_staged_matches_requires_same_release() {
             cs::write_complete_staging(&spec, "0.1.0", finalization());
 
             assert!(
-                atomic::staged_matches(&spec, &recipe(&spec, "0.1.0"))
+                atomic::staged_matches(&layout(), &spec, &recipe(&spec, "0.1.0"))
                     .expect("matching spec should be accepted"),
                 "matching release should be promoted"
             );
             assert!(
-                !atomic::staged_matches(&spec, &recipe(&spec, "0.2.0"))
+                !atomic::staged_matches(&layout(), &spec, &recipe(&spec, "0.2.0"))
                     .expect("same spec with stale release should be accepted for cleanup"),
                 "a stale staging must not be promoted over a newer release"
             );
@@ -306,12 +313,12 @@ fn test_staged_matches_requires_same_release() {
             // a staging whose record carries no finalization payload — as an
             // older moonup left behind — is stale, never promotable
             std::fs::write(
-                atomic::staging_dir_for(&spec).join("version"),
+                atomic::staging_dir_for(&layout(), &spec).join("version"),
                 cs::install_record(&spec, "0.1.0", None),
             )
             .expect("should rewrite staged record");
             assert!(
-                !atomic::staged_matches(&spec, &recipe(&spec, "0.1.0"))
+                !atomic::staged_matches(&layout(), &spec, &recipe(&spec, "0.1.0"))
                     .expect("should read staged record"),
                 "a staging without finalization inputs must not be promoted"
             );
@@ -323,12 +330,12 @@ fn test_staged_matches_requires_same_release() {
                 ToolchainSpec::try_from("lts-2026-01-01").expect("channel name is valid");
             cs::write_complete_staging(&pin, "2026-01-01", finalization());
             std::fs::write(
-                atomic::staging_dir_for(&pin).join("version"),
+                atomic::staging_dir_for(&layout(), &pin).join("version"),
                 cs::install_record(&colliding_channel, "2026-01-01", Some(finalization())),
             )
             .expect("should rewrite staged record as foreign");
             assert!(
-                atomic::staged_matches(&pin, &recipe(&pin, "2026-01-01")).is_err(),
+                atomic::staged_matches(&layout(), &pin, &recipe(&pin, "2026-01-01")).is_err(),
                 "a stage for a different spec must be reported, not treated as an ordinary stale stage"
             );
         },
@@ -344,12 +351,17 @@ fn test_installed_toolchains_excludes_staging() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            cs::write_live_install(&spec("latest"), "0.1.0\n");
-            cs::write_partial_staging(&spec("latest"));
+            let rt = tokio::runtime::Runtime::new().expect("should create runtime");
+            rt.block_on(async {
+                cs::write_live_install(&spec("latest"), "0.1.0\n");
+                cs::write_partial_staging(&spec("latest"));
 
-            let installed = installed_toolchains().expect("should list installed toolchains");
-            assert_eq!(installed.len(), 1);
-            assert_eq!(installed[0].spec, spec("latest"));
+                let installed = installed_toolchains(&moonup::session::Session::new())
+                    .await
+                    .expect("should list installed toolchains");
+                assert_eq!(installed.len(), 1);
+                assert_eq!(installed[0].spec, spec("latest"));
+            });
         },
     );
 }
@@ -363,29 +375,34 @@ fn test_installed_toolchains_stale_latest_cache_falls_back_to_numeric() {
         constant::ENVNAME_MOONUP_HOME,
         Some(moonup_home.as_os_str()),
         || {
-            // A stale cache that no longer lists the installed `0.11.0` must not
-            // sort it below `0.10.0` (which the cache does list); the whole
-            // latest group falls back to numeric version ordering.
-            let toolchains_dir = moonup_home.join("toolchains");
-            for v in ["0.10.0", "0.11.0"] {
-                std::fs::create_dir_all(toolchains_dir.join(v))
-                    .expect("should create toolchain dir");
-            }
+            let rt = tokio::runtime::Runtime::new().expect("should create runtime");
+            rt.block_on(async {
+                // A stale cache that no longer lists the installed `0.11.0` must not
+                // sort it below `0.10.0` (which the cache does list); the whole
+                // latest group falls back to numeric version ordering.
+                let toolchains_dir = moonup_home.join("toolchains");
+                for v in ["0.10.0", "0.11.0"] {
+                    std::fs::create_dir_all(toolchains_dir.join(v))
+                        .expect("should create toolchain dir");
+                }
 
-            let downloads_dir = moonup_home.join("downloads");
-            std::fs::create_dir_all(&downloads_dir).expect("should create downloads dir");
-            std::fs::write(
-                downloads_dir.join("channel-latest.json"),
-                r#"{ "version": 3, "lastModified": "STALE", "releases": [ { "version": "0.10.0", "targets": ["aarch64-apple-darwin"] } ] }"#,
-            )
-            .expect("should write stale latest cache");
+                let downloads_dir = moonup_home.join("downloads");
+                std::fs::create_dir_all(&downloads_dir).expect("should create downloads dir");
+                std::fs::write(
+                    downloads_dir.join("channel-latest.json"),
+                    r#"{ "version": 3, "lastModified": "STALE", "releases": [ { "version": "0.10.0", "targets": ["aarch64-apple-darwin"] } ] }"#,
+                )
+                .expect("should write stale latest cache");
 
-            let installed = installed_toolchains().expect("should list installed toolchains");
-            let names = installed
-                .iter()
-                .map(|t| t.spec.to_string())
-                .collect::<Vec<_>>();
-            assert_eq!(names, vec!["0.10.0", "0.11.0"]);
+                let installed = installed_toolchains(&moonup::session::Session::new())
+                    .await
+                    .expect("should list installed toolchains");
+                let names = installed
+                    .iter()
+                    .map(|t| t.spec.to_string())
+                    .collect::<Vec<_>>();
+                assert_eq!(names, vec!["0.10.0", "0.11.0"]);
+            });
         },
     );
 }
@@ -409,11 +426,11 @@ fn test_swap_sweeps_retired_leftovers() {
             cs::write_live_install(&spec, &cs::install_record(&spec, "0.1.0", None));
             cs::write_complete_staging(&spec, "0.1.0", finalization());
 
-            atomic::swap(&spec).expect("swap should succeed");
+            atomic::swap(&layout(), &spec).expect("swap should succeed");
 
             assert_eq!(live_moon(&spec), "new");
             assert!(
-                !atomic::staging_dir_for(&spec).exists(),
+                !atomic::staging_dir_for(&layout(), &spec).exists(),
                 "staging should be consumed by the swap"
             );
             assert!(
@@ -457,7 +474,7 @@ fn test_sweep_staging_is_scoped_to_spec() {
             let latest_tombstone = cs::write_unique_retired(&spec, 0);
             let latest_marker = cs::write_legacy_complete_marker(&spec, "0.1.0");
 
-            atomic::sweep_staging(&spec);
+            atomic::sweep_staging(&layout(), &spec);
 
             assert!(!latest_old.exists(), "latest.old should be swept");
             assert!(
@@ -520,11 +537,11 @@ fn test_swap_tolerates_locked_retired_leftover() {
             cs::write_live_install(&spec, &cs::install_record(&spec, "0.1.0", None));
             cs::write_complete_staging(&spec, "0.1.0", finalization());
 
-            atomic::swap(&spec).expect("swap should tolerate a locked retired leftover");
+            atomic::swap(&layout(), &spec).expect("swap should tolerate a locked retired leftover");
 
             assert_eq!(live_moon(&spec), "new");
             assert!(
-                !atomic::staging_dir_for(&spec).exists(),
+                !atomic::staging_dir_for(&layout(), &spec).exists(),
                 "staging should be consumed by the swap"
             );
             assert!(

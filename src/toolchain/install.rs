@@ -1,7 +1,7 @@
 #[cfg(target_os = "windows")]
 use crate::constant::ALLOWED_EXTENSIONS;
 use crate::dist_server::schema::{Component, Release};
-use crate::toolchain::index::{available_channels, read_channel_index, read_component_index};
+use crate::session::Session;
 use crate::toolchain::package::populate_install;
 use crate::toolchain::{Finalization, InstalledToolchain, ToolchainSpec, atomic, version};
 use crate::utils::exe_name;
@@ -42,13 +42,13 @@ pub struct InstallRecipe {
 /// created a new pinned install directory; `update` does not, because it only
 /// swaps content in place under an unchanged directory name, leaving the
 /// existing links valid.
-fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
-    let Some(finalization) = atomic::recover(spec)? else {
+fn heal_recovered(session: &Session, spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
+    let Some(finalization) = atomic::recover(session.layout(), spec)? else {
         return Ok(false);
     };
 
-    post_install(spec, &finalization, link)?;
-    atomic::acknowledge(spec);
+    post_install(session, spec, &finalization, link)?;
+    atomic::acknowledge(session.layout(), spec);
     Ok(true)
 }
 
@@ -56,16 +56,19 @@ fn heal_recovered(spec: &ToolchainSpec, link: bool) -> miette::Result<bool> {
 ///
 /// Returns `None` when the channel is not advertised by the main index, or no
 /// host-supported release matches the spec.
-async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallRecipe>> {
+async fn build_recipe(
+    session: &Session,
+    spec: &ToolchainSpec,
+) -> miette::Result<Option<InstallRecipe>> {
     let channel = spec.channel().clone();
-    let channels = available_channels().await?;
+    let channels = session.available_channels().await?;
 
     if channels.is_empty() || !channels.iter().any(|candidate| candidate == &channel) {
         tracing::info!("channel '{}' is unavailable", channel);
         return Ok(None);
     }
 
-    let index = read_channel_index(channel.as_str()).await?;
+    let index = session.read_channel_index(channel.as_str()).await?;
     let mut releases = index.releases().iter().filter(|r| r.is_host_supported());
 
     let release = match spec {
@@ -81,7 +84,8 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
         return Ok(None);
     };
 
-    let components = read_component_index(channel.as_str(), &release)
+    let components = session
+        .read_component_index(channel.as_str(), &release)
         .await?
         .components()
         .to_vec();
@@ -117,18 +121,22 @@ async fn build_recipe(spec: &ToolchainSpec) -> miette::Result<Option<InstallReci
 ///
 /// `first_time` indicates whether this is the first time the toolchain
 /// is being installed.
-pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::Result<()> {
+pub async fn sync_toolchain(
+    session: &Session,
+    spec: &ToolchainSpec,
+    first_time: bool,
+) -> miette::Result<()> {
     // Serialize toolchain mutations across processes: a shim-triggered
     // auto-install waits for a running update instead of racing it around
     // the same staging paths.
-    let _lock = crate::lock::ToolchainLock::acquire()?;
+    let _lock = crate::lock::ToolchainLock::acquire(session)?;
 
     // Attempt to recover previous incomplete installation if possible
-    if heal_recovered(spec, first_time)? && first_time {
+    if heal_recovered(session, spec, first_time)? && first_time {
         return Ok(());
     }
 
-    let Some(recipe) = build_recipe(spec).await? else {
+    let Some(recipe) = build_recipe(session, spec).await? else {
         if first_time {
             eprintln!("No toolchain available for requested spec '{}'", spec);
             return Err(crate::status::exit_with(1));
@@ -143,7 +151,7 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
     if first_time {
         println!("Installing toolchain '{}'", recipe.spec);
     } else {
-        let install_path = spec.install_path();
+        let install_path = session.layout().toolchain_dir(spec);
         let Some(local) = InstalledToolchain::from_path(&install_path).ok() else {
             println!("The '{}' toolchain is not installed", spec);
             return Ok(());
@@ -157,13 +165,14 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
         println!("Updating the {} toolchain", spec);
     }
 
-    populate_install(&recipe).await?;
+    populate_install(session, &recipe).await?;
     post_install(
+        session,
         &recipe.spec,
         &Finalization::from(&recipe.release),
         first_time,
     )?;
-    atomic::acknowledge(&recipe.spec);
+    atomic::acknowledge(session.layout(), &recipe.spec);
 
     if first_time {
         println!(
@@ -173,7 +182,7 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
         );
         println!(
             "Make sure '{}' is added to your PATH",
-            crate::moon_home().join("bin").display()
+            session.layout().moon_bin_dir().display()
         );
     }
 
@@ -183,15 +192,16 @@ pub async fn sync_toolchain(spec: &ToolchainSpec, first_time: bool) -> miette::R
 /// Post installation: pour shims, build the core library, and link
 /// directories if needed
 fn post_install(
+    session: &Session,
     spec: &ToolchainSpec,
     finalization: &Finalization,
     link: bool,
 ) -> miette::Result<()> {
-    pour_shims(spec, finalization)?;
-    build_core_library(spec, finalization)?;
+    pour_shims(session, spec, finalization)?;
+    build_core_library(session, spec, finalization)?;
 
     if link {
-        link_dirs(spec)?;
+        link_dirs(session, spec)?;
     }
 
     Ok(())
@@ -199,17 +209,20 @@ fn post_install(
 
 /// Ensure the toolchain executables and their shims are available in the
 /// current `MOON_HOME`.
-fn pour_shims(spec: &ToolchainSpec, finalization: &Finalization) -> miette::Result<()> {
+fn pour_shims(
+    session: &Session,
+    spec: &ToolchainSpec,
+    finalization: &Finalization,
+) -> miette::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
     let mut moonup_shim_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from(&args[0]));
     let moonup_shim_name = exe_name("moonup-shim");
     moonup_shim_exe.set_file_name(moonup_shim_name);
 
-    let mut toolchain_dir = crate::moonup_home();
-    toolchain_dir.push("toolchains");
+    let mut toolchain_dir = session.layout().toolchains_dir();
     toolchain_dir.push(spec.install_name());
 
-    let moon_home_bin = crate::moon_home().join("bin");
+    let moon_home_bin = session.layout().moon_bin_dir();
 
     std::fs::create_dir_all(&moon_home_bin).into_diagnostic()?;
 
@@ -257,10 +270,12 @@ fn pour_shims(spec: &ToolchainSpec, finalization: &Finalization) -> miette::Resu
 }
 
 /// Build the core library in the installed toolchain directory.
-fn build_core_library(spec: &ToolchainSpec, finalization: &Finalization) -> miette::Result<()> {
-    let toolchain_dir = crate::moonup_home()
-        .join("toolchains")
-        .join(spec.install_name());
+fn build_core_library(
+    session: &Session,
+    spec: &ToolchainSpec,
+    finalization: &Finalization,
+) -> miette::Result<()> {
+    let toolchain_dir = session.layout().toolchains_dir().join(spec.install_name());
     let bin_dir = toolchain_dir.join("bin");
     let moon_exe = bin_dir.join(exe_name("moon"));
 
@@ -349,9 +364,9 @@ fn find_bins(dir: &Path) -> miette::Result<Vec<OsString>> {
 // always looks for the core library in `MOON_HOME`/lib/core.
 //
 // Discussion: https://github.com/chawyehsu/moonup/issues/7
-fn link_dirs(spec: &ToolchainSpec) -> miette::Result<()> {
+fn link_dirs(session: &Session, spec: &ToolchainSpec) -> miette::Result<()> {
     let dirs = ["lib", "include"];
-    let toolchains_dir = crate::moonup_home().join("toolchains");
+    let toolchains_dir = session.layout().toolchains_dir();
 
     for dir in dirs {
         let src = {
@@ -373,7 +388,7 @@ fn link_dirs(spec: &ToolchainSpec) -> miette::Result<()> {
             }
         };
 
-        let lnk = crate::moon_home().join(dir);
+        let lnk = session.layout().moon_home().join(dir);
         let _ = std::fs::remove_dir_all(&lnk).inspect_err(|e| {
             tracing::debug!("failed to remove link {} (err: {})", lnk.display(), e);
         });

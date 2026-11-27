@@ -14,6 +14,10 @@ use crate::{
     util::{TestWorkspace, crash_state as cs, mock_dist_server},
 };
 
+fn layout() -> moonup::layout::Layout {
+    moonup::layout::Layout::from_env()
+}
+
 fn spec(value: &str) -> ToolchainSpec {
     ToolchainSpec::try_from(value).expect("test spec should be valid")
 }
@@ -31,8 +35,8 @@ fn simulate_crash_state(ws: &TestWorkspace, name: &str, key: &str) {
         constant::ENVNAME_MOONUP_HOME,
         Some(ws.moonup_home().as_os_str()),
         || {
-            let install_path = spec.install_path();
-            let staging_dir = atomic::staging_dir_for(&spec);
+            let install_path = layout().toolchain_dir(&spec);
+            let staging_dir = atomic::staging_dir_for(&layout(), &spec);
 
             std::fs::create_dir_all(staging_dir.parent().unwrap())
                 .expect("should create .staging dir");
@@ -60,7 +64,7 @@ fn test_install_recovers_interrupted_swap() {
         constant::ENVNAME_MOONUP_HOME,
         Some(ws.moonup_home().as_os_str()),
         || {
-            let install_path = spec.install_path();
+            let install_path = layout().toolchain_dir(&spec);
 
             // first, install the toolchain
             let _ = ws
@@ -102,7 +106,7 @@ fn test_install_recovers_interrupted_swap() {
                 "toolchain should be promoted back to the live location"
             );
             assert!(
-                !atomic::staging_dir_for(&spec).exists(),
+                !atomic::staging_dir_for(&layout(), &spec).exists(),
                 "staging dir should be consumed"
             );
             assert!(
@@ -197,7 +201,7 @@ fn test_update_ignores_staged_toolchain_and_install_recovers_it() {
         constant::ENVNAME_MOONUP_HOME,
         Some(ws.moonup_home().as_os_str()),
         || {
-            let install_path = spec.install_path();
+            let install_path = layout().toolchain_dir(&spec);
 
             // install the `latest` channel first
             let _ = ws
@@ -244,7 +248,7 @@ fn test_update_ignores_staged_toolchain_and_install_recovers_it() {
                 "latest toolchain should be promoted back to the live location"
             );
             assert!(
-                !atomic::staging_dir_for(&spec).exists(),
+                !atomic::staging_dir_for(&layout(), &spec).exists(),
                 "staging dir should be consumed"
             );
             assert!(

@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use crate::{
     dist_server::schema::{ChannelIndex, Index},
+    session::Session,
     toolchain::ToolchainSpec,
 };
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompareError {
     InvalidVersion(String),
@@ -137,25 +137,28 @@ pub fn release_order(
     }
 }
 
-/// Positions of releases in a channel's cached channel index.
+/// Positions of releases in a channel's channel index.
 ///
-/// Offline and best-effort: on any read or parse error the installs
-/// fall back to numeric version ordering.
-pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String, usize> {
+/// Offline and best-effort: reads the session in offline mode (memory or
+/// disk, never the network); on any error the installs fall back to numeric
+/// version ordering.
+pub async fn read_release_positions(
+    session: &Session,
+    channel: &str,
+    keys: &[String],
+) -> HashMap<String, usize> {
     if keys.is_empty() {
         return HashMap::new();
     }
 
-    let path = crate::moonup_home()
-        .join("downloads")
-        .join(format!("channel-{channel}.json"));
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return HashMap::new();
-    };
-    let Ok(index) = serde_json::from_str::<ChannelIndex>(&content) else {
-        return HashMap::new();
-    };
+    session
+        .read_channel_index_offline(channel)
+        .await
+        .map(|index| release_positions(&index, keys))
+        .unwrap_or_default()
+}
 
+fn release_positions(index: &ChannelIndex, keys: &[String]) -> HashMap<String, usize> {
     let positions = index
         .releases()
         .iter()
@@ -174,20 +177,21 @@ pub fn read_release_positions(channel: &str, keys: &[String]) -> HashMap<String,
     positions
 }
 
-/// Ranks of channels in the cached main index, used to order floating
+/// Ranks of channels in the main index, used to order floating
 /// channel installs.
 ///
-/// Offline and best-effort: on any read or parse error no channel is
-/// ranked, and unranked channels sort last, by name.
-pub fn read_channel_ranks() -> HashMap<String, usize> {
-    let path = crate::moonup_home().join("downloads").join("index.json");
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return HashMap::new();
-    };
-    let Ok(index) = serde_json::from_str::<Index>(&content) else {
-        return HashMap::new();
-    };
+/// Offline and best-effort: reads the session in offline mode (memory or
+/// disk, never the network); on any error no channel is ranked, and
+/// unranked channels sort last, by name.
+pub async fn read_channel_ranks(session: &Session) -> HashMap<String, usize> {
+    session
+        .read_index_offline()
+        .await
+        .map(|index| channel_ranks(&index))
+        .unwrap_or_default()
+}
 
+fn channel_ranks(index: &Index) -> HashMap<String, usize> {
     index
         .channels()
         .iter()

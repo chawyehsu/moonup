@@ -5,6 +5,7 @@ use tracing::instrument;
 
 use crate::{
     constant,
+    session::Session,
     toolchain::{InstalledToolchain, ToolchainSpec, atomic, installed_toolchains},
 };
 
@@ -27,10 +28,10 @@ pub struct Args {
     keep_cache: bool,
 }
 
-#[instrument(name = "uninstall", skip(args), fields(toolchain = ?args.toolchain))]
-pub async fn execute(args: Args) -> miette::Result<()> {
+#[instrument(name = "uninstall", skip(args, session), fields(toolchain = ?args.toolchain))]
+pub async fn execute(args: Args, session: &Session) -> miette::Result<()> {
     if args.clear {
-        let download_dir = crate::moonup_home().join("downloads");
+        let download_dir = session.layout().downloads_dir();
         tracing::info!("removing all cached downloads {}", download_dir.display());
         crate::fs::empty_dir(&download_dir)
             .into_diagnostic()
@@ -43,7 +44,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
     }
 
     let toolchains = if args.toolchain.is_empty() {
-        let installed = installed_toolchains()?;
+        let installed = installed_toolchains(session).await?;
         if installed.is_empty() {
             let mut cmd = Args::command();
             cmd.print_help().into_diagnostic()?;
@@ -74,12 +75,12 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
     // Serialize toolchain mutations across processes, after the interactive
     // selection so the lock is not held during the dialog.
-    let _lock = crate::lock::ToolchainLock::acquire()?;
+    let _lock = crate::lock::ToolchainLock::acquire(session)?;
 
     for toolchain in toolchains {
-        let toolchain_dir = toolchain.install_path();
+        let toolchain_dir = session.layout().toolchain_dir(&toolchain);
         if !toolchain_dir.exists() {
-            atomic::sweep_staging(&toolchain);
+            atomic::sweep_staging(session.layout(), &toolchain);
             tracing::warn!("toolchain {} is not installed", toolchain);
             continue;
         }
@@ -88,7 +89,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
         if !args.keep_cache {
             if let Ok(installed) = InstalledToolchain::from_path(&toolchain_dir) {
-                let mut download_dir = crate::moonup_home().join("downloads");
+                let mut download_dir = session.layout().downloads_dir();
                 download_dir.push(toolchain.channel().as_str());
                 download_dir.push(installed.key());
 
@@ -106,7 +107,7 @@ pub async fn execute(args: Args) -> miette::Result<()> {
 
         tracing::debug!("removing toolchain from {}", toolchain_dir.display());
         crate::fs::remove_dir_all(toolchain_dir).into_diagnostic()?;
-        atomic::sweep_staging(&toolchain);
+        atomic::sweep_staging(session.layout(), &toolchain);
 
         println!(
             "{} Uninstalled toolchain {}",

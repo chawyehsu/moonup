@@ -1,11 +1,12 @@
 use jiff::civil::Date;
 use miette::{Context, IntoDiagnostic};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::constant::DEFAULT_CHANNEL;
 pub use crate::dist_server::schema::InvalidChannelName;
 use crate::dist_server::schema::{ChannelName, Release};
+use crate::session::Session;
 use crate::toolchain::install::InstallRecipe;
 use crate::toolchain::ordering::{
     NumericVersion, read_channel_ranks, read_release_positions, release_order,
@@ -290,13 +291,6 @@ impl ToolchainSpec {
             ToolchainSpec::Version { channel, key } => format!("{channel}-{key}"),
         }
     }
-
-    //// Get the install dir root for the toolchain
-    pub fn install_path(&self) -> PathBuf {
-        let mut path = crate::moonup_home().join("toolchains");
-        path.push(self.install_name());
-        path
-    }
 }
 
 impl std::fmt::Display for ToolchainSpec {
@@ -387,8 +381,8 @@ fn legacy_nightly_key(s: &str) -> Option<&str> {
     Some(key)
 }
 
-pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
-    let toolchains_dir = crate::moonup_home().join("toolchains");
+pub async fn installed_toolchains(session: &Session) -> miette::Result<Vec<InstalledToolchain>> {
+    let toolchains_dir = session.layout().toolchains_dir();
 
     let toolchains = match toolchains_dir.read_dir() {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => vec![],
@@ -410,14 +404,12 @@ pub fn installed_toolchains() -> miette::Result<Vec<InstalledToolchain>> {
                         .push(it.key().to_owned());
                 }
             }
-            let channel_ranks = read_channel_ranks();
-            let release_positions = pinned_keys
-                .into_iter()
-                .map(|(channel, keys)| {
-                    let positions = read_release_positions(&channel, &keys);
-                    (channel, positions)
-                })
-                .collect();
+            let channel_ranks = read_channel_ranks(session).await;
+            let mut release_positions = HashMap::new();
+            for (channel, keys) in pinned_keys {
+                let positions = read_release_positions(session, &channel, &keys).await;
+                release_positions.insert(channel, positions);
+            }
 
             t.sort_by_key(|it| release_order(&it.spec, &release_positions, &channel_ranks));
             t
@@ -560,9 +552,10 @@ mod tests {
     fn qualified_pins_from_different_channels_do_not_collide() {
         let latest = spec("0.11.0");
         let lts = spec("lts/0.11.0");
+        let layout = crate::layout::Layout::from_env();
 
         assert_ne!(latest, lts);
-        assert_ne!(latest.install_path(), lts.install_path());
+        assert_ne!(layout.toolchain_dir(&latest), layout.toolchain_dir(&lts));
         assert_eq!(latest.channel().as_str(), DEFAULT_CHANNEL);
         assert_eq!(lts.channel().as_str(), "lts");
     }
