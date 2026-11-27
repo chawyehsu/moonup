@@ -126,7 +126,7 @@ async fn list_channel_versions(
 
 fn release_label(release: &crate::dist_server::schema::Release) -> String {
     match release.date.as_ref() {
-        Some(date) => format!("{} ({})", release.version, date),
+        Some(date) => format!("{date} ({})", release.version),
         None => release.version.clone(),
     }
 }
