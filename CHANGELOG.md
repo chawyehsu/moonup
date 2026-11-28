@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.0](https://github.com/chawyehsu/moonup/compare/v0.6.1...v0.7.0) (2026-11-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **toolchain:** validate channels and canonicalize qualified pins ([#224](https://github.com/chawyehsu/moonup/issues/224))
+* make distribution channels data-driven ([#221](https://github.com/chawyehsu/moonup/issues/221))
+
+### Features
+
+* **dist-server:** validate channel names and dates on deserialize ([#226](https://github.com/chawyehsu/moonup/issues/226)) ([6360f7e](https://github.com/chawyehsu/moonup/commit/6360f7e98ca748793c0f7a3bc8d463260e75e286))
+* introduce session architecture to facilitate module reuse ([#229](https://github.com/chawyehsu/moonup/issues/229)) ([a7cbc88](https://github.com/chawyehsu/moonup/commit/a7cbc8898a73bbf22e56c55fbc208b51004089c5))
+* **selfupdate:** support using github token from env ([#225](https://github.com/chawyehsu/moonup/issues/225)) ([fe1d349](https://github.com/chawyehsu/moonup/commit/fe1d349b4257948e93fe6e57448ada4ca1668efe))
+* **toolchain:** serialize toolchain changes with a lock file ([#228](https://github.com/chawyehsu/moonup/issues/228)) ([4a1d668](https://github.com/chawyehsu/moonup/commit/4a1d668c5b9d764e4890f8b7e90b0c9071df29c8))
+* **toolchain:** validate channels and canonicalize qualified pins ([#224](https://github.com/chawyehsu/moonup/issues/224)) ([b581c95](https://github.com/chawyehsu/moonup/commit/b581c9572b415025e78dde96e24a4aa2262c6f14))
+
+
+### Code Refactoring
+
+* make distribution channels data-driven ([#221](https://github.com/chawyehsu/moonup/issues/221)) ([232909f](https://github.com/chawyehsu/moonup/commit/232909f55368035bd9a4f803ef9cda74ab0eb7d8))
+
 ## [0.6.1](https://github.com/chawyehsu/moonup/compare/v0.6.0...v0.6.1) (2026-09-09)
 
 
